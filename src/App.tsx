@@ -9,6 +9,7 @@ import Agents from "./pages/Agents";
 import Contracts from "./pages/Contracts";
 import Evidence from "./pages/Evidence";
 import Telemetry from "./pages/Telemetry";
+import Prompt from "./pages/Prompt";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -26,6 +27,7 @@ const App = () => (
             <Route path="/contracts" element={<Contracts />} />
             <Route path="/evidence" element={<Evidence />} />
             <Route path="/telemetry" element={<Telemetry />} />
+            <Route path="/prompt" element={<Prompt />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>
