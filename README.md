@@ -116,6 +116,12 @@ npm run dev
 - **Real-time Metrics**: Dashboard displays determinism, mutation score, coverage, flake rate, and F_total
 - **Contract Validation**: Golden fixtures + compatibility tests for all data exchanges
 
+## Governance & Contribution
+
+- 📖 [**Contributing Guide**](CONTRIBUTING.md) — Agent Log format, quality gates, PR workflow
+- ✅ [**Go/No-Go Checklist**](docs/GO_NO_GO_CHECKLIST.md) — Pre-launch verification
+- 🔒 [**Branch Protection**](docs/BRANCH_PROTECTION_SETUP.md) — Enforcement & validation routine
+
 ## Technologies
 
 - **Frontend**: Vite, TypeScript, React, shadcn-ui, Tailwind CSS

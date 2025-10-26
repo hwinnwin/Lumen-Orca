@@ -136,7 +136,19 @@ gh api -X PUT repos/$OWNER/$REPO/branches/main/protection \
   -F block_creations=true
 ```
 
-## Validation
+## Validation Routine
+
+| Check | Gate | Source |
+|--------|------|--------|
+| Contracts-First | All packages import `@lumen/contracts` | CI: check-contracts-imports.sh |
+| Evidence Exists | `packages/evidence/dist/index.html` | Job: verify-evidence |
+| Six-Nines | F_total ≤ 1e-6 | Job: verify-six-nines |
+| Approvals | ≥1 w/ CODEOWNERS | Branch protection |
+| Admin Enforcement | ON | Branch protection |
+
+_All enforced by Build-It Implementation §7–§9 and Lumen Plan 99 §8–§12._
+
+### Test Procedure
 
 After setup, test by creating a PR:
 
@@ -145,8 +157,25 @@ After setup, test by creating a PR:
 3. Merge button should be disabled until:
    - All checks pass
    - Evidence artifact exists
+   - F_total ≤ 1e-6 verified
    - 1 approval received
    - All conversations resolved
+
+### Local Validation
+
+```bash
+# Make scripts executable
+chmod +x packages/ci/scripts/check-contracts-imports.sh
+chmod +x scripts/smoke.sh
+
+# Run contracts-first check
+bash packages/ci/scripts/check-contracts-imports.sh
+# Expect: ✅ Contracts-first check passed.
+
+# Run full smoke test
+bash scripts/smoke.sh
+# Expect: All stages green, evidence bundle generated
+```
 
 ## Reference
 
