@@ -2,9 +2,26 @@
  * Agent collaboration types and interfaces
  */
 
-import type { Blocker, AgentLog } from '@lumen/contracts';
+// TODO: Import from @lumen/contracts once monorepo build is configured
+// import type { Blocker, AgentLog } from '@lumen/contracts';
 
-export { Blocker, AgentLog };
+export interface Blocker {
+  context: string;
+  hypothesis: string;
+  options: string[];
+  requested_roles: string[];
+  deadline: string;
+  evidencePath?: string;
+}
+
+export interface AgentLog {
+  agentId: string;
+  contributor: string;
+  scope: string;
+  logicSummary: string[];
+  evidence: string;
+  timestamp: string;
+}
 
 export type AgentRole = 
   | 'A0_orchestrator'
