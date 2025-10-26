@@ -10,6 +10,10 @@
 
 Multi-agent orchestration platform with evidence-based quality gates, contract-driven architecture, and precision reliability metrics.
 
+🚀 [**Run Issue Bootstrap**](../../actions/workflows/bootstrap-issues.yml) — One-click label + issue creation  
+✅ [**Go/No-Go Gate Checklist**](docs/GO_NO_GO_CHECKLIST.md) — Pre-launch verification  
+🔒 [**Branch Protection Setup**](docs/BRANCH_PROTECTION_SETUP.md) — Enforce quality gates on merge
+
 📊 [**Evidence Bundle**](packages/evidence/dist/index.html) — Unit/Property/Mutation/Security/Performance + Contract Diff + SBOM
 
 📘 [**Master Blueprint**](docs/blueprints/lumen_master_blueprint.md) — Architecture, agents, and governance model

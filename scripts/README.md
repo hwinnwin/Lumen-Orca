@@ -4,10 +4,9 @@ Automation and utility scripts for Lumen project management.
 
 ## Quick Start
 
-Make the bootstrap script executable:
-
 ```bash
 chmod +x scripts/bootstrap_lumen_issues.sh
+chmod +x scripts/smoke.sh
 ```
 
 ## bootstrap_lumen_issues.sh
@@ -21,6 +20,12 @@ Creates GitHub issue structure for Lumen development including labels, epics, st
 - `curl` available
 
 ### Usage
+
+**Option 1: GitHub Actions (no token needed)**
+
+Actions → "Bootstrap Issues & Labels" → Run workflow
+
+**Option 2: Local CLI (requires PAT with repo scope)**
 
 ```bash
 export GITHUB_TOKEN="ghp_your_token_here"
@@ -63,6 +68,25 @@ gh label create "type: epic" --color 7B61FF --description "Top-level outcome"
 # Create issues
 gh issue create --title "Epic: Dashboard v1" --body "..." --label "type: epic"
 ```
+
+## smoke.sh
+
+Runs the full Lumen test and quality pipeline locally.
+
+### Usage
+
+```bash
+bash scripts/smoke.sh
+```
+
+Executes:
+- Build all packages
+- Lint + typecheck
+- Unit/property/mutation tests
+- Performance + security QA
+- Evidence bundle generation
+
+Opens `packages/evidence/dist/index.html` for review.
 
 ## Contributing
 

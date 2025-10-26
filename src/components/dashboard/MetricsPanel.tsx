@@ -90,17 +90,23 @@ export const MetricsPanel = () => {
     <Card className="p-6 border border-border">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-lg font-semibold text-foreground">System Metrics</h2>
-        {passedSixNines ? (
-          <div className="flex items-center gap-2 text-xs text-primary">
-            <CheckCircle2 className="w-4 h-4" />
-            <span className="font-mono">SIX-NINES PASS</span>
-          </div>
-        ) : (
-          <div className="flex items-center gap-2 text-xs text-destructive">
-            <AlertTriangle className="w-4 h-4" />
-            <span className="font-mono">QUALITY GATE FAIL</span>
-          </div>
-        )}
+        <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-mono font-semibold ${
+          passedSixNines 
+            ? 'bg-primary/10 text-primary border border-primary/20' 
+            : 'bg-destructive/10 text-destructive border border-destructive/20'
+        }`}>
+          {passedSixNines ? (
+            <>
+              <CheckCircle2 className="w-3 h-3" />
+              F_total ≤ 1e-6
+            </>
+          ) : (
+            <>
+              <AlertTriangle className="w-3 h-3" />
+              F_total &gt; 1e-6
+            </>
+          )}
+        </div>
       </div>
       
       <div className="space-y-4">

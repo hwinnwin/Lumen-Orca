@@ -111,6 +111,31 @@ The evidence bundle generator must embed the F_total value as a data attribute:
 <div data-ftotal="0.000000123">F_total: 1.23e-7</div>
 ```
 
+## GitHub CLI Alternative
+
+If you prefer `gh` CLI over REST API:
+
+```bash
+# Authenticate (if not already)
+gh auth login
+
+# Apply branch protection
+gh api -X PUT repos/$OWNER/$REPO/branches/main/protection \
+  -f required_status_checks.strict=true \
+  -f required_status_checks.contexts[]='ci (ubuntu-latest)' \
+  -f required_status_checks.contexts[]='ci (macos-latest)' \
+  -f required_status_checks.contexts[]='ci (windows-latest)' \
+  -f required_status_checks.contexts[]='verify-evidence' \
+  -f required_status_checks.contexts[]='verify-six-nines' \
+  -F enforce_admins=true \
+  -F required_pull_request_reviews.required_approving_review_count=1 \
+  -F required_pull_request_reviews.require_code_owner_reviews=true \
+  -F required_linear_history=true \
+  -F allow_force_pushes=false \
+  -F allow_deletions=false \
+  -F block_creations=true
+```
+
 ## Validation
 
 After setup, test by creating a PR:
