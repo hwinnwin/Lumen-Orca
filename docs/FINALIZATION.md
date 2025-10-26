@@ -220,52 +220,50 @@ git push origin --tags
 
 **✅ Complete Enforcement Chain:**
 
-1. **F_total Exposed**
-   - `data-ftotal` attribute in evidence HTML
-   - Parseable by CI verification script
-   - Displayed in Metrics Panel with pass/fail chip
+1. **F_total Calculation & Exposure**
+   - `packages/qa/src/sixNines.ts` - Core calculation logic
+   - `packages/evidence/src/bundle.ts` - Embeds `data-ftotal` in HTML
+   - `packages/qa/scripts/verify-six-nines.js` - CI verifier script
 
-2. **Evidence Bundle + CI**
-   - Artifact uploaded on every PR
-   - `verify-evidence` job validates presence
-   - `verify-six-nines` job enforces F_total ≤ 1e-6
+2. **Evidence Bundle Pipeline**
+   - Generated at `packages/evidence/dist/index.html`
+   - Uploaded as CI artifact
+   - Contains contract diff, compat verdict, SBOM, F_total
 
-3. **CODEOWNERS**
-   - Contracts package requires @contract-guardian-team
-   - Evidence package requires strict review
+3. **CI Enforcement Jobs**
+   - `verify_evidence` - Validates bundle exists
+   - `verify_six_nines` - Fails if F_total > 1e-6
+   - Matrix builds across OS/Node versions
 
 4. **Branch Protection**
-   - All CI checks required
-   - Evidence artifact required
-   - Six-nines gate enforced
-   - 1+ approval mandatory
-   - Admin enforcement enabled
+   - Required status checks configured
+   - CODEOWNERS review enforced
+   - Merge blocked until all gates pass
 
-5. **One-Click Bootstrap**
-   - GitHub Actions workflow ready
-   - No PAT needed for same-repo execution
-   - Labels and issues auto-created
+5. **Contracts-First Guard**
+   - `packages/ci/scripts/check-contracts-imports.sh`
+   - Validates all packages import `@lumen/contracts`
 
-6. **Contracts-First Guard**
-   - CI script validates imports
-   - Fails build if contracts missing
-   - Local validation available
+6. **Dashboard Metrics**
+   - `src/components/dashboard/MetricsPanel.tsx`
+   - Pass/fail chip for F_total threshold
+   - Real-time governance visibility
 
-7. **Dashboard Metrics**
-   - F_total calculated from agent error rates
-   - Pass/fail chip with semantic colors
-   - Real-time orchestration state
+7. **Bootstrap Automation**
+   - `.github/workflows/bootstrap-issues.yml`
+   - One-click label and issue creation
+   - No PAT required
 
-8. **Governance Docs**
-   - CONTRIBUTING.md with Agent Log format
-   - GO_NO_GO_CHECKLIST.md for pre-launch
-   - BRANCH_PROTECTION_SETUP.md for enforcement
-   - FINALIZATION.md (this document)
+8. **Example PR Workflow (Optional)**
+   - `.github/workflows/create-example-pr.yml`
+   - Auto-generates canonical PR template
+   - Demonstrates Agent Log format
 
-9. **Smoke Test Scripts**
-   - `scripts/smoke.sh` for full validation
-   - `scripts/bootstrap_lumen_issues.sh` for issue setup
-   - `packages/ci/scripts/check-contracts-imports.sh` for contract validation
+9. **Documentation Suite**
+   - `docs/BRANCH_PROTECTION_SETUP.md` - Protection configuration
+   - `docs/GO_NO_GO_CHECKLIST.md` - Pre-launch validation
+   - `CONTRIBUTING.md` - Contributor workflow guide
+   - `scripts/README.md` - Script usage documentation
 
 ---
 
@@ -297,25 +295,79 @@ This threshold is:
 
 ---
 
-## Next Steps
+## Lumen Operationalization
 
-1. **Enable Branch Protection**
-   - Follow [Branch Protection Setup](BRANCH_PROTECTION_SETUP.md)
-   - Use GitHub UI or API/CLI methods provided
+### Step 1: Lock-in Protection Baseline
 
-2. **Run Bootstrap Workflow**
-   - Create issue structure
-   - Validate labels and cross-references
+Confirm branch protection includes:
+- Required checks: `ci (ubuntu-latest)`, `verify-evidence`, `verify-six-nines`
+- CODEOWNERS review enforced for `packages/contracts/` and `packages/evidence/`
+- `enforce_admins = true` and `linear_history = true`
 
-3. **Create First PR**
-   - Use CONTRIBUTING.md template
-   - Verify all gates pass
-   - Confirm enforcement chain works
+See [Branch Protection Setup](BRANCH_PROTECTION_SETUP.md) for complete configuration.
 
-4. **Monitor Metrics**
-   - Watch dashboard for F_total trends
-   - Track agent error rates
-   - Review evidence bundles regularly
+### Step 2: Governance Health Check
+
+Run locally or in CI:
+
+```bash
+bash scripts/smoke.sh
+node packages/qa/scripts/verify-six-nines.js
+bash packages/ci/scripts/check-contracts-imports.sh
+```
+
+All commands should exit with status `0` and ✅ output.
+
+### Step 3: Activate Issue Bootstrap
+
+1. Go to **Actions → Bootstrap Issues & Labels → Run workflow**
+2. Verify labels auto-created: `type:epic`, `gate:six-nines`, etc.
+3. Confirm issues created: Epic → Stories → Tasks, all cross-linked
+
+### Step 4: (Optional) Create Example PR
+
+1. Go to **Actions → Create Example PR #1 → Run workflow**
+2. Review the generated PR showing canonical Agent Log format
+3. Use as reference for all future PRs
+
+### Step 5: Publish
+
+1. Push to `main` → trigger CI
+2. Wait for all checks ✅
+3. Go to **Lovable → Share → Publish**
+4. (Optional) Connect custom domain under **Settings → Domains**
+
+### Step 6: Post-Deployment Verification
+
+- [ ] CI auto-attaches `packages/evidence/dist/index.html` on every PR
+- [ ] `verify-six-nines` job fails if F_total > 1e-6
+- [ ] CODEOWNERS review required for contracts/evidence changes
+- [ ] Dashboard shows current F_total with pass/fail indicator
+
+### Step 7: Maintenance Cadence
+
+**Weekly:**
+- Review F_total trend
+- Check flake rate and coverage deltas
+- Address any gate violations
+
+**Quarterly:**
+- Plan 99 sync: review all gates
+- Adjust thresholds if project scale changes
+- Update evidence bundle format if needed
+
+---
+
+## Production Status
+
+Once all operationalization steps complete:
+
+✅ **System State:** Lumen Orchestration Core operational  
+🧩 **Governance:** Six-Nines enforcement active  
+🔒 **Protection:** CI + Evidence + CODEOWNERS locked  
+🪶 **Next Phase:** Begin autonomous feature builds via Plan 99 pipeline
+
+**Certification:** Live — Six-Nines Certified
 
 ---
 

@@ -121,6 +121,9 @@ npm run dev
 - 📖 [**Contributing Guide**](CONTRIBUTING.md) — Agent Log format, quality gates, PR workflow
 - ✅ [**Go/No-Go Checklist**](docs/GO_NO_GO_CHECKLIST.md) — Pre-launch verification
 - 🔒 [**Branch Protection**](docs/BRANCH_PROTECTION_SETUP.md) — Enforcement & validation routine
+- 📊 [**Finalization Guide**](docs/FINALIZATION.md) — Complete operationalization checklist
+- 🏃 [**Run Issue Bootstrap**](../../actions/workflows/bootstrap-issues.yml) — One-click label/issue creation
+- 📝 [**Create Example PR**](../../actions/workflows/create-example-pr.yml) — Generate canonical PR template
 
 ## Technologies
 
