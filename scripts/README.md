@@ -2,6 +2,14 @@
 
 Automation and utility scripts for Lumen project management.
 
+## Quick Start
+
+Make the bootstrap script executable:
+
+```bash
+chmod +x scripts/bootstrap_lumen_issues.sh
+```
+
 ## bootstrap_lumen_issues.sh
 
 Creates GitHub issue structure for Lumen development including labels, epics, stories, and tasks.
