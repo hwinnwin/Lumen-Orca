@@ -69,8 +69,31 @@ jobs:
           name: evidence-bundle
           path: packages/evidence/dist/
       
-      # Six-Nines Gate
-      - name: Verify F_total ≤ 10⁻⁶
+
+  verify_evidence:
+    name: verify-evidence
+    needs: [matrix]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download Evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: evidence-bundle
+          path: ./_evidence
+      - name: Check artifact presence
         run: |
-          echo "Checking six-nines governance compliance..."
-          # This would parse evidence bundle and fail if F_total > 1e-6
+          test -f ./_evidence/index.html || (echo "Evidence bundle missing!" && exit 1)
+  
+  verify_six_nines:
+    name: verify-six-nines
+    needs: [verify_evidence]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: evidence-bundle
+          path: ./_evidence
+      - name: Verify F_total ≤ 1e-6
+        run: node packages/qa/scripts/verify-six-nines.js

@@ -198,17 +198,21 @@ Evidence: packages/evidence/dist/index.html
 
 ## 🚀 Go/No-Go Decision Criteria
 
-| Criterion | Status | Blocker? |
-|-----------|--------|----------|
-| Root package.json | ⚠️ Manual | YES |
-| Contracts imported | ✅ Done | NO |
-| Six-nines visible | ✅ Done | NO |
-| Evidence complete | ✅ Template | NO |
-| Labels created | ⚠️ Ready | NO |
-| Branch protection | ⚠️ Manual | YES |
-| README badges | ✅ Done | NO |
+| Gate                | Target                                  | Status    | Blocker? |
+| ------------------- | --------------------------------------- | --------- | -------- |
+| Root package.json   | Workspaces + Turbo scripts              | ⚠️ Manual | YES      |
+| Contracts compat    | All packages consume `@lumen/contracts` | ✅ Done   | NO       |
+| Mutation (critical) | ≥ 0.80                                  | ⚠️ Build  | YES      |
+| Coverage (critical) | ≥ 95%                                   | ⚠️ Build  | YES      |
+| Determinism         | > 99.99%                                | ⚠️ Build  | YES      |
+| Flake rate          | < 0.1%                                  | ⚠️ Build  | YES      |
+| **F_total**         | **≤ 1e-6**                              | ⚠️ Build  | YES      |
+| Evidence complete   | All sections render                     | ✅ Done   | NO       |
+| Labels created      | Bootstrap script ready                  | ⚠️ Ready  | NO       |
+| Branch protection   | verify-evidence + verify-six-nines      | ⚠️ Manual | YES      |
+| README badges       | CI + governance targets                 | ✅ Done   | NO       |
 
-**GO Criteria**: All blockers resolved + smoke test passes
+**GO Criteria**: All blockers resolved + smoke test passes + six-nines gate enforced in CI
 
 ---
 

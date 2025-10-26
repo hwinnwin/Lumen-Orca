@@ -30,15 +30,15 @@ _(technical approach, key decisions)_
 
 ## Checklist
 
-- [ ] Contracts updated (if data structures changed)
+- [ ] Contracts import `@lumen/contracts` and compat tests pass
 - [ ] Tests pass locally (`pnpm -r test:unit test:property test:mutation`)
 - [ ] Quality gates met:
   - [ ] Mutation ≥ 0.80 (critical paths)
   - [ ] Coverage ≥ 95% (critical paths)
   - [ ] Determinism > 99.99%
   - [ ] Flake rate < 0.1%
-  - [ ] **F_total ≤ 10⁻⁶**
-- [ ] Evidence bundle generated (`pnpm -r evidence:bundle`)
+  - [ ] **F_total ≤ 10⁻⁶** (see Evidence Bundle)
+- [ ] Evidence bundle generated and attached (CI artifact)
 - [ ] Documentation updated (if applicable)
 - [ ] Blueprint updated (if architectural change)
 

@@ -14,6 +14,8 @@ Enforce quality gates and evidence artifacts before merging to `main`.
 - Select these checks:
   - `matrix (ubuntu-latest, 20)` _(or your primary OS/Node combination)_
   - `setup`
+  - `verify-evidence`
+  - `verify-six-nines`
 
 ### Required Reviews
 - ✅ Require a pull request before merging
@@ -45,7 +47,9 @@ curl -X PUT \
       "strict": true,
       "contexts": [
         "matrix (ubuntu-latest, 20)",
-        "setup"
+        "setup",
+        "verify-evidence",
+        "verify-six-nines"
       ]
     },
     "enforce_admins": false,
@@ -74,35 +78,14 @@ bash scripts/setup_branch_protection.sh
 
 To require the evidence bundle artifact, add a **required status check** that validates the artifact exists:
 
-### Option 1: Add CI Job
+### Implemented in CI
 
-Add this job to `.github/workflows/ci.yml`:
+The CI workflow now includes two enforcement jobs:
 
-```yaml
-  verify-evidence:
-    needs: matrix
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check Evidence Artifact
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const artifacts = await github.rest.actions.listWorkflowRunArtifacts({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              run_id: context.runId
-            });
-            
-            const evidenceArtifact = artifacts.data.artifacts.find(
-              a => a.name === 'evidence-bundle'
-            );
-            
-            if (!evidenceArtifact) {
-              core.setFailed('Evidence bundle artifact not found!');
-            }
-```
+1. **`verify_evidence`** - Downloads and validates evidence bundle artifact exists
+2. **`verify_six_nines`** - Parses evidence bundle and fails if F_total > 1e-6
 
-Then add `verify-evidence` to the required status checks.
+Add both `verify-evidence` and `verify-six-nines` to required status checks in branch protection.
 
 ### Option 2: CODEOWNERS Review
 
@@ -118,14 +101,14 @@ packages/contracts/ @contract-guardian-team @qa-team
 
 ## Six-Nines Gate Enforcement
 
-The CI already fails if `F_total > 1e-6`. Ensure this step is in the required checks:
+The CI includes a dedicated `verify_six_nines` job that:
+- Downloads the evidence bundle artifact
+- Runs `packages/qa/scripts/verify-six-nines.js` to parse `data-ftotal` attribute
+- Fails the build if F_total > 1e-6
 
-```yaml
-- name: Verify F_total ≤ 10⁻⁶
-  run: |
-    echo "Checking six-nines governance compliance..."
-    # Parse evidence bundle and fail if F_total > 1e-6
-    # (implement actual parsing of packages/evidence/dist/index.html)
+The evidence bundle generator must embed the F_total value as a data attribute:
+```html
+<div data-ftotal="0.000000123">F_total: 1.23e-7</div>
 ```
 
 ## Validation
