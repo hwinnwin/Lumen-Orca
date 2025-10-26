@@ -1,0 +1,19 @@
+name: A2 Planner (Placeholder)
+on:
+  workflow_dispatch:
+
+jobs:
+  agent_a2:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Agent A2 Placeholder
+        run: |
+          echo "🤖 Agent A2: Architect & Planner"
+          echo "Status: Placeholder — awaiting LLM integration"
+          echo ""
+          echo "Planned capabilities:"
+          echo "  - Design system architecture from A1 specs"
+          echo "  - Generate component hierarchy and data flow"
+          echo "  - Produce implementation roadmap for A3/A4"
+          echo "  - Interface: OpenAI/Anthropic LLM APIs"

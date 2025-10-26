@@ -1,0 +1,19 @@
+name: A3 Contract Guardian (Placeholder)
+on:
+  workflow_dispatch:
+
+jobs:
+  agent_a3:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Agent A3 Placeholder
+        run: |
+          echo "🤖 Agent A3: Contract Guardian"
+          echo "Status: Placeholder — awaiting auto-schema sync integration"
+          echo ""
+          echo "Planned capabilities:"
+          echo "  - Validate all agent outputs against @lumen/contracts"
+          echo "  - Auto-generate TypeScript types from JSON schemas"
+          echo "  - Enforce contract-first development across agents"
+          echo "  - Block PRs with contract violations"
