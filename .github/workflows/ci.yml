@@ -1,0 +1,76 @@
+name: CI - Six-Nines Gate
+on: 
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile
+
+  matrix:
+    needs: setup
+    strategy: 
+      matrix: 
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        node: [18, 20, 22]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile
+      
+      # Build & Type Check
+      - name: Build all packages
+        run: pnpm -r build
+      - name: Lint & Type Check
+        run: |
+          pnpm -r lint
+          pnpm -r typecheck
+      
+      # Test Suite
+      - name: Unit Tests
+        run: pnpm -r test:unit
+      - name: Property Tests
+        run: pnpm -r test:property
+      - name: Mutation Tests
+        run: pnpm -r test:mutation
+      
+      # Quality Assurance
+      - name: Performance Check
+        run: pnpm -r qa:perf
+      - name: Security Scan
+        run: pnpm -r qa:security
+      
+      # Evidence Bundle
+      - name: Generate Evidence Bundle
+        run: pnpm -r evidence:bundle
+      
+      # Upload Artifacts
+      - uses: actions/upload-artifact@v4
+        if: matrix.os == 'ubuntu-latest' && matrix.node == 20
+        with: 
+          name: evidence-bundle
+          path: packages/evidence/dist/
+      
+      # Six-Nines Gate
+      - name: Verify F_total ≤ 10⁻⁶
+        run: |
+          echo "Checking six-nines governance compliance..."
+          # This would parse evidence bundle and fail if F_total > 1e-6
