@@ -11,8 +11,9 @@
 
 Multi-agent orchestration **framework** with evidence-based quality gates, contract-driven architecture, and precision reliability metrics.
 
-📋 [**Operational Status**](docs/OPERATIONAL_STATUS.md) — Current capabilities & roadmap to autonomous operation  
-🚀 [**Phase II Setup Guide**](docs/PHASE_II_SETUP.md) — Tag releases, create issues, prepare for autonomous agents  
+📋 [**Operational Status**](docs/OPERATIONAL_STATUS.md) — Current system capabilities  
+🔄 [**Phase II Transition**](docs/PHASE_II_TRANSITION.md) — Manual steps for autonomous agent readiness  
+🚀 [**Phase II Setup Guide**](docs/PHASE_II_SETUP.md) — Agent implementation roadmap  
 🏃 [**Run Issue Bootstrap**](../../actions/workflows/bootstrap-issues.yml) — One-click label + issue creation  
 ✅ [**Go/No-Go Gate Checklist**](docs/GO_NO_GO_CHECKLIST.md) — Pre-launch verification  
 🔒 [**Branch Protection Setup**](docs/BRANCH_PROTECTION_SETUP.md) — Enforce quality gates on merge
