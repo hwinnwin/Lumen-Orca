@@ -5,6 +5,7 @@
 
 import { Orchestrator } from '../../packages/agents/src/A0_orchestrator';
 import type { AgentTask, AgentStatus } from '../../packages/agents/src/types';
+import { evidenceService } from './evidence-service';
 
 class OrchestratorService {
   private orchestrator: Orchestrator;
@@ -84,7 +85,23 @@ class OrchestratorService {
   }
 
   async start(): Promise<void> {
-    return this.orchestrator.execute();
+    await this.orchestrator.execute();
+    
+    // Generate evidence bundle after execution completes
+    const state = this.orchestrator.getState();
+    evidenceService.generateFromOrchestrator({
+      tasks: state.tasks.map(t => ({
+        id: t.id,
+        status: t.status,
+        role: t.role,
+        outputs: t.outputs
+      })),
+      agents: state.agents.map(a => ({
+        role: a.role,
+        metrics: a.metrics
+      })),
+      stats: state.stats
+    });
   }
 
   getState() {
@@ -106,3 +123,4 @@ class OrchestratorService {
 }
 
 export const orchestratorService = OrchestratorService.getInstance();
+
