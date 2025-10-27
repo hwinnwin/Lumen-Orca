@@ -1,20 +1,39 @@
+import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { CheckCircle2, Play, Users, FileText, BarChart3, Shield, Clock } from "lucide-react";
 import { Link } from "react-router-dom";
+import { DemoPresentation } from "@/components/demo/DemoPresentation";
 
 const DemoPlan = () => {
+  const [showPresentation, setShowPresentation] = useState(false);
+
   return (
     <div className="min-h-screen p-8 gradient-mesh">
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-primary mb-2">Demo Plan</h1>
-        <p className="text-muted-foreground">
-          Structured demonstration guide for Lumen Six-Nines Governance System
-        </p>
+      <div className="mb-8 flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-primary mb-2">Demo Plan</h1>
+          <p className="text-muted-foreground">
+            Structured demonstration guide for Lumen Six-Nines Governance System
+          </p>
+        </div>
+        <Button 
+          size="lg" 
+          onClick={() => setShowPresentation(true)}
+          className="gap-2"
+        >
+          <Play className="h-5 w-5" />
+          Start Demo
+        </Button>
       </div>
+
+      <DemoPresentation 
+        open={showPresentation} 
+        onOpenChange={setShowPresentation} 
+      />
 
       <div className="space-y-6">
         {/* Demo Overview */}
