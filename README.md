@@ -1,5 +1,6 @@
 # Lumen — Precision Orchestration Instrument
 
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/hwinnwin/lumen-sentinel-nexus?quickstart=1)
 [![CI - Six-Nines Gate](https://github.com/hwinnwin/lumen-sentinel-nexus/actions/workflows/ci.yml/badge.svg)](https://github.com/hwinnwin/lumen-sentinel-nexus/actions/workflows/ci.yml)
 [![Determinism](https://img.shields.io/badge/determinism-%3E99.99%25-success)]()
 [![Mutation Score](https://img.shields.io/badge/mutation-%E2%89%A50.80-success)]()
