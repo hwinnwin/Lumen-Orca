@@ -1,0 +1,142 @@
+# ───────────────────────────────────────────────
+# LUMEN PHASE II UPGRADE EPIC MANIFEST
+# Project: Lumen Orchestration System
+# Phase: II — Adaptive Intelligence Layer
+# ───────────────────────────────────────────────
+
+meta:
+  id: lumen-phase-ii-upgrade
+  title: Lumen System Upgrade — Multi-Provider & Governance Enhancements
+  owner: Lumen Orchestrator / Plan 99 Pipeline
+  version: 2.0.0
+  intent: >
+    Implement Phase II upgrades to enable flexible LLM provider routing,
+    cost monitoring, AAA/AA/A frontend grading, and full governance preservation.
+  status_after: Governance Certified ✅ / Autonomy Integration Ready 🚧
+  priority: high
+  tone: calm-precision
+  color_accent: "#C7F9CC"
+  typography:
+    ui: Inter
+    code: JetBrains Mono
+
+# ───────────────────────────────────────────────
+# DELIVERABLES
+# ───────────────────────────────────────────────
+deliverables:
+  - Multi-provider LLM infrastructure (Lovable, OpenAI, Anthropic, Google)
+  - Cost/budget tracking database and UI
+  - AAA/AA/A public metric display with backend precision
+  - Settings dashboard (global & per-agent configuration)
+  - Updated metrics and agent dashboards
+  - Documentation and environment variables
+
+# ───────────────────────────────────────────────
+# WORK PACKAGES
+# ───────────────────────────────────────────────
+
+work_packages:
+
+  - id: llm-routing-layer
+    title: "Create multi-provider LLM proxy router"
+    agents: [A0, A1, A6]
+    tasks:
+      - Build `supabase/functions/llm-proxy/` folder with providers
+      - Add database tables: `llm_configurations`, `llm_usage_logs`, `budget_settings`
+      - Log token usage + estimated costs
+      - Integrate Lovable AI as default, enable OpenAI, Anthropic, Google via API keys
+      - Implement fallback routing and error recovery
+      - Maintain Six-Nines reliability tracking
+
+  - id: llm-settings-ui
+    title: "Build LLM Settings Control Panel"
+    agents: [A4, A5, A7]
+    tasks:
+      - Create `/src/pages/Settings.tsx`
+      - Implement global provider toggle + per-agent overrides
+      - Add model dropdowns, fallback toggles, and budget inputs
+      - Integrate Recharts analytics and progress bars
+      - Add secure API key vault UI (Supabase secrets)
+      - Style with Lumen design system colors & typography
+
+  - id: grading-system
+    title: "Implement AAA/AA/A Grading Layer"
+    agents: [A6, A7, A9]
+    tasks:
+      - Create `gradeBands.ts` and `applyGrades.ts`
+      - Compute grades server-side, hide raw numbers from public API
+      - Add `/api/metrics/public` and `/api/metrics/admin` endpoints
+      - Update dashboard components (`MetricsPanel`, `AgentStatusGrid`)
+      - Add `GradeBadge.tsx` component with color-coded labels
+      - Feature flag: `.env LUMEN_METRICS_EXPOSE`
+
+  - id: dashboard-enhancements
+    title: "Upgrade Metrics & Agent Dashboards"
+    agents: [A4, A5, A8]
+    tasks:
+      - Integrate provider icons, cost counters, and grade badges
+      - Add budget alerts (amber 80%, red 95%)
+      - Display provider badge & model info per agent
+      - Include F_total overlay and Six-Nines pass/fail indicator
+
+  - id: documentation-updates
+    title: "Update Docs and Configuration"
+    agents: [A1, A2]
+    tasks:
+      - Add `docs/LLM_PROVIDER_SYSTEM.md`
+      - Update `OPERATIONAL_STATUS.md` and `FINALIZATION.md`
+      - Include Phase II readiness summary
+      - Document env vars (`NEXT_PUBLIC_SHOW_NUMERIC`, `LUMEN_METRICS_EXPOSE`)
+      - Provide clear manual steps for ops team in Lovable UI
+
+# ───────────────────────────────────────────────
+# GRADING THRESHOLDS
+# ───────────────────────────────────────────────
+grading_thresholds:
+  coverage:
+    AAA: "≥95%"
+    AA: "≥90%"
+    A: "≥85%"
+  mutation:
+    AAA: "≥0.90"
+    AA: "≥0.87"
+    A: "≥0.80"
+  determinism:
+    AAA: "≥99.99%"
+    AA: "≥99.9%"
+    A: "≥99.5%"
+  flake:
+    AAA: "≤0.10%"
+    AA: "≤0.50%"
+    A: "≤1.0%"
+  reliability:
+    AAA: "≤1e-6"
+    AA: "≤1e-5"
+    A: "≤1e-4"
+
+# ───────────────────────────────────────────────
+# SUCCESS METRICS
+# ───────────────────────────────────────────────
+success_metrics:
+  provider_switch_latency: "<250ms"
+  cost_accuracy_margin: "±5%"
+  fallback_success_rate: "≥99%"
+  governance_enforcement: "100%"
+  ui_comprehension: "≥90% (A/B tested)"
+  budget_alert_accuracy: "100%"
+
+# ───────────────────────────────────────────────
+# VISUAL & DESIGN GUIDELINES
+# ───────────────────────────────────────────────
+design:
+  palette:
+    primary: "#C7F9CC"
+    secondary: "#81B29A"
+    background: "#0B0C0E"
+    accent: "#FFD166"
+  motion: "easeInOutQuint"
+  aesthetic: "Calm Precision × Autonomous Elegance"
+
+# ───────────────────────────────────────────────
+# END OF MANIFEST
+# ───────────────────────────────────────────────
