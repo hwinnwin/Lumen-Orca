@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-import { Activity, Box, FileText, BarChart3, Network, Terminal } from "lucide-react";
+import { Activity, Box, FileText, BarChart3, Network, Terminal, BookOpen, Presentation } from "lucide-react";
 import lumenLogo from "@/assets/lumen-logo.png";
 
 const navItems = [
@@ -8,6 +8,8 @@ const navItems = [
   { title: "Contracts", path: "/contracts", icon: Box },
   { title: "Evidence", path: "/evidence", icon: FileText },
   { title: "Telemetry", path: "/telemetry", icon: BarChart3 },
+  { title: "User Guide", path: "/guide", icon: BookOpen },
+  { title: "Demo Plan", path: "/demo", icon: Presentation },
   { title: "Master Prompt", path: "/prompt", icon: Terminal },
 ];
 
