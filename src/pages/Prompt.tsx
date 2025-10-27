@@ -2,7 +2,9 @@ import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Play, FileCode, AlertCircle } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { Play, FileCode, AlertCircle, Terminal } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { orchestratorService } from "@/lib/orchestrator-service";
 import type { AgentRole, AgentTask } from "../../packages/agents/src/types";
@@ -73,6 +75,8 @@ interface ParsedManifest {
 const Prompt = () => {
   const [manifest, setManifest] = useState(exampleManifest);
   const [isParsing, setIsParsing] = useState(false);
+  const [autoExecute, setAutoExecute] = useState(false);
+  const [outputs, setOutputs] = useState<string[]>([]);
   const { toast } = useToast();
 
   const parseManifest = (yaml: string): ParsedManifest | null => {
@@ -126,21 +130,29 @@ const Prompt = () => {
 
   const handleExecute = async () => {
     setIsParsing(true);
+    setOutputs([]); // Clear previous outputs
 
     try {
       const parsed = parseManifest(manifest);
       
       if (!parsed || !parsed.name || !parsed.tasks || parsed.tasks.length === 0) {
+        const errorMsg = "Could not parse YAML manifest. Check syntax.";
+        setOutputs(prev => [...prev, `❌ ERROR: ${errorMsg}`]);
         toast({
           title: "Invalid manifest",
-          description: "Could not parse YAML manifest. Check syntax.",
+          description: errorMsg,
           variant: "destructive",
         });
         return;
       }
 
+      setOutputs(prev => [...prev, `📋 Parsed manifest: ${parsed.name}`]);
+      setOutputs(prev => [...prev, `📝 Description: ${parsed.description}`]);
+      setOutputs(prev => [...prev, `🔢 Total tasks: ${parsed.tasks.length}`]);
+
       // Reset orchestrator
       orchestratorService.reset();
+      setOutputs(prev => [...prev, `🔄 Orchestrator reset`]);
 
       // Convert parsed tasks to AgentTask format
       const tasks: AgentTask[] = parsed.tasks.map(task => ({
@@ -154,6 +166,7 @@ const Prompt = () => {
       // Add tasks to orchestrator
       tasks.forEach(task => {
         orchestratorService.getOrchestrator().addTask(task);
+        setOutputs(prev => [...prev, `➕ Added task: ${task.id} (${task.role})`]);
       });
 
       toast({
@@ -161,21 +174,32 @@ const Prompt = () => {
         description: `${parsed.name}: ${tasks.length} tasks ready for execution`,
       });
 
-      // Start execution
-      setTimeout(() => {
-        orchestratorService.start().catch(error => {
-          toast({
-            title: "Execution failed",
-            description: error.message,
-            variant: "destructive",
+      if (autoExecute) {
+        setOutputs(prev => [...prev, `▶️ Auto-executing workflow...`]);
+        // Start execution
+        setTimeout(() => {
+          orchestratorService.start().then(() => {
+            setOutputs(prev => [...prev, `✅ Workflow execution completed`]);
+          }).catch(error => {
+            const errorMsg = error.message || "Unknown error";
+            setOutputs(prev => [...prev, `❌ Execution failed: ${errorMsg}`]);
+            toast({
+              title: "Execution failed",
+              description: errorMsg,
+              variant: "destructive",
+            });
           });
-        });
-      }, 500);
+        }, 500);
+      } else {
+        setOutputs(prev => [...prev, `⏸️ Manual mode: Ready for execution. Navigate to Dashboard to start.`]);
+      }
 
     } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : "Failed to execute workflow";
+      setOutputs(prev => [...prev, `❌ ERROR: ${errorMsg}`]);
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to execute workflow",
+        description: errorMsg,
         variant: "destructive",
       });
     } finally {
@@ -195,9 +219,22 @@ const Prompt = () => {
 
         <div className="grid gap-6">
           <Card className="p-6 border border-primary/20">
-            <div className="flex items-center gap-3 mb-4">
-              <FileCode className="w-5 h-5 text-primary" />
-              <h2 className="text-lg font-semibold text-foreground">Workflow Manifest</h2>
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <FileCode className="w-5 h-5 text-primary" />
+                <h2 className="text-lg font-semibold text-foreground">Workflow Manifest</h2>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <Switch 
+                  id="auto-execute" 
+                  checked={autoExecute}
+                  onCheckedChange={setAutoExecute}
+                />
+                <Label htmlFor="auto-execute" className="text-sm cursor-pointer">
+                  Auto-execute
+                </Label>
+              </div>
             </div>
 
             <Textarea
@@ -210,7 +247,11 @@ const Prompt = () => {
             <div className="mt-4 flex items-center justify-between">
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 <AlertCircle className="w-4 h-4" />
-                <span>YAML format required. See example above.</span>
+                <span>
+                  {autoExecute 
+                    ? "Auto-execute ON: Workflow will start immediately" 
+                    : "Manual mode: Load workflow then start from Dashboard"}
+                </span>
               </div>
               <Button
                 onClick={handleExecute}
@@ -218,10 +259,29 @@ const Prompt = () => {
                 className="gap-2"
               >
                 <Play className="w-4 h-4" />
-                {isParsing ? "Loading..." : "Execute Workflow"}
+                {isParsing ? "Loading..." : autoExecute ? "Execute Workflow" : "Load Workflow"}
               </Button>
             </div>
           </Card>
+
+          {outputs.length > 0 && (
+            <Card className="p-6 border border-secondary/20 bg-background/80">
+              <div className="flex items-center gap-3 mb-4">
+                <Terminal className="w-5 h-5 text-secondary" />
+                <h2 className="text-lg font-semibold text-foreground">Execution Output</h2>
+              </div>
+              
+              <div className="bg-muted/30 rounded-md p-4 max-h-[400px] overflow-y-auto">
+                <div className="font-mono text-sm space-y-1">
+                  {outputs.map((output, idx) => (
+                    <div key={idx} className="text-foreground/80">
+                      {output}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </Card>
+          )}
 
           <Card className="p-6 border border-border bg-muted/20">
             <h3 className="text-sm font-semibold text-foreground mb-3">Manifest Schema</h3>
