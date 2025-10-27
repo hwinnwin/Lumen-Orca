@@ -1,5 +1,9 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { callLovableAI } from './providers/lovable-ai.ts';
+import { callOpenAI } from './providers/openai.ts';
+import { callAnthropic } from './providers/anthropic.ts';
+import { callGoogle } from './providers/google.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -23,6 +27,86 @@ interface LLMResponse {
     estimatedCost: number;
     latencyMs: number;
   };
+}
+
+const PROVIDER_HANDLERS: Record<string, (config: any, messages: any[]) => Promise<any>> = {
+  'lovable-ai': callLovableAI,
+  'openai': callOpenAI,
+  'anthropic': callAnthropic,
+  'google': callGoogle,
+};
+
+async function callProviderWithFallback(config: any, messages: any[], supabase: any) {
+  try {
+    const handler = PROVIDER_HANDLERS[config.provider];
+    if (!handler) throw new Error(`Unknown provider: ${config.provider}`);
+    
+    const result = await handler(config, messages);
+    
+    // Update provider health on success
+    await supabase
+      .from('provider_health')
+      .update({
+        status: 'healthy',
+        last_success_at: new Date().toISOString(),
+        consecutive_failures: 0,
+      })
+      .eq('provider', config.provider);
+    
+    return { ...result, usedProvider: config.provider, usedModel: config.model };
+  } catch (primaryError) {
+    console.error(`Primary provider ${config.provider} failed:`, primaryError);
+
+    // Update provider health on failure
+    const { data: healthData } = await supabase
+      .from('provider_health')
+      .select('consecutive_failures')
+      .eq('provider', config.provider)
+      .single();
+    
+    await supabase
+      .from('provider_health')
+      .update({
+        status: (healthData?.consecutive_failures || 0) >= 3 ? 'down' : 'degraded',
+        last_failure_at: new Date().toISOString(),
+        consecutive_failures: (healthData?.consecutive_failures || 0) + 1,
+      })
+      .eq('provider', config.provider);
+
+    // Try fallback if configured
+    if (config.fallback_provider && config.fallback_model) {
+      console.log(`Attempting fallback to ${config.fallback_provider}...`);
+      const fallbackHandler = PROVIDER_HANDLERS[config.fallback_provider];
+      
+      if (fallbackHandler) {
+        try {
+          const fallbackConfig = { 
+            ...config, 
+            provider: config.fallback_provider, 
+            model: config.fallback_model 
+          };
+          const result = await fallbackHandler(fallbackConfig, messages);
+          
+          // Update fallback provider health on success
+          await supabase
+            .from('provider_health')
+            .update({
+              status: 'healthy',
+              last_success_at: new Date().toISOString(),
+              consecutive_failures: 0,
+            })
+            .eq('provider', config.fallback_provider);
+          
+          return { ...result, usedProvider: config.fallback_provider, usedModel: config.fallback_model };
+        } catch (fallbackError) {
+          console.error(`Fallback provider ${config.fallback_provider} also failed:`, fallbackError);
+          throw fallbackError;
+        }
+      }
+    }
+    
+    throw primaryError;
+  }
 }
 
 serve(async (req) => {
@@ -61,12 +145,7 @@ serve(async (req) => {
     const config = configs[0];
     console.log(`[${agentRole}] Using config:`, { provider: config.provider, model: config.model });
 
-    // Call Lovable AI Gateway
-    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-    if (!LOVABLE_API_KEY) {
-      throw new Error('LOVABLE_API_KEY not configured');
-    }
-
+    // Build messages array
     const messages = [
       { 
         role: 'system', 
@@ -75,36 +154,8 @@ serve(async (req) => {
       { role: 'user', content: prompt }
     ];
 
-    console.log(`[${agentRole}] Calling Lovable AI with model: ${config.model}`);
-    
-    const llmResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: config.model,
-        messages,
-        max_tokens: config.max_tokens || 4096,
-        temperature: config.temperature || 0.7,
-      }),
-    });
-
-    if (!llmResponse.ok) {
-      const errorText = await llmResponse.text();
-      console.error(`[${agentRole}] Lovable AI error:`, llmResponse.status, errorText);
-      
-      if (llmResponse.status === 429) {
-        throw new Error('Rate limit exceeded - please try again later');
-      }
-      if (llmResponse.status === 402) {
-        throw new Error('Payment required - please add credits to your workspace');
-      }
-      throw new Error(`Lovable AI error: ${llmResponse.status} - ${errorText}`);
-    }
-
-    const llmData = await llmResponse.json();
+    // Call provider with fallback support
+    const llmData = await callProviderWithFallback(config, messages, supabase);
     const latencyMs = Date.now() - startTime;
     const tokensInput = llmData.usage?.prompt_tokens || 0;
     const tokensOutput = llmData.usage?.completion_tokens || 0;
@@ -117,8 +168,8 @@ serve(async (req) => {
       .from('llm_usage_logs')
       .insert({
         agent_role: agentRole,
-        provider: config.provider,
-        model: config.model,
+        provider: llmData.usedProvider,
+        model: llmData.usedModel,
         tokens_input: tokensInput,
         tokens_output: tokensOutput,
         estimated_cost: estimatedCost,
@@ -132,7 +183,7 @@ serve(async (req) => {
 
     // Update budget spend
     const { error: budgetError } = await supabase.rpc('increment_provider_spend', {
-      p_provider: config.provider,
+      p_provider: llmData.usedProvider,
       p_amount: estimatedCost
     });
 
@@ -145,8 +196,8 @@ serve(async (req) => {
     const response: LLMResponse = {
       result: llmData.choices[0].message.content,
       usage: {
-        provider: config.provider,
-        model: config.model,
+        provider: llmData.usedProvider,
+        model: llmData.usedModel,
         tokensInput,
         tokensOutput,
         estimatedCost,
