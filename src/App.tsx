@@ -12,6 +12,7 @@ import Telemetry from "./pages/Telemetry";
 import Prompt from "./pages/Prompt";
 import UserGuide from "./pages/UserGuide";
 import DemoPlan from "./pages/DemoPlan";
+import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -32,6 +33,7 @@ const App = () => (
             <Route path="/prompt" element={<Prompt />} />
             <Route path="/guide" element={<UserGuide />} />
             <Route path="/demo" element={<DemoPlan />} />
+            <Route path="/settings" element={<Settings />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>

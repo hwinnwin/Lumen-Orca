@@ -187,28 +187,74 @@ export class Orchestrator {
     this.notifyAgentUpdate(agentState);
   }
 
-  // Stub agent execution (to be replaced with real implementations)
+  // Agent execution via LLM proxy
   private async executeAgent(task: AgentTask): Promise<Record<string, unknown>> {
-    // Simulate processing time
-    await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 2000));
-    
-    // Return mock output based on role
-    switch (task.role) {
-      case 'A1_spec':
-        return { specification: 'Formal spec document', validated: true };
-      case 'A2_architect':
-        return { architecture: 'System design', diagrams: ['arch.svg'] };
-      case 'A3_codegen_a':
-      case 'A4_codegen_b':
-        return { code: 'Generated code', tests: ['test.spec.ts'] };
-      case 'A5_adjudicator':
-        return { verdict: 'merged', conflicts: [] };
-      case 'A6_qa_harness':
-        return { mutationScore: 0.85, coverage: 0.96, passed: true };
-      case 'A7_evidence':
-        return { bundle: 'evidence-bundle.html', fTotal: 1e-7 };
-      default:
-        return { result: 'success' };
+    const prompt = this.buildPromptForAgent(task);
+    const systemPrompt = this.getSystemPromptForAgent(task.role);
+
+    try {
+      // Dynamic import to avoid circular dependencies
+      const { supabase } = await import('../../../src/integrations/supabase/client');
+      
+      console.log(`[Orchestrator] Invoking ${task.role}...`);
+      const { data, error } = await supabase.functions.invoke('llm-proxy', {
+        body: {
+          agentRole: task.role,
+          prompt,
+          systemPrompt,
+          taskId: task.id,
+        }
+      });
+
+      if (error) {
+        console.error(`[Orchestrator] Error from ${task.role}:`, error);
+        throw error;
+      }
+
+      console.log(`[Orchestrator] ✅ ${task.role} completed in ${data.usage.latencyMs}ms`);
+      
+      return this.parseAgentResponse(task.role, data.result);
+    } catch (error) {
+      console.error(`[Orchestrator] ❌ ${task.role} failed:`, error);
+      throw error;
+    }
+  }
+
+  private buildPromptForAgent(task: AgentTask): string {
+    const context = JSON.stringify(task.inputs, null, 2);
+    return `Execute your role as ${task.role}.\n\nContext:\n${context}\n\nProvide your output in structured JSON format that matches your role's responsibilities.`;
+  }
+
+  private getSystemPromptForAgent(role: AgentRole): string {
+    const prompts: Record<AgentRole, string> = {
+      'A0_orchestrator': 'You coordinate DAG execution and manage task dependencies.',
+      'A1_spec': 'You are a requirements analyzer. Parse natural language requirements into formal, testable specifications. Return JSON with: {specification: string, requirements: any, testable: boolean}',
+      'A2_architect': 'You are a system architect. Design component hierarchies, data flows, and architectural patterns. Return JSON with: {architecture: string, layers: number}',
+      'A3_codegen_a': 'You are a code generator (Path A). Write clean, tested TypeScript/React code. Return JSON with: {code: string, tests: any[]}',
+      'A4_codegen_b': 'You are a code generator (Path B). Write clean, tested TypeScript/React code independently from Path A. Return JSON with: {code: string, tests: any[]}',
+      'A5_adjudicator': 'You are a code adjudicator. Compare two implementations, identify conflicts, and merge the best solution. Return JSON with: {chosen: string, rationale: string}',
+      'A6_qa_harness': 'You are a QA engineer. Generate comprehensive tests: unit, integration, mutation, property-based. Return JSON with: {coverage: number, mutation: number, passed: boolean}',
+      'A7_evidence': 'You are an evidence reporter. Compile execution results into structured evidence bundles. Return JSON with: {bundleUrl: string}',
+      'A8_performance': 'You are a performance analyst. Measure latency, throughput, and resource usage. Return JSON with: {latency: number, throughput: number}',
+      'A9_security': 'You are a security auditor. Scan for vulnerabilities, validate RLS policies, check OWASP top 10. Return JSON with: {vulnerabilities: any[], passed: boolean}',
+      'A10_incident': 'You are an incident responder. Analyze failures, recommend fixes, and generate postmortems. Return JSON with: {analysis: string, recommendations: any[]}',
+    };
+    return prompts[role] || 'You are an AI agent in the Lumen orchestration system.';
+  }
+
+  private parseAgentResponse(role: AgentRole, rawResponse: string): Record<string, unknown> {
+    try {
+      // Try to extract JSON from markdown code blocks
+      const jsonMatch = rawResponse.match(/```json\n([\s\S]*?)\n```/);
+      if (jsonMatch) {
+        return JSON.parse(jsonMatch[1]);
+      }
+      // Try direct JSON parse
+      return JSON.parse(rawResponse);
+    } catch {
+      // Fallback to structured text parsing
+      console.warn(`[Parser] Could not parse JSON from ${role}, using raw response`);
+      return { raw: rawResponse, parsed: false };
     }
   }
 
