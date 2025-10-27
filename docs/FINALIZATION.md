@@ -1,6 +1,6 @@
 # Lumen System Finalization
 
-Production-ready orchestration system with autonomous six-nines governance.
+Production-ready orchestration system with autonomous six-nines governance, multi-provider LLM infrastructure, and AAA/AA/A grading.
 
 ## ✅ Verification Checklist
 
