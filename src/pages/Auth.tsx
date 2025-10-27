@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { signInWithGoogle, signInWithEmail, signUpWithEmail } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
@@ -14,6 +15,7 @@ const Auth = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
+  const [rememberMe, setRememberMe] = useState(true);
   const [loading, setLoading] = useState(false);
   const [checkingAuth, setCheckingAuth] = useState(true);
   const { toast } = useToast();
@@ -64,6 +66,11 @@ const Auth = () => {
 
     setLoading(true);
     try {
+      // Update session persistence based on remember me
+      await supabase.auth.updateUser({
+        data: { rememberMe }
+      });
+      
       const { error } = await signInWithEmail(email, password);
       if (error) {
         toast({
@@ -72,6 +79,13 @@ const Auth = () => {
           description: error.message,
         });
       } else {
+        // Store preference in localStorage
+        if (rememberMe) {
+          localStorage.setItem('lumen-remember-me', 'true');
+        } else {
+          localStorage.removeItem('lumen-remember-me');
+        }
+        
         toast({
           title: "Success",
           description: "Signed in successfully",
@@ -204,6 +218,20 @@ const Auth = () => {
                     onChange={(e) => setPassword(e.target.value)}
                     disabled={loading}
                   />
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Checkbox 
+                    id="remember-me" 
+                    checked={rememberMe}
+                    onCheckedChange={(checked) => setRememberMe(checked === true)}
+                    disabled={loading}
+                  />
+                  <Label 
+                    htmlFor="remember-me" 
+                    className="text-sm font-normal cursor-pointer"
+                  >
+                    Remember me
+                  </Label>
                 </div>
                 <Button type="submit" className="w-full" disabled={loading}>
                   {loading ? (
