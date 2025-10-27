@@ -1,5 +1,9 @@
 import { NavLink } from "react-router-dom";
-import { Activity, Box, FileText, BarChart3, Network, Terminal, BookOpen, Presentation, Settings } from "lucide-react";
+import { Activity, Box, FileText, BarChart3, Network, Terminal, BookOpen, Presentation, Settings, User } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Badge } from "@/components/ui/badge";
+import { useAuth } from "@/hooks/use-auth";
 import lumenLogo from "@/assets/lumen-logo.png";
 
 const navItems = [
@@ -15,6 +19,19 @@ const navItems = [
 ];
 
 export const Sidebar = () => {
+  const { user, roles, isAdmin, signOut } = useAuth();
+
+  const getInitials = (email: string | undefined) => {
+    if (!email) return "U";
+    return email.split('@')[0].slice(0, 2).toUpperCase();
+  };
+
+  const getRoleBadge = () => {
+    if (isAdmin) return <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20 text-xs">Admin</Badge>;
+    if (roles.includes('developer')) return <Badge variant="outline" className="bg-accent/10 text-accent border-accent/20 text-xs">Dev</Badge>;
+    return <Badge variant="outline" className="text-xs">Viewer</Badge>;
+  };
+
   return (
     <aside className="w-64 border-r border-border surface-elevated flex flex-col">
       {/* Logo Header */}
@@ -48,6 +65,50 @@ export const Sidebar = () => {
           </NavLink>
         ))}
       </nav>
+
+      {/* User Menu */}
+      {user && (
+        <div className="p-4 border-t border-border">
+          <DropdownMenu>
+            <DropdownMenuTrigger className="w-full">
+              <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted transition-smooth cursor-pointer">
+                <Avatar className="h-8 w-8">
+                  <AvatarImage src={user.user_metadata?.avatar_url} />
+                  <AvatarFallback className="bg-primary/10 text-primary text-xs">
+                    {getInitials(user.email)}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex-1 text-left">
+                  <p className="text-sm font-medium truncate">{user.user_metadata?.full_name || user.email?.split('@')[0]}</p>
+                  <div className="flex items-center gap-1">
+                    {getRoleBadge()}
+                  </div>
+                </div>
+              </div>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel>My Account</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem asChild>
+                <NavLink to="/profile" className="cursor-pointer">
+                  <User className="mr-2 h-4 w-4" />
+                  Profile
+                </NavLink>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <NavLink to="/settings" className="cursor-pointer">
+                  <Settings className="mr-2 h-4 w-4" />
+                  Settings
+                </NavLink>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={signOut} className="cursor-pointer text-destructive">
+                Sign Out
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      )}
 
       {/* Status Footer */}
       <div className="p-4 border-t border-border">

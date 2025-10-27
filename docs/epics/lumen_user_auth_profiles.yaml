@@ -1,0 +1,189 @@
+# ───────────────────────────────────────────────
+# LUMEN USER AUTH & PROFILES EPIC MANIFEST
+# Project: Lumen Orchestration System
+# Phase: User Identity & Access Layer
+# ───────────────────────────────────────────────
+
+meta:
+  id: lumen-user-auth-profiles
+  title: Lumen User Authentication & Profiles System
+  owner: Lumen Orchestrator / Plan 99 Pipeline
+  version: 1.1.0
+  intent: >
+    Implement secure Google OAuth and email authentication with user profiles
+    and role-based access control (RBAC) for the Lumen orchestration system.
+  status_after: Authentication Certified ✅ / RBAC Active 🟢
+  priority: high
+  tone: secure-precision
+  color_accent: "#C7F9CC"
+  typography:
+    ui: Inter
+    code: JetBrains Mono
+
+# ───────────────────────────────────────────────
+# DELIVERABLES
+# ───────────────────────────────────────────────
+deliverables:
+  - Google OAuth + email/password authentication
+  - User profiles table with automatic creation
+  - Three-tier RBAC system (admin, developer, viewer)
+  - Protected routes and auth middleware
+  - User profile management page
+  - Admin role assignment capabilities
+  - Comprehensive authentication documentation
+
+# ───────────────────────────────────────────────
+# WORK PACKAGES
+# ───────────────────────────────────────────────
+
+work_packages:
+
+  - id: database-schema
+    title: "Create User Profiles & Roles Schema"
+    agents: [A1, A6]
+    completed: true
+    tasks:
+      - ✅ Create `profiles` table with RLS
+      - ✅ Create `user_roles` table (separate from profiles for security)
+      - ✅ Implement `app_role` enum (admin, developer, viewer)
+      - ✅ Add `handle_new_user()` trigger for auto-profile creation
+      - ✅ Create `has_role()` security definer function
+      - ✅ Configure RLS policies for profiles and roles
+
+  - id: auth-integration
+    title: "Integrate Supabase Authentication"
+    agents: [A4, A5]
+    completed: true
+    tasks:
+      - ✅ Configure Google OAuth provider
+      - ✅ Enable email/password authentication
+      - ✅ Set up auth redirect URLs
+      - ✅ Enable auto-confirm email for testing
+      - ✅ Create auth utility functions
+      - ✅ Implement session management
+
+  - id: auth-ui
+    title: "Build Authentication UI Components"
+    agents: [A4, A7]
+    completed: true
+    tasks:
+      - ✅ Create `/auth` page with login/signup tabs
+      - ✅ Add Google Sign-In button
+      - ✅ Implement email/password forms
+      - ✅ Add input validation and error handling
+      - ✅ Create protected route wrapper
+      - ✅ Style with Lumen design system
+
+  - id: profile-management
+    title: "User Profile Page & Management"
+    agents: [A4, A5, A7]
+    completed: true
+    tasks:
+      - ✅ Create `/profile` page
+      - ✅ Display user info, roles, and activity
+      - ✅ Implement profile editing (name, avatar)
+      - ✅ Add role badges (admin, developer, viewer)
+      - ✅ Show last activity timestamp
+      - ✅ Integrate sign-out functionality
+
+  - id: rbac-integration
+    title: "Role-Based Access Control Integration"
+    agents: [A0, A5, A6]
+    completed: true
+    tasks:
+      - ✅ Create `useAuth` hook with role checks
+      - ✅ Implement `isAdmin`, `isDeveloper` helpers
+      - ✅ Add user menu to sidebar with avatar
+      - ✅ Show role badges in user menu
+      - ✅ Protect all dashboard routes
+      - ✅ Auto-redirect unauthenticated users
+
+  - id: documentation
+    title: "Authentication & RBAC Documentation"
+    agents: [A1, A2]
+    completed: true
+    tasks:
+      - ✅ Create `docs/USER_AUTH_AND_PROFILES.md`
+      - ✅ Document Google OAuth setup steps
+      - ✅ Explain role assignment for admins
+      - ✅ Add troubleshooting guide
+      - ✅ Include API integration examples
+      - ✅ Add security best practices
+
+# ───────────────────────────────────────────────
+# RBAC ROLES & PERMISSIONS
+# ───────────────────────────────────────────────
+rbac_tiers:
+  admin:
+    access: "Full system access"
+    permissions:
+      - Manage all users and roles
+      - View raw numeric metrics
+      - Configure LLM providers
+      - Modify system settings
+      - Access admin-only endpoints
+  developer:
+    access: "Configuration access"
+    permissions:
+      - Configure LLM providers
+      - View graded metrics (AAA/AA/A)
+      - Monitor orchestration
+      - Access evidence bundles
+      - No user management
+  viewer:
+    access: "Read-only access"
+    permissions:
+      - View dashboards
+      - See graded metrics
+      - Monitor agent status
+      - No configuration changes
+      - No raw metrics access
+
+# ───────────────────────────────────────────────
+# SUCCESS METRICS
+# ───────────────────────────────────────────────
+success_metrics:
+  signin_latency: "<2s"
+  profile_creation_success: "100%"
+  session_persistence: ">24h refresh token valid"
+  rbac_enforcement: "100%"
+  user_onboarding_time: "<1min"
+  auth_error_rate: "<0.1%"
+
+# ───────────────────────────────────────────────
+# SECURITY CHECKLIST
+# ───────────────────────────────────────────────
+security_verification:
+  - ✅ RLS enabled on all user tables
+  - ✅ Roles stored in separate table (not on profiles)
+  - ✅ Security definer functions use search_path
+  - ✅ No hardcoded credentials in client code
+  - ✅ Passwords hashed and validated
+  - ✅ Session tokens auto-refreshed
+  - ✅ Email validation implemented
+  - ✅ Protected routes enforce authentication
+
+# ───────────────────────────────────────────────
+# VISUAL & DESIGN GUIDELINES
+# ───────────────────────────────────────────────
+design:
+  palette:
+    primary: "#C7F9CC"
+    secondary: "#81B29A"
+    background: "#0B0C0E"
+    accent: "#FFD166"
+  motion: "easeInOutQuint"
+  aesthetic: "Secure Access × Calm Precision"
+
+# ───────────────────────────────────────────────
+# INTEGRATION NOTES
+# ───────────────────────────────────────────────
+integration:
+  phase_ii_compat: true
+  llm_settings_rbac: "Admin/Developer only can modify providers"
+  metrics_visibility: "Raw metrics only for admin role"
+  dashboard_access: "All authenticated users"
+
+# ───────────────────────────────────────────────
+# END OF MANIFEST
+# ───────────────────────────────────────────────
