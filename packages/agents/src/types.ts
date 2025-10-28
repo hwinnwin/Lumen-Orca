@@ -23,7 +23,8 @@ export interface AgentLog {
   timestamp: string;
 }
 
-export type AgentRole = 
+// Built-in agent roles
+export type BuiltInAgentRole = 
   | 'A0_orchestrator'
   | 'A1_spec'
   | 'A2_architect'
@@ -35,6 +36,19 @@ export type AgentRole =
   | 'A8_performance'
   | 'A9_security'
   | 'A10_incident';
+
+// AgentRole can be any string to support custom agents
+export type AgentRole = BuiltInAgentRole | string;
+
+export interface CustomAgentDefinition {
+  id: string;
+  name: string;
+  role: string;
+  description: string;
+  systemPrompt: string;
+  icon?: string; // Icon name from lucide-react
+  maxConcurrentTasks?: number;
+}
 
 export interface AgentTask {
   id: string;
