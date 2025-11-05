@@ -37,9 +37,9 @@ export const Sidebar = () => {
       {/* Logo Header */}
       <div className="p-6 border-b border-border">
         <div className="flex items-center gap-3">
-          <img src={lumenLogo} alt="Lumen" className="w-10 h-10 glow-primary" />
+          <img src={lumenLogo} alt="Lumen Orca" className="w-10 h-10 glow-primary" />
           <div>
-            <h1 className="text-xl font-bold text-primary">Lumen</h1>
+            <h1 className="text-xl font-bold text-primary">Lumen Orca</h1>
             <p className="text-xs text-muted-foreground font-mono">v1.0.0-alpha</p>
           </div>
         </div>
