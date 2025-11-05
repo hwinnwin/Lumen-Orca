@@ -11,7 +11,7 @@ const UserGuide = () => {
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-primary mb-2">User Guide</h1>
         <p className="text-muted-foreground">
-          Complete manual for the Lumen Six-Nines Governance System
+          Complete manual for the Lumen Orca Six-Nines Governance System
         </p>
       </div>
 
@@ -30,12 +30,12 @@ const UserGuide = () => {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Zap className="h-5 w-5 text-primary" />
-                What is Lumen?
+                What is Lumen Orca?
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-muted-foreground">
-                Lumen is an autonomous build orchestration system designed to achieve <strong>six-nines reliability (99.9999%)</strong> through multi-agent coordination and comprehensive quality gates.
+                Lumen Orca is an autonomous build orchestration system designed to achieve <strong>six-nines reliability (99.9999%)</strong> through multi-agent coordination and comprehensive quality gates.
               </p>
               
               <div className="grid gap-4 md:grid-cols-2">

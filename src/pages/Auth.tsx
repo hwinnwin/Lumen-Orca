@@ -161,7 +161,7 @@ const Auth = () => {
     <div className="min-h-screen flex items-center justify-center gradient-mesh p-4">
       <Card className="w-full max-w-md glass-card">
         <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold text-center">Lumen Access</CardTitle>
+          <CardTitle className="text-2xl font-bold text-center">Lumen Orca Access</CardTitle>
           <CardDescription className="text-center">
             Sign in to access the orchestration dashboard
           </CardDescription>

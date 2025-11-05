@@ -13,12 +13,12 @@ interface DemoPresentationProps {
 
 const slides = [
   {
-    title: "Welcome to Lumen",
+    title: "Welcome to Lumen Orca",
     subtitle: "Six-Nines Governance System",
     content: (
       <div className="space-y-6">
         <div className="text-center space-y-4">
-          <h2 className="text-4xl font-bold text-primary">Lumen Six-Nines</h2>
+          <h2 className="text-4xl font-bold text-primary">Lumen Orca Six-Nines</h2>
           <p className="text-xl text-muted-foreground">
             99.9999% Reliability Through Automated Multi-Agent Orchestration
           </p>
@@ -100,7 +100,7 @@ const slides = [
     ),
   },
   {
-    title: "The Lumen Solution",
+    title: "The Lumen Orca Solution",
     subtitle: "Six-Nines Governance",
     content: (
       <div className="space-y-6">

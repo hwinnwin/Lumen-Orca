@@ -17,7 +17,7 @@ const DemoPlan = () => {
         <div>
           <h1 className="text-3xl font-bold text-primary mb-2">Demo Plan</h1>
           <p className="text-muted-foreground">
-            Structured demonstration guide for Lumen Six-Nines Governance System
+            Structured demonstration guide for Lumen Orca Six-Nines Governance System
           </p>
         </div>
         <Button 
@@ -73,7 +73,7 @@ const DemoPlan = () => {
             <Alert>
               <CheckCircle2 className="h-4 w-4" />
               <AlertDescription>
-                <strong>Demo Goal:</strong> Showcase how Lumen achieves six-nines reliability through automated multi-agent orchestration and comprehensive quality gates.
+                <strong>Demo Goal:</strong> Showcase how Lumen Orca achieves six-nines reliability through automated multi-agent orchestration and comprehensive quality gates.
               </AlertDescription>
             </Alert>
           </CardContent>
@@ -109,9 +109,9 @@ const DemoPlan = () => {
                   <span className="text-sm font-semibold text-primary">2</span>
                 </div>
                 <div className="flex-1">
-                  <p className="font-semibold">The Lumen Approach: Six-Nines Governance</p>
+                  <p className="font-semibold">The Lumen Orca Approach: Six-Nines Governance</p>
                   <p className="text-sm text-muted-foreground">
-                    Lumen targets 99.9999% reliability (F_total ≤ 10⁻⁶) through autonomous multi-agent coordination, mutation testing, property-based validation, and mandatory evidence trails.
+                    Lumen Orca targets 99.9999% reliability (F_total ≤ 10⁻⁶) through autonomous multi-agent coordination, mutation testing, property-based validation, and mandatory evidence trails.
                   </p>
                 </div>
               </div>
@@ -403,7 +403,7 @@ const DemoPlan = () => {
             <Alert>
               <CheckCircle2 className="h-4 w-4" />
               <AlertDescription>
-                <strong>Key Takeaway:</strong> Lumen proves six-nines reliability is achievable through automated governance, transparent audit trails, and multi-agent collaboration — even before full autonomy.
+                <strong>Key Takeaway:</strong> Lumen Orca proves six-nines reliability is achievable through automated governance, transparent audit trails, and multi-agent collaboration — even before full autonomy.
               </AlertDescription>
             </Alert>
           </CardContent>

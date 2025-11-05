@@ -9,7 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { orchestratorService } from "@/lib/orchestrator-service";
 import type { AgentRole, AgentTask } from "../../packages/agents/src/types";
 
-const exampleManifest = `# Lumen Master Prompt - Example Workflow
+const exampleManifest = `# Lumen Orca Master Prompt - Example Workflow
 name: "user-authentication"
 description: "Build OAuth authentication system"
 
