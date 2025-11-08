@@ -77,6 +77,7 @@ Lumen Dashboard (React + Vite)
 2. Explore the dashboard sections to understand agent orchestration
 3. Check Evidence bundles for quality artifact examples
 4. Monitor Telemetry for system health indicators
+5. Use `docs/prompts/AGENT_MODERNIZATION_PROMPT.md` when you need a workspace-aware scan of agent contracts, orchestrator flow, and evidence plumbing before rolling out real LLM-backed modules.
 
 ---
 
