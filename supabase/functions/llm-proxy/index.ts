@@ -4,10 +4,14 @@ import { callLovableAI } from './providers/lovable-ai.ts';
 import { callOpenAI } from './providers/openai.ts';
 import { callAnthropic } from './providers/anthropic.ts';
 import { callGoogle } from './providers/google.ts';
+import { checkRateLimit, getClientIdentifier, createRateLimitHeaders } from '../_shared/rate-limit.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'X-Content-Type-Options': 'nosniff',
+  'X-Frame-Options': 'DENY',
+  'Referrer-Policy': 'strict-origin-when-cross-origin',
 };
 
 interface LLMRequest {
@@ -115,6 +119,21 @@ serve(async (req) => {
   }
 
   try {
+    // Rate limiting - 60 requests per minute per client
+    const clientId = getClientIdentifier(req);
+    const rateLimit = checkRateLimit(clientId, { maxRequests: 60, windowMs: 60000 });
+    const rateLimitHeaders = createRateLimitHeaders(rateLimit);
+
+    if (!rateLimit.allowed) {
+      return new Response(JSON.stringify({
+        error: 'Rate limit exceeded',
+        retryAfter: rateLimit.retryAfter
+      }), {
+        status: 429,
+        headers: { ...corsHeaders, ...rateLimitHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     const { agentRole, prompt, systemPrompt, taskId }: LLMRequest = await req.json();
     const startTime = Date.now();
 
@@ -206,7 +225,7 @@ serve(async (req) => {
     };
 
     return new Response(JSON.stringify(response), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: { ...corsHeaders, ...rateLimitHeaders, 'Content-Type': 'application/json' },
     });
 
   } catch (error) {
