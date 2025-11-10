@@ -15,24 +15,55 @@
 
 ## Overview
 
-Lumen-Orca is an **autonomous build orchestration system** designed to achieve **six-nines reliability** (99.9999% success rate, F_total ≤ 10⁻⁶) through multi-agent coordination, comprehensive quality gates, and evidence-based governance.
+Lumen-Orca is an **intelligent multi-agent orchestration system** designed to achieve **six-nines reliability** (99.9999% success rate) through AI agent coordination, comprehensive quality gates, and evidence-based governance.
+
+**Perfect for**: Developers, teams, and tools that need autonomous code analysis, quality assurance, and intelligent orchestration.
+
+### 🚀 Quick Links
+
+#### For Users
+- 🌐 **[Launch App](https://lumenorca.app/)** — Start using Lumen-Orca now
+- 📖 **[User Guide](docs/USER_GUIDE.md)** — Complete guide to using the platform
+- 🎬 **[Demo](https://lumenorca.app/demo)** — Interactive demonstration
+- ✅ **[Production Readiness](docs/PRODUCTION_READINESS.md)** — Current status & deployment info
+
+#### For Developers & Integrations
+- 🔌 **[API Documentation](docs/API_DOCUMENTATION.md)** — Embed Lumen-Orca into your tools
+- 🏗️ **[Architecture Blueprint](docs/blueprints/lumen_master_blueprint.md)** — System design & agents
+- 🛠️ **[Contributing Guide](CONTRIBUTING.md)** — How to contribute
+- 📋 **[Operational Status](docs/OPERATIONAL_STATUS.md)** — Current capabilities
+- 🆘 **[Incident Response](docs/INCIDENT_RESPONSE.md)** — Emergency procedures
 
 ### Core Principles
 - **Precision**: Mathematical reliability guarantees through Six-Nines calculation
 - **Autonomy**: Multi-agent DAG execution with self-verification
 - **Transparency**: Evidence bundles for every orchestration run
 - **Governance**: Contracts-first architecture with automated validation
+- **Embeddable**: REST API for integration into any development tool
 
-📋 [**Operational Status**](docs/OPERATIONAL_STATUS.md) — Current system capabilities  
-🔄 [**Phase II Transition**](docs/PHASE_II_TRANSITION.md) — Manual steps for autonomous agent readiness  
-🚀 [**Phase II Setup Guide**](docs/PHASE_II_SETUP.md) — Agent implementation roadmap  
-🏃 [**Run Issue Bootstrap**](../../actions/workflows/bootstrap-issues.yml) — One-click label + issue creation  
-✅ [**Go/No-Go Gate Checklist**](docs/GO_NO_GO_CHECKLIST.md) — Pre-launch verification  
-🔒 [**Branch Protection Setup**](docs/BRANCH_PROTECTION_SETUP.md) — Enforce quality gates on merge
+### 🔌 API for Developers
 
-📊 [**Evidence Bundle**](packages/evidence/dist/index.html) — Unit/Property/Mutation/Security/Performance + Contract Diff + SBOM
+Embed Lumen-Orca into **VS Code**, **GitHub Actions**, **CI/CD pipelines**, **AI coding assistants**, and more!
 
-📘 [**Master Blueprint**](docs/blueprints/lumen_master_blueprint.md) — Architecture, agents, and governance model
+```typescript
+// Analyze code with one API call
+const result = await fetch('https://znkkpibjlifhqvtnghsd.supabase.co/functions/v1/llm-proxy', {
+  method: 'POST',
+  headers: {
+    'Authorization': 'Bearer YOUR_TOKEN',
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    agentRole: 'A1_spec',
+    prompt: 'Analyze this code: function add(a, b) { return a + b }'
+  })
+})
+
+const analysis = await result.json()
+// Get: AI-powered analysis, cost tracking, multi-provider fallback
+```
+
+**[→ Full API Documentation](docs/API_DOCUMENTATION.md)** with SDKs for JavaScript, Python, and integration examples!
 
 ## Quick Start
 
