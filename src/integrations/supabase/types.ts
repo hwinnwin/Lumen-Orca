@@ -206,6 +206,72 @@ export type Database = {
         }
         Relationships: []
       }
+      rate_limit_attempts: {
+        Row: {
+          attempts: number
+          blocked_until: string | null
+          created_at: string
+          endpoint: string
+          first_attempt_at: string
+          id: string
+          ip_address: string
+          last_attempt_at: string
+          updated_at: string
+        }
+        Insert: {
+          attempts?: number
+          blocked_until?: string | null
+          created_at?: string
+          endpoint: string
+          first_attempt_at?: string
+          id?: string
+          ip_address: string
+          last_attempt_at?: string
+          updated_at?: string
+        }
+        Update: {
+          attempts?: number
+          blocked_until?: string | null
+          created_at?: string
+          endpoint?: string
+          first_attempt_at?: string
+          id?: string
+          ip_address?: string
+          last_attempt_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      rate_limit_config: {
+        Row: {
+          block_duration_minutes: number
+          created_at: string
+          endpoint: string
+          id: string
+          max_attempts: number
+          updated_at: string
+          window_minutes: number
+        }
+        Insert: {
+          block_duration_minutes?: number
+          created_at?: string
+          endpoint: string
+          id?: string
+          max_attempts?: number
+          updated_at?: string
+          window_minutes?: number
+        }
+        Update: {
+          block_duration_minutes?: number
+          created_at?: string
+          endpoint?: string
+          id?: string
+          max_attempts?: number
+          updated_at?: string
+          window_minutes?: number
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string | null
@@ -232,6 +298,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      cleanup_rate_limit_attempts: { Args: never; Returns: undefined }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

@@ -17,6 +17,7 @@ import Settings from "./pages/Settings";
 import Auth from "./pages/Auth";
 import Profile from "./pages/Profile";
 import MfaSetup from "./pages/MfaSetup";
+import RateLimitManagement from "./pages/RateLimitManagement";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -42,6 +43,7 @@ const App = () => (
               <Route path="/settings" element={<Settings />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/mfa-setup" element={<MfaSetup />} />
+              <Route path="/rate-limit" element={<RateLimitManagement />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>

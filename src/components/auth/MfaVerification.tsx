@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, ShieldCheck } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { checkRateLimit, recordSuccessfulAuth } from "@/lib/rate-limit";
 
 interface MfaVerificationProps {
   factorId: string;
@@ -30,12 +31,28 @@ export function MfaVerification({ factorId, onSuccess, onCancel }: MfaVerificati
 
     setLoading(true);
     try {
+      // Check rate limit before attempting MFA verification
+      const rateLimitCheck = await checkRateLimit('mfa_verify', 'attempt');
+      
+      if (!rateLimitCheck.allowed) {
+        toast({
+          title: "Too Many Attempts",
+          description: rateLimitCheck.message || "Please try again later",
+          variant: "destructive",
+        });
+        setLoading(false);
+        return;
+      }
+
       const { error } = await supabase.auth.mfa.challengeAndVerify({
         factorId,
         code,
       });
 
       if (error) throw error;
+
+      // Record successful MFA verification to reset rate limit
+      await recordSuccessfulAuth('mfa_verify');
 
       toast({
         title: "Verification Successful",

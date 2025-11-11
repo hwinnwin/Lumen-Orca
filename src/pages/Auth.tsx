@@ -9,7 +9,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { signInWithGoogle, signInWithEmail, signUpWithEmail } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
-import { Chrome, Mail, Loader2 } from "lucide-react";
+import { checkRateLimit, recordSuccessfulAuth } from "@/lib/rate-limit";
+import { Chrome, Mail, Loader2, ShieldAlert } from "lucide-react";
 
 const Auth = () => {
   const [email, setEmail] = useState("");
@@ -77,6 +78,19 @@ const Auth = () => {
 
     setLoading(true);
     try {
+      // Check rate limit before attempting sign in
+      const rateLimitCheck = await checkRateLimit('auth_login', 'attempt');
+      
+      if (!rateLimitCheck.allowed) {
+        toast({
+          variant: "destructive",
+          title: "Too Many Attempts",
+          description: rateLimitCheck.message || "Please try again later",
+        });
+        setLoading(false);
+        return;
+      }
+
       // Update session persistence based on remember me
       await supabase.auth.updateUser({
         data: { rememberMe }
@@ -90,6 +104,9 @@ const Auth = () => {
           description: error.message,
         });
       } else {
+        // Record successful authentication to reset rate limit
+        await recordSuccessfulAuth('auth_login');
+        
         // Store preference in localStorage
         if (rememberMe) {
           localStorage.setItem('lumen-remember-me', 'true');
@@ -136,6 +153,19 @@ const Auth = () => {
 
     setLoading(true);
     try {
+      // Check rate limit before attempting sign up
+      const rateLimitCheck = await checkRateLimit('auth_signup', 'attempt');
+      
+      if (!rateLimitCheck.allowed) {
+        toast({
+          variant: "destructive",
+          title: "Too Many Attempts",
+          description: rateLimitCheck.message || "Please try again later",
+        });
+        setLoading(false);
+        return;
+      }
+
       const { error } = await signUpWithEmail(email, password, fullName);
       if (error) {
         toast({
@@ -144,6 +174,9 @@ const Auth = () => {
           description: error.message,
         });
       } else {
+        // Record successful signup to reset rate limit
+        await recordSuccessfulAuth('auth_signup');
+        
         toast({
           title: "Success",
           description: "Account created! Please check your email to verify your account.",
