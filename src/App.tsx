@@ -16,6 +16,7 @@ import DemoPlan from "./pages/DemoPlan";
 import Settings from "./pages/Settings";
 import Auth from "./pages/Auth";
 import Profile from "./pages/Profile";
+import MfaSetup from "./pages/MfaSetup";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -40,6 +41,7 @@ const App = () => (
               <Route path="/demo" element={<DemoPlan />} />
               <Route path="/settings" element={<Settings />} />
               <Route path="/profile" element={<Profile />} />
+              <Route path="/mfa-setup" element={<MfaSetup />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>

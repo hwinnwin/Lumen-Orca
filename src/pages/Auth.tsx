@@ -29,6 +29,17 @@ const Auth = () => {
       }
       setCheckingAuth(false);
     });
+
+    // Listen for MFA challenges
+    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'MFA_CHALLENGE_VERIFIED') {
+        navigate("/");
+      }
+    });
+
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
   }, [navigate]);
 
   const handleGoogleSignIn = async () => {
