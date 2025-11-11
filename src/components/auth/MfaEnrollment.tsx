@@ -8,6 +8,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2, ShieldCheck } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import QRCode from "qrcode";
+import { logAuditEvent } from "@/lib/audit-logger";
 
 export function MfaEnrollment() {
   const [qrCode, setQrCode] = useState<string>("");
@@ -35,6 +36,8 @@ export function MfaEnrollment() {
   const enrollMfa = async () => {
     setLoading(true);
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
       const { data, error } = await supabase.auth.mfa.enroll({
         factorType: "totp",
       });
@@ -53,6 +56,17 @@ export function MfaEnrollment() {
           title: "MFA Enrollment Started",
           description: "Scan the QR code with your authenticator app.",
         });
+        
+        // Log audit event
+        if (user) {
+          await logAuditEvent({
+            eventType: 'mfa_enrolled',
+            eventStatus: 'success',
+            userId: user.id,
+            userEmail: user.email,
+            eventDetails: { factor_id: data.id },
+          });
+        }
       }
     } catch (error: any) {
       toast({
@@ -108,6 +122,7 @@ export function MfaEnrollment() {
   const unenrollMfa = async () => {
     setLoading(true);
     try {
+      const { data: { user } } = await supabase.auth.getUser();
       const factors = await supabase.auth.mfa.listFactors();
       if (factors.data?.totp && factors.data.totp.length > 0) {
         const factorId = factors.data.totp[0].id;
@@ -124,6 +139,17 @@ export function MfaEnrollment() {
           title: "MFA Disabled",
           description: "Two-factor authentication has been removed from your account.",
         });
+        
+        // Log audit event
+        if (user) {
+          await logAuditEvent({
+            eventType: 'mfa_unenrolled',
+            eventStatus: 'success',
+            userId: user.id,
+            userEmail: user.email,
+            eventDetails: { factor_id: factorId },
+          });
+        }
       }
     } catch (error: any) {
       toast({

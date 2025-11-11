@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Loader2, ShieldCheck } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { checkRateLimit, recordSuccessfulAuth } from "@/lib/rate-limit";
+import { logAuditEvent } from "@/lib/audit-logger";
 
 interface MfaVerificationProps {
   factorId: string;
@@ -31,6 +32,8 @@ export function MfaVerification({ factorId, onSuccess, onCancel }: MfaVerificati
 
     setLoading(true);
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
       // Check rate limit before attempting MFA verification
       const rateLimitCheck = await checkRateLimit('mfa_verify', 'attempt');
       
@@ -40,6 +43,18 @@ export function MfaVerification({ factorId, onSuccess, onCancel }: MfaVerificati
           description: rateLimitCheck.message || "Please try again later",
           variant: "destructive",
         });
+        
+        // Log failed attempt
+        if (user) {
+          await logAuditEvent({
+            eventType: 'mfa_verify_failed',
+            eventStatus: 'blocked',
+            userId: user.id,
+            userEmail: user.email,
+            eventDetails: { reason: 'rate_limit', factor_id: factorId },
+          });
+        }
+        
         setLoading(false);
         return;
       }
@@ -49,10 +64,33 @@ export function MfaVerification({ factorId, onSuccess, onCancel }: MfaVerificati
         code,
       });
 
-      if (error) throw error;
+      if (error) {
+        // Log failed verification
+        if (user) {
+          await logAuditEvent({
+            eventType: 'mfa_verify_failed',
+            eventStatus: 'failure',
+            userId: user.id,
+            userEmail: user.email,
+            eventDetails: { error: error.message, factor_id: factorId },
+          });
+        }
+        throw error;
+      }
 
       // Record successful MFA verification to reset rate limit
       await recordSuccessfulAuth('mfa_verify');
+
+      // Log successful verification
+      if (user) {
+        await logAuditEvent({
+          eventType: 'mfa_verify_success',
+          eventStatus: 'success',
+          userId: user.id,
+          userEmail: user.email,
+          eventDetails: { factor_id: factorId },
+        });
+      }
 
       toast({
         title: "Verification Successful",

@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { User, Session } from "@supabase/supabase-js";
+import { logAuditEvent } from "./audit-logger";
 
 export interface AuthState {
   user: User | null;
@@ -26,6 +27,24 @@ export async function signInWithEmail(email: string, password: string) {
     password,
   });
   
+  // Log audit event
+  if (error) {
+    await logAuditEvent({
+      eventType: 'login_failed',
+      eventStatus: 'failure',
+      userEmail: email,
+      eventDetails: { error: error.message, method: 'email' },
+    });
+  } else if (data.user) {
+    await logAuditEvent({
+      eventType: 'login_success',
+      eventStatus: 'success',
+      userId: data.user.id,
+      userEmail: data.user.email,
+      eventDetails: { method: 'email' },
+    });
+  }
+  
   return { data, error };
 }
 
@@ -43,11 +62,42 @@ export async function signUpWithEmail(email: string, password: string, fullName?
     },
   });
   
+  // Log audit event
+  if (error) {
+    await logAuditEvent({
+      eventType: 'signup_failed',
+      eventStatus: 'failure',
+      userEmail: email,
+      eventDetails: { error: error.message },
+    });
+  } else if (data.user) {
+    await logAuditEvent({
+      eventType: 'signup_success',
+      eventStatus: 'success',
+      userId: data.user.id,
+      userEmail: data.user.email,
+      eventDetails: { full_name: fullName },
+    });
+  }
+  
   return { data, error };
 }
 
 export async function signOut() {
+  const { data: { user } } = await supabase.auth.getUser();
+  
   const { error } = await supabase.auth.signOut();
+  
+  // Log audit event
+  if (!error && user) {
+    await logAuditEvent({
+      eventType: 'logout',
+      eventStatus: 'success',
+      userId: user.id,
+      userEmail: user.email,
+    });
+  }
+  
   return { error };
 }
 

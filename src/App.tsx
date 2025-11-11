@@ -18,6 +18,7 @@ import Auth from "./pages/Auth";
 import Profile from "./pages/Profile";
 import MfaSetup from "./pages/MfaSetup";
 import RateLimitManagement from "./pages/RateLimitManagement";
+import AuditLogs from "./pages/AuditLogs";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -44,6 +45,7 @@ const App = () => (
               <Route path="/profile" element={<Profile />} />
               <Route path="/mfa-setup" element={<MfaSetup />} />
               <Route path="/rate-limit" element={<RateLimitManagement />} />
+              <Route path="/audit-logs" element={<AuditLogs />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>
