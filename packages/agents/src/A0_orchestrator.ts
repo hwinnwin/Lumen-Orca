@@ -160,6 +160,22 @@ export class Orchestrator {
   private async executeTask(task: AgentTask): Promise<void> {
     const startTime = Date.now();
     
+    // Log task start
+    try {
+      const { logAuditEvent } = await import('../../../src/lib/audit-logger');
+      await logAuditEvent({
+        eventType: 'agent_task_started',
+        eventStatus: 'success',
+        eventDetails: {
+          taskId: task.id,
+          agentRole: task.role,
+          inputs: task.inputs
+        }
+      });
+    } catch (err) {
+      console.error('Failed to log task start:', err);
+    }
+    
     // Update task status
     task.status = 'running';
     this.notifyTaskUpdate(task);
@@ -187,6 +203,23 @@ export class Orchestrator {
       
       agentState.state = 'idle';
       agentState.currentTask = undefined;
+
+      // Log task completion
+      try {
+        const { logAuditEvent } = await import('../../../src/lib/audit-logger');
+        await logAuditEvent({
+          eventType: 'agent_task_completed',
+          eventStatus: 'success',
+          eventDetails: {
+            taskId: task.id,
+            agentRole: task.role,
+            latencyMs: latency,
+            outputs: task.outputs
+          }
+        });
+      } catch (err) {
+        console.error('Failed to log task completion:', err);
+      }
       
     } catch (error) {
       task.status = 'failed';
@@ -198,6 +231,22 @@ export class Orchestrator {
       agentState.metrics.tasksCompleted++;
       agentState.state = 'error';
       agentState.currentTask = undefined;
+
+      // Log task failure
+      try {
+        const { logAuditEvent } = await import('../../../src/lib/audit-logger');
+        await logAuditEvent({
+          eventType: 'agent_task_failed',
+          eventStatus: 'failure',
+          eventDetails: {
+            taskId: task.id,
+            agentRole: task.role,
+            error: error instanceof Error ? error.message : String(error)
+          }
+        });
+      } catch (err) {
+        console.error('Failed to log task failure:', err);
+      }
     }
 
     this.notifyTaskUpdate(task);
@@ -214,6 +263,7 @@ export class Orchestrator {
       const { supabase } = await import('../../../src/integrations/supabase/client');
       
       console.log(`[Orchestrator] Invoking ${task.role}...`);
+      const startTime = Date.now();
       const { data, error } = await supabase.functions.invoke('llm-proxy', {
         body: {
           agentRole: task.role,
@@ -222,15 +272,55 @@ export class Orchestrator {
           taskId: task.id,
         }
       });
+      const llmLatency = Date.now() - startTime;
 
       if (error) {
         console.error(`[Orchestrator] Error from ${task.role}:`, error);
+
+        // Log LLM call failure
+        try {
+          const { logAuditEvent } = await import('../../../src/lib/audit-logger');
+          await logAuditEvent({
+            eventType: 'llm_call_failed',
+            eventStatus: 'failure',
+            eventDetails: {
+              taskId: task.id,
+              agentRole: task.role,
+              error: error.message,
+              latencyMs: llmLatency
+            }
+          });
+        } catch (err) {
+          console.error('Failed to log LLM call failure:', err);
+        }
+        
         throw error;
       }
 
       console.log(`[Orchestrator] ✅ ${task.role} completed in ${data.usage.latencyMs}ms`);
       
       const parsedResult = this.parseAgentResponse(task.role, data.result);
+
+      // Log LLM call success
+      try {
+        const { logAuditEvent } = await import('../../../src/lib/audit-logger');
+        await logAuditEvent({
+          eventType: 'llm_call_success',
+          eventStatus: 'success',
+          eventDetails: {
+            taskId: task.id,
+            agentRole: task.role,
+            provider: data.usage?.provider,
+            model: data.usage?.model,
+            tokensInput: data.usage?.tokensInput,
+            tokensOutput: data.usage?.tokensOutput,
+            latencyMs: llmLatency,
+            estimatedCost: data.usage?.estimatedCost
+          }
+        });
+      } catch (err) {
+        console.error('Failed to log LLM call success:', err);
+      }
 
       // If agent returned code, execute it in sandbox
       if (parsedResult.code && typeof parsedResult.code === 'string') {
@@ -245,6 +335,23 @@ export class Orchestrator {
       return parsedResult;
     } catch (error) {
       console.error(`[Orchestrator] ❌ ${task.role} failed:`, error);
+
+      // Log LLM call failure
+      try {
+        const { logAuditEvent } = await import('../../../src/lib/audit-logger');
+        await logAuditEvent({
+          eventType: 'llm_call_failed',
+          eventStatus: 'failure',
+          eventDetails: {
+            taskId: task.id,
+            agentRole: task.role,
+            error: error instanceof Error ? error.message : String(error)
+          }
+        });
+      } catch (err) {
+        console.error('Failed to log LLM call failure:', err);
+      }
+
       throw error;
     }
   }
@@ -369,6 +476,21 @@ export class Orchestrator {
 
     this.running = true;
 
+    // Log orchestrator start
+    try {
+      const { logAuditEvent } = await import('../../../src/lib/audit-logger');
+      await logAuditEvent({
+        eventType: 'orchestrator_started',
+        eventStatus: 'success',
+        eventDetails: {
+          totalTasks: this.tasks.size,
+          timestamp: new Date().toISOString()
+        }
+      });
+    } catch (err) {
+      console.error('Failed to log orchestrator start:', err);
+    }
+
     try {
       while (this.hasIncompleteTasks()) {
         const readyTasks = this.getReadyTasks();
@@ -394,6 +516,38 @@ export class Orchestrator {
 
         await Promise.all(batch.map(task => this.executeTask(task)));
       }
+
+      // Log orchestrator completion
+      try {
+        const { logAuditEvent } = await import('../../../src/lib/audit-logger');
+        await logAuditEvent({
+          eventType: 'orchestrator_completed',
+          eventStatus: 'success',
+          eventDetails: {
+            totalTasks: this.tasks.size,
+            completedTasks: Array.from(this.tasks.values()).filter(t => t.status === 'completed').length,
+            failedTasks: Array.from(this.tasks.values()).filter(t => t.status === 'failed').length
+          }
+        });
+      } catch (err) {
+        console.error('Failed to log orchestrator completion:', err);
+      }
+    } catch (error) {
+      // Log orchestrator failure
+      try {
+        const { logAuditEvent } = await import('../../../src/lib/audit-logger');
+        await logAuditEvent({
+          eventType: 'orchestrator_failed',
+          eventStatus: 'failure',
+          eventDetails: {
+            error: error instanceof Error ? error.message : String(error),
+            incompleteTasks: Array.from(this.tasks.values()).filter(t => t.status === 'pending' || t.status === 'running').length
+          }
+        });
+      } catch (err) {
+        console.error('Failed to log orchestrator failure:', err);
+      }
+      throw error;
     } finally {
       this.running = false;
     }

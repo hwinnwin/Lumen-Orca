@@ -13,7 +13,21 @@ export type AuditEventType =
   | 'role_assigned'
   | 'role_removed'
   | 'rate_limit_blocked'
-  | 'rate_limit_attempt';
+  | 'rate_limit_attempt'
+  | 'agent_task_started'
+  | 'agent_task_completed'
+  | 'agent_task_failed'
+  | 'agent_task_blocked'
+  | 'llm_call_success'
+  | 'llm_call_failed'
+  | 'code_execution_started'
+  | 'code_execution_completed'
+  | 'code_execution_failed'
+  | 'code_execution_timeout'
+  | 'orchestrator_started'
+  | 'orchestrator_completed'
+  | 'orchestrator_failed'
+  | 'system_error';
 
 export type AuditEventStatus = 'success' | 'failure' | 'blocked';
 

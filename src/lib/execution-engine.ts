@@ -77,6 +77,23 @@ class ExecutionEngine {
         agentRole: validatedRequest.agentRole,
       });
 
+      // Log execution start
+      try {
+        const { logAuditEvent } = await import('@/lib/audit-logger');
+        await logAuditEvent({
+          eventType: 'code_execution_started',
+          eventStatus: 'success',
+          eventDetails: {
+            language: validatedRequest.language,
+            codeLength: validatedRequest.code.length,
+            timeoutMs: validatedRequest.timeoutMs,
+            memoryLimitMb: validatedRequest.memoryLimitMb
+          }
+        });
+      } catch (err) {
+        console.error('Failed to log execution start:', err);
+      }
+
       // Call sandboxed execution edge function
       const { data, error } = await supabase.functions.invoke('execute-code', {
         body: validatedRequest,
@@ -84,6 +101,22 @@ class ExecutionEngine {
 
       if (error) {
         console.error('[Execution Engine] Error:', error);
+        
+        // Log execution failure
+        try {
+          const { logAuditEvent } = await import('@/lib/audit-logger');
+          await logAuditEvent({
+            eventType: 'code_execution_failed',
+            eventStatus: 'failure',
+            eventDetails: {
+              error: error.message,
+              language: validatedRequest.language
+            }
+          });
+        } catch (err) {
+          console.error('Failed to log execution failure:', err);
+        }
+        
         return {
           success: false,
           error: error.message || 'Execution failed',
@@ -91,9 +124,63 @@ class ExecutionEngine {
         };
       }
 
-      return data as ExecutionResult;
+      const result = data as ExecutionResult;
+
+      // Log execution result
+      try {
+        const { logAuditEvent } = await import('@/lib/audit-logger');
+        if (result.success) {
+          await logAuditEvent({
+            eventType: 'code_execution_completed',
+            eventStatus: 'success',
+            eventDetails: {
+              language: validatedRequest.language,
+              executionTimeMs: result.executionTimeMs,
+              outputLength: result.output?.length || 0
+            }
+          });
+        } else if (result.error?.includes('timeout')) {
+          await logAuditEvent({
+            eventType: 'code_execution_timeout',
+            eventStatus: 'blocked',
+            eventDetails: {
+              language: validatedRequest.language,
+              timeoutMs: validatedRequest.timeoutMs,
+              error: result.error
+            }
+          });
+        } else {
+          await logAuditEvent({
+            eventType: 'code_execution_failed',
+            eventStatus: 'failure',
+            eventDetails: {
+              language: validatedRequest.language,
+              error: result.error
+            }
+          });
+        }
+      } catch (err) {
+        console.error('Failed to log execution result:', err);
+      }
+
+      return result;
     } catch (error: any) {
       console.error('[Execution Engine] Validation or execution error:', error);
+      
+      // Log execution error
+      try {
+        const { logAuditEvent } = await import('@/lib/audit-logger');
+        await logAuditEvent({
+          eventType: 'code_execution_failed',
+          eventStatus: 'failure',
+          eventDetails: {
+            error: error.message || String(error)
+          }
+        });
+      } catch (err) {
+        console.error('Failed to log execution error:', err);
+      }
+      
       return {
         success: false,
         error: error.message || String(error),

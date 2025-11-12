@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-import { Activity, Box, FileText, BarChart3, Network, Terminal, BookOpen, Presentation, Settings, User } from "lucide-react";
+import { Activity, Box, FileText, BarChart3, Network, Terminal, BookOpen, Presentation, Settings, User, Shield } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
@@ -15,6 +15,9 @@ const navItems = [
   { title: "User Guide", path: "/guide", icon: BookOpen },
   { title: "Demo Plan", path: "/demo", icon: Presentation },
   { title: "Master Prompt", path: "/prompt", icon: Terminal },
+  { title: "System Logs", path: "/system-logs", icon: FileText, requiresAdmin: true },
+  { title: "Audit Logs", path: "/audit-logs", icon: FileText, requiresAdmin: true },
+  { title: "Rate Limiting", path: "/rate-limit", icon: Shield, requiresAdmin: true },
   { title: "Settings", path: "/settings", icon: Settings },
 ];
 
@@ -47,23 +50,25 @@ export const Sidebar = () => {
 
       {/* Navigation */}
       <nav className="flex-1 p-4 space-y-2">
-        {navItems.map((item) => (
-          <NavLink
-            key={item.path}
-            to={item.path}
-            end={item.path === "/"}
-            className={({ isActive }) =>
-              `flex items-center gap-3 px-4 py-3 rounded-lg transition-smooth ${
-                isActive
-                  ? "bg-primary/10 text-primary border border-primary/20"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
-              }`
-            }
-          >
-            <item.icon className="w-5 h-5" />
-            <span className="font-medium">{item.title}</span>
-          </NavLink>
-        ))}
+        {navItems
+          .filter((item) => !item.requiresAdmin || isAdmin)
+          .map((item) => (
+            <NavLink
+              key={item.path}
+              to={item.path}
+              end={item.path === "/"}
+              className={({ isActive }) =>
+                `flex items-center gap-3 px-4 py-3 rounded-lg transition-smooth ${
+                  isActive
+                    ? "bg-primary/10 text-primary border border-primary/20"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                }`
+              }
+            >
+              <item.icon className="w-5 h-5" />
+              <span className="font-medium">{item.title}</span>
+            </NavLink>
+          ))}
       </nav>
 
       {/* User Menu */}
