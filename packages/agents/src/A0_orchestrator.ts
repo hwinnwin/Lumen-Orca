@@ -23,7 +23,7 @@ export class Orchestrator {
     this.initializeAgentStates();
   }
 
-  // Initialize all agent states
+  // Initialize all agent states (built-in + custom agents)
   private initializeAgentStates(): void {
     const roles: AgentRole[] = [
       'A0_orchestrator', 'A1_spec', 'A2_architect', 
@@ -31,6 +31,23 @@ export class Orchestrator {
       'A6_qa_harness', 'A7_evidence', 'A8_performance',
       'A9_security', 'A10_incident'
     ];
+
+    // Load custom agents from registry
+    if (typeof window !== 'undefined') {
+      try {
+        const customAgents = localStorage.getItem('lumen_custom_agents');
+        if (customAgents) {
+          const agents = JSON.parse(customAgents);
+          agents.forEach((agent: any) => {
+            if (!roles.includes(agent.role)) {
+              roles.push(agent.role);
+            }
+          });
+        }
+      } catch (error) {
+        console.warn('[Orchestrator] Failed to load custom agents:', error);
+      }
+    }
 
     roles.forEach(role => {
       this.agentStates.set(role, {
@@ -226,6 +243,44 @@ export class Orchestrator {
   }
 
   private getSystemPromptForAgent(role: AgentRole): string {
+    // Priority: Active Agent Profile > Custom Agent > Built-in Agent
+    
+    // Check for active agent profile first
+    if (typeof window !== 'undefined') {
+      try {
+        const activeProfileId = localStorage.getItem('lumen_active_agent_profile');
+        if (activeProfileId) {
+          const profilesData = localStorage.getItem('lumen_agent_profiles');
+          if (profilesData) {
+            const profiles = JSON.parse(profilesData);
+            const activeProfile = profiles.find((p: any) => p.id === activeProfileId);
+            if (activeProfile?.systemPrompt) {
+              console.log(`[Orchestrator] Using agent profile prompt for ${role}`);
+              return activeProfile.systemPrompt;
+            }
+          }
+        }
+      } catch (error) {
+        console.warn('[Orchestrator] Failed to load agent profile:', error);
+      }
+
+      // Check for custom agent definition
+      try {
+        const customAgents = localStorage.getItem('lumen_custom_agents');
+        if (customAgents) {
+          const agents = JSON.parse(customAgents);
+          const customAgent = agents.find((a: any) => a.role === role || a.id === role);
+          if (customAgent?.systemPrompt) {
+            console.log(`[Orchestrator] Using custom agent prompt for ${role}`);
+            return customAgent.systemPrompt;
+          }
+        }
+      } catch (error) {
+        console.warn('[Orchestrator] Failed to load custom agent:', error);
+      }
+    }
+
+    // Built-in agent prompts
     const prompts: Record<AgentRole, string> = {
       'A0_orchestrator': 'You coordinate DAG execution and manage task dependencies.',
       'A1_spec': 'You are a requirements analyzer. Parse natural language requirements into formal, testable specifications. Return JSON with: {specification: string, requirements: any, testable: boolean}',
@@ -239,7 +294,7 @@ export class Orchestrator {
       'A9_security': 'You are a security auditor. Scan for vulnerabilities, validate RLS policies, check OWASP top 10. Return JSON with: {vulnerabilities: any[], passed: boolean}',
       'A10_incident': 'You are an incident responder. Analyze failures, recommend fixes, and generate postmortems. Return JSON with: {analysis: string, recommendations: any[]}',
     };
-    return prompts[role] || 'You are an AI agent in the Lumen orchestration system.';
+    return prompts[role] || 'You are an AI agent in the Lumen Orca orchestration system. Complete your assigned task with precision and return structured JSON output.';
   }
 
   private parseAgentResponse(role: AgentRole, rawResponse: string): Record<string, unknown> {

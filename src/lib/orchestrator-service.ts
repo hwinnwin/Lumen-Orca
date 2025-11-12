@@ -29,49 +29,63 @@ class OrchestratorService {
       {
         id: 'task-spec',
         role: 'A1_spec',
-        inputs: { requirements: 'Build auth system' },
+        inputs: { 
+          requirements: 'Design and implement a secure user authentication system with email/password login, OAuth integration (Google), and multi-factor authentication (MFA) support. The system must follow Six-Nines reliability standards (99.9999% uptime) and include comprehensive audit logging.'
+        },
         status: 'pending',
         dependencies: []
       },
       {
         id: 'task-arch',
         role: 'A2_architect',
-        inputs: {},
+        inputs: {
+          instruction: 'Based on the specification, design a robust system architecture that includes component hierarchy, data flow patterns, security layers, and integration points with Supabase backend.'
+        },
         status: 'pending',
         dependencies: ['task-spec']
       },
       {
         id: 'task-codegen-a',
         role: 'A3_codegen_a',
-        inputs: {},
+        inputs: {
+          instruction: 'Generate implementation variant A following the architecture. Focus on React components, Supabase integration, TypeScript type safety, and production-ready error handling.'
+        },
         status: 'pending',
         dependencies: ['task-arch']
       },
       {
         id: 'task-codegen-b',
         role: 'A4_codegen_b',
-        inputs: {},
+        inputs: {
+          instruction: 'Generate implementation variant B as an alternative approach. Explore different patterns while maintaining the same security and reliability requirements.'
+        },
         status: 'pending',
         dependencies: ['task-arch']
       },
       {
         id: 'task-adjudicate',
         role: 'A5_adjudicator',
-        inputs: {},
+        inputs: {
+          instruction: 'Compare both implementation variants. Analyze code quality, security measures, performance characteristics, and maintainability. Select the superior approach or merge the best aspects of both.'
+        },
         status: 'pending',
         dependencies: ['task-codegen-a', 'task-codegen-b']
       },
       {
         id: 'task-qa',
         role: 'A6_qa_harness',
-        inputs: {},
+        inputs: {
+          instruction: 'Generate comprehensive test suite including unit tests, integration tests, mutation tests, and property-based tests. Validate against Six-Nines quality gates (coverage > 90%, mutation score > 85%).'
+        },
         status: 'pending',
         dependencies: ['task-adjudicate']
       },
       {
         id: 'task-evidence',
         role: 'A7_evidence',
-        inputs: {},
+        inputs: {
+          instruction: 'Compile complete evidence bundle documenting all execution stages, quality metrics, test results, and compliance with Six-Nines protocol. Generate F_total score and grade.'
+        },
         status: 'pending',
         dependencies: ['task-qa']
       }
