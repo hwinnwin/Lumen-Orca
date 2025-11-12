@@ -204,7 +204,7 @@ export class Orchestrator {
     this.notifyAgentUpdate(agentState);
   }
 
-  // Agent execution via LLM proxy
+  // Agent execution via LLM proxy with optional code execution
   private async executeAgent(task: AgentTask): Promise<Record<string, unknown>> {
     const prompt = this.buildPromptForAgent(task);
     const systemPrompt = this.getSystemPromptForAgent(task.role);
@@ -230,10 +230,58 @@ export class Orchestrator {
 
       console.log(`[Orchestrator] ✅ ${task.role} completed in ${data.usage.latencyMs}ms`);
       
-      return this.parseAgentResponse(task.role, data.result);
+      const parsedResult = this.parseAgentResponse(task.role, data.result);
+
+      // If agent returned code, execute it in sandbox
+      if (parsedResult.code && typeof parsedResult.code === 'string') {
+        console.log(`[Orchestrator] ${task.role} generated code, executing in sandbox...`);
+        const executionResult = await this.executeGeneratedCode(
+          parsedResult.code,
+          task.role
+        );
+        parsedResult.executionResult = executionResult;
+      }
+
+      return parsedResult;
     } catch (error) {
       console.error(`[Orchestrator] ❌ ${task.role} failed:`, error);
       throw error;
+    }
+  }
+
+  /**
+   * Execute agent-generated code in sandboxed environment
+   */
+  private async executeGeneratedCode(
+    code: string,
+    agentRole: AgentRole
+  ): Promise<Record<string, unknown>> {
+    try {
+      const { supabase } = await import('../../../src/integrations/supabase/client');
+
+      const { data, error } = await supabase.functions.invoke('execute-code', {
+        body: {
+          code,
+          language: 'typescript',
+          timeoutMs: 5000,
+          memoryLimitMb: 128,
+          agentRole,
+        }
+      });
+
+      if (error) {
+        return {
+          success: false,
+          error: error.message,
+        };
+      }
+
+      return data;
+    } catch (error: any) {
+      return {
+        success: false,
+        error: error.message || String(error),
+      };
     }
   }
 
