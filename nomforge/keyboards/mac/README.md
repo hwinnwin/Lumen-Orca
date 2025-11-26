@@ -1,0 +1,1 @@
+Mac keyboard layout placeholder.

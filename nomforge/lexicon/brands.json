@@ -1,0 +1,10 @@
+{
+  "brands": {
+    "vyberology": {"pua": "E000", "name": "DRAGONLINE_VYBEROLOGY"},
+    "lumenflow": {"pua": "E001", "name": "DRAGONLINE_LUMENFLOW"},
+    "lumenorca": {"pua": "E002", "name": "DRAGONLINE_ORCA"},
+    "hwinnwin": {"pua": "E003", "name": "DRAGONLINE_HWNN"},
+    "nomata": {"pua": "E004", "name": "DRAGONLINE_NOMATA"},
+    "151": {"pua": "E101", "name": "DRAGONLINE_151"}
+  }
+}

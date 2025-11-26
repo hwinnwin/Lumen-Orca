@@ -1,0 +1,15 @@
+{
+  "vn": {
+    "nguyễn": {"nom": "𠊛", "han": "阮", "strategy": "lexicon", "notes": "surname"},
+    "nguyen": {"nom": "𠊛", "han": "阮", "strategy": "lexicon", "notes": "surname"},
+    "huỳnh": {"nom": "𡈽", "han": "黃", "strategy": "lexicon", "notes": "surname"},
+    "hoàng": {"nom": "𡈽", "han": "黃", "strategy": "lexicon", "notes": "surname"},
+    "duc": {"nom": "德", "strategy": "lexicon", "notes": "virtue"},
+    "đức": {"nom": "德", "strategy": "lexicon", "notes": "virtue"},
+    "tùng": {"nom": "𣘻", "han": "松", "strategy": "lexicon", "notes": "pine"},
+    "tung": {"nom": "𣘻", "han": "松", "strategy": "lexicon", "notes": "pine"},
+    "rồng": {"nom": "𤅶", "han": "龍", "strategy": "lexicon", "notes": "dragon"},
+    "rong": {"nom": "𤅶", "han": "龍", "strategy": "lexicon", "notes": "dragon"},
+    "long": {"nom": "龍", "strategy": "lexicon", "notes": "dragon/crest"}
+  }
+}
