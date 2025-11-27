@@ -8,7 +8,10 @@ export const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!loading && !user) {
+    // Check for demo mode
+    const isDemoMode = localStorage.getItem('lumen-demo-mode') === 'true';
+    
+    if (!loading && !user && !isDemoMode) {
       navigate("/auth");
     }
   }, [user, loading, navigate]);
@@ -21,7 +24,9 @@ export const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
     );
   }
 
-  if (!user) {
+  // Allow access in demo mode even without authentication
+  const isDemoMode = localStorage.getItem('lumen-demo-mode') === 'true';
+  if (!user && !isDemoMode) {
     return null;
   }
 

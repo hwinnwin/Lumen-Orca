@@ -23,6 +23,17 @@ const Auth = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
+    // Check for demo mode in URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const isDemoMode = urlParams.get('demo') === 'true';
+    
+    if (isDemoMode) {
+      // Set demo mode in localStorage and redirect
+      localStorage.setItem('lumen-demo-mode', 'true');
+      navigate("/");
+      return;
+    }
+
     // Check if user is already logged in
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
@@ -209,6 +220,17 @@ const Auth = () => {
           <CardDescription className="text-center">
             Sign in to access the orchestration dashboard
           </CardDescription>
+          <Button
+            variant="outline"
+            className="w-full mt-4"
+            onClick={() => {
+              localStorage.setItem('lumen-demo-mode', 'true');
+              navigate("/");
+            }}
+          >
+            <ShieldAlert className="mr-2 h-4 w-4" />
+            Enter Demo Mode
+          </Button>
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="signin" className="w-full">
