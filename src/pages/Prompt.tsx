@@ -142,29 +142,24 @@ const Prompt = () => {
 
   const parseNaturalLanguage = async (text: string): Promise<ParsedManifest | null> => {
     try {
+      const systemPrompt = `You are a workflow parser. Convert natural language descriptions into structured workflow manifests.
+Extract: workflow name, description, and tasks with agent roles (A1_spec, A2_architect, A3_codegen_a, A4_codegen_b, A5_adjudicator, A6_qa_harness, A7_evidence, etc.).
+Respond with valid JSON only: {"name": "...", "description": "...", "tasks": [{"id": "...", "agent": "...", "description": "...", "depends_on": [...]}]}`;
+
       const { data, error } = await supabase.functions.invoke('llm-proxy', {
         body: {
-          messages: [
-            {
-              role: 'system',
-              content: `You are a workflow parser. Convert natural language descriptions into structured workflow manifests.
-Extract: workflow name, description, and tasks with agent roles (A1_spec, A2_architect, A3_codegen_a, A4_codegen_b, A5_adjudicator, A6_qa_harness, A7_evidence, etc.).
-Respond with valid JSON only: {"name": "...", "description": "...", "tasks": [{"id": "...", "agent": "...", "description": "...", "depends_on": [...]}]}`
-            },
-            {
-              role: 'user',
-              content: text
-            }
-          ],
-          agentRole: 'A0_orchestrator'
-        }
+          agentRole: 'A0_orchestrator',
+          prompt: text,
+          systemPrompt,
+        },
       });
 
       if (error) throw error;
+      if (!data || !data.result) {
+        throw new Error('No result from LLM proxy');
+      }
 
-      const content = data.choices[0].message.content;
-      const parsed = JSON.parse(content);
-      
+      const parsed = JSON.parse(data.result as string);
       return parsed as ParsedManifest;
     } catch (error) {
       console.error('Natural language parsing error:', error);
@@ -238,7 +233,7 @@ Respond with valid JSON only: {"name": "...", "description": "...", "tasks": [{"
       }
       
       if (!parsed || !parsed.name || !parsed.tasks || parsed.tasks.length === 0) {
-        const errorMsg = "Could not parse YAML manifest. Check syntax.";
+        const errorMsg = "Could not parse workflow manifest. Check YAML syntax or refine natural language description.";
         setOutputs(prev => [...prev, `❌ ERROR: ${errorMsg}`]);
         toast({
           title: "Invalid manifest",
