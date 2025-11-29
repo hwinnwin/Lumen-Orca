@@ -3,12 +3,18 @@ import { OrchestrationGraph } from "@/components/dashboard/OrchestrationGraph";
 import { MetricsPanel } from "@/components/dashboard/MetricsPanel";
 import { ExecutionMonitor } from "@/components/dashboard/ExecutionMonitor";
 import { Button } from "@/components/ui/button";
-import { Play, RotateCcw, FlaskConical } from "lucide-react";
+import { Play, RotateCcw, FlaskConical, TestTube } from "lucide-react";
 import { useOrchestrator } from "@/hooks/use-orchestrator";
 import { toast } from "sonner";
+import { useState, useEffect } from "react";
 
 const Dashboard = () => {
   const { state, isExecuting, start, reset } = useOrchestrator();
+  const [isDemoMode, setIsDemoMode] = useState(false);
+
+  useEffect(() => {
+    setIsDemoMode(localStorage.getItem('lumen-demo-mode') === 'true');
+  }, []);
 
   const handleExecute = async () => {
     try {
@@ -26,6 +32,18 @@ const Dashboard = () => {
     toast.info("Orchestrator reset. Ready for new execution.");
   };
 
+  const handleToggleDemoMode = () => {
+    const newDemoMode = !isDemoMode;
+    if (newDemoMode) {
+      localStorage.setItem('lumen-demo-mode', 'true');
+      toast.success("Demo mode enabled - Exploring without authentication");
+    } else {
+      localStorage.removeItem('lumen-demo-mode');
+      toast.info("Demo mode disabled");
+    }
+    setIsDemoMode(newDemoMode);
+  };
+
   return (
     <div className="min-h-screen p-8 gradient-mesh">
       {/* Header with Test Controls */}
@@ -38,6 +56,15 @@ const Dashboard = () => {
             </p>
           </div>
           <div className="flex items-center gap-3">
+            <Button
+              variant={isDemoMode ? "default" : "outline"}
+              size="lg"
+              onClick={handleToggleDemoMode}
+              className="gap-2"
+            >
+              <TestTube className="w-4 h-4" />
+              {isDemoMode ? "Exit Demo" : "Demo Mode"}
+            </Button>
             <Button
               variant="outline"
               size="lg"
