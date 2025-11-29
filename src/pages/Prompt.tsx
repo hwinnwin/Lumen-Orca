@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Play, FileCode, AlertCircle, Terminal, Upload, X, FileText } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { orchestratorService } from "@/lib/orchestrator-service";
+import { supabase } from "@/integrations/supabase/client";
 import type { AgentRole, AgentTask } from "../../packages/agents/src/types";
 
 const exampleManifest = `# Lumen Orca Master Prompt - Example Workflow
@@ -135,6 +136,42 @@ const Prompt = () => {
     });
   };
 
+  const isYamlFormat = (text: string): boolean => {
+    return text.includes('name:') && text.includes('tasks:') && text.includes('- id:');
+  };
+
+  const parseNaturalLanguage = async (text: string): Promise<ParsedManifest | null> => {
+    try {
+      const { data, error } = await supabase.functions.invoke('llm-proxy', {
+        body: {
+          messages: [
+            {
+              role: 'system',
+              content: `You are a workflow parser. Convert natural language descriptions into structured workflow manifests.
+Extract: workflow name, description, and tasks with agent roles (A1_spec, A2_architect, A3_codegen_a, A4_codegen_b, A5_adjudicator, A6_qa_harness, A7_evidence, etc.).
+Respond with valid JSON only: {"name": "...", "description": "...", "tasks": [{"id": "...", "agent": "...", "description": "...", "depends_on": [...]}]}`
+            },
+            {
+              role: 'user',
+              content: text
+            }
+          ],
+          agentRole: 'A0_orchestrator'
+        }
+      });
+
+      if (error) throw error;
+
+      const content = data.choices[0].message.content;
+      const parsed = JSON.parse(content);
+      
+      return parsed as ParsedManifest;
+    } catch (error) {
+      console.error('Natural language parsing error:', error);
+      return null;
+    }
+  };
+
   const parseManifest = (yaml: string): ParsedManifest | null => {
     try {
       // Simple YAML parser for demo (replace with proper YAML library in production)
@@ -189,7 +226,16 @@ const Prompt = () => {
     setOutputs([]); // Clear previous outputs
 
     try {
-      const parsed = parseManifest(manifest);
+      let parsed: ParsedManifest | null = null;
+      
+      // Detect format and parse accordingly
+      if (isYamlFormat(manifest)) {
+        setOutputs(prev => [...prev, `📄 Parsing YAML format...`]);
+        parsed = parseManifest(manifest);
+      } else {
+        setOutputs(prev => [...prev, `🤖 Parsing natural language with AI...`]);
+        parsed = await parseNaturalLanguage(manifest);
+      }
       
       if (!parsed || !parsed.name || !parsed.tasks || parsed.tasks.length === 0) {
         const errorMsg = "Could not parse YAML manifest. Check syntax.";
@@ -376,7 +422,7 @@ const Prompt = () => {
               value={manifest}
               onChange={(e) => setManifest(e.target.value)}
               className="font-mono text-sm min-h-[500px] bg-background/50"
-              placeholder="Enter YAML manifest..."
+              placeholder="Enter YAML manifest or describe workflow in natural language..."
             />
 
             <div className="mt-4 flex items-center justify-between">
