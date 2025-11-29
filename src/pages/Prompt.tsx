@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Play, FileCode, AlertCircle, Terminal } from "lucide-react";
+import { Play, FileCode, AlertCircle, Terminal, Upload, X, FileText } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { orchestratorService } from "@/lib/orchestrator-service";
 import type { AgentRole, AgentTask } from "../../packages/agents/src/types";
@@ -72,12 +72,68 @@ interface ParsedManifest {
   };
 }
 
+interface UploadedFile {
+  name: string;
+  content: string;
+  type: string;
+  size: number;
+}
+
 const Prompt = () => {
   const [manifest, setManifest] = useState(exampleManifest);
   const [isParsing, setIsParsing] = useState(false);
   const [autoExecute, setAutoExecute] = useState(false);
   const [outputs, setOutputs] = useState<string[]>([]);
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const { toast } = useToast();
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+
+    const newFiles: UploadedFile[] = [];
+
+    for (const file of Array.from(files)) {
+      try {
+        const content = await file.text();
+        
+        newFiles.push({
+          name: file.name,
+          content,
+          type: file.type || 'text/plain',
+          size: file.size,
+        });
+
+        // If it's a markdown file, offer to use it as the manifest
+        if (file.name.endsWith('.md') || file.name.endsWith('.yaml') || file.name.endsWith('.yml')) {
+          toast({
+            title: "File uploaded",
+            description: `${file.name} - Click "Use as Manifest" to load it`,
+          });
+        }
+      } catch (error) {
+        toast({
+          title: "Upload failed",
+          description: `Could not read ${file.name}`,
+          variant: "destructive",
+        });
+      }
+    }
+
+    setUploadedFiles(prev => [...prev, ...newFiles]);
+  };
+
+  const removeFile = (index: number) => {
+    setUploadedFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const useFileAsManifest = (file: UploadedFile) => {
+    setManifest(file.content);
+    toast({
+      title: "Manifest loaded",
+      description: `Using ${file.name} as workflow manifest`,
+    });
+  };
 
   const parseManifest = (yaml: string): ParsedManifest | null => {
     try {
@@ -149,16 +205,26 @@ const Prompt = () => {
       setOutputs(prev => [...prev, `📋 Parsed manifest: ${parsed.name}`]);
       setOutputs(prev => [...prev, `📝 Description: ${parsed.description}`]);
       setOutputs(prev => [...prev, `🔢 Total tasks: ${parsed.tasks.length}`]);
+      
+      if (uploadedFiles.length > 0) {
+        setOutputs(prev => [...prev, `📎 Attached files: ${uploadedFiles.length}`]);
+        uploadedFiles.forEach(file => {
+          setOutputs(prev => [...prev, `  • ${file.name} (${(file.size / 1024).toFixed(2)} KB)`]);
+        });
+      }
 
       // Reset orchestrator
       orchestratorService.reset();
       setOutputs(prev => [...prev, `🔄 Orchestrator reset`]);
 
-      // Convert parsed tasks to AgentTask format
+      // Convert parsed tasks to AgentTask format with attached files
       const tasks: AgentTask[] = parsed.tasks.map(task => ({
         id: task.id,
         role: task.agent as AgentRole,
-        inputs: { description: task.description },
+        inputs: { 
+          description: task.description,
+          attachedFiles: uploadedFiles.map(f => ({ name: f.name, content: f.content }))
+        },
         status: 'pending' as const,
         dependencies: task.depends_on || [],
       }));
@@ -218,6 +284,55 @@ const Prompt = () => {
         </div>
 
         <div className="grid gap-6">
+          {uploadedFiles.length > 0 && (
+            <Card className="p-6 border border-border bg-background/50">
+              <div className="flex items-center gap-3 mb-4">
+                <FileText className="w-5 h-5 text-primary" />
+                <h2 className="text-lg font-semibold text-foreground">Uploaded Files</h2>
+                <span className="text-sm text-muted-foreground">({uploadedFiles.length})</span>
+              </div>
+              
+              <div className="space-y-2">
+                {uploadedFiles.map((file, index) => (
+                  <div 
+                    key={index}
+                    className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border border-border/50"
+                  >
+                    <div className="flex items-center gap-3 flex-1">
+                      <FileText className="w-4 h-4 text-primary" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-foreground truncate">{file.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {(file.size / 1024).toFixed(2)} KB
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {(file.name.endsWith('.md') || file.name.endsWith('.yaml') || file.name.endsWith('.yml')) && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => useFileAsManifest(file)}
+                          className="text-xs"
+                        >
+                          Use as Manifest
+                        </Button>
+                      )}
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => removeFile(index)}
+                        className="text-destructive hover:text-destructive"
+                      >
+                        <X className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )}
+
           <Card className="p-6 border border-primary/20">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-3">
@@ -225,15 +340,35 @@ const Prompt = () => {
                 <h2 className="text-lg font-semibold text-foreground">Workflow Manifest</h2>
               </div>
               
-              <div className="flex items-center gap-2">
-                <Switch 
-                  id="auto-execute" 
-                  checked={autoExecute}
-                  onCheckedChange={setAutoExecute}
+              <div className="flex items-center gap-4">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => document.getElementById('file-upload')?.click()}
+                  className="gap-2"
+                >
+                  <Upload className="w-4 h-4" />
+                  Upload Files
+                </Button>
+                <input
+                  id="file-upload"
+                  type="file"
+                  multiple
+                  accept=".md,.yaml,.yml,.txt,.json"
+                  onChange={handleFileUpload}
+                  className="hidden"
                 />
-                <Label htmlFor="auto-execute" className="text-sm cursor-pointer">
-                  Auto-execute
-                </Label>
+                
+                <div className="flex items-center gap-2">
+                  <Switch 
+                    id="auto-execute" 
+                    checked={autoExecute}
+                    onCheckedChange={setAutoExecute}
+                  />
+                  <Label htmlFor="auto-execute" className="text-sm cursor-pointer">
+                    Auto-execute
+                  </Label>
+                </div>
               </div>
             </div>
 
