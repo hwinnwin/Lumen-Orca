@@ -73,6 +73,13 @@ interface ParsedManifest {
   };
 }
 
+interface ValidationError {
+  type: 'missing_dependency' | 'circular_reference' | 'invalid_task';
+  message: string;
+  taskId?: string;
+  details?: string;
+}
+
 interface UploadedFile {
   name: string;
   content: string;
@@ -167,6 +174,76 @@ Respond with valid JSON only: {"name": "...", "description": "...", "tasks": [{"
     }
   };
 
+  const validateManifest = (manifest: ParsedManifest): ValidationError[] => {
+    const errors: ValidationError[] = [];
+    const taskIds = new Set(manifest.tasks.map(t => t.id));
+
+    // Check for missing dependencies
+    manifest.tasks.forEach(task => {
+      if (task.depends_on) {
+        task.depends_on.forEach(depId => {
+          if (!taskIds.has(depId)) {
+            errors.push({
+              type: 'missing_dependency',
+              message: `Task "${task.id}" depends on non-existent task "${depId}"`,
+              taskId: task.id,
+              details: `Available tasks: ${Array.from(taskIds).join(', ')}`
+            });
+          }
+        });
+      }
+    });
+
+    // Check for circular references using DFS
+    const hasCircularDependency = (taskId: string, visited: Set<string>, recursionStack: Set<string>): boolean => {
+      if (recursionStack.has(taskId)) return true;
+      if (visited.has(taskId)) return false;
+
+      visited.add(taskId);
+      recursionStack.add(taskId);
+
+      const task = manifest.tasks.find(t => t.id === taskId);
+      if (task?.depends_on) {
+        for (const depId of task.depends_on) {
+          if (hasCircularDependency(depId, visited, recursionStack)) {
+            return true;
+          }
+        }
+      }
+
+      recursionStack.delete(taskId);
+      return false;
+    };
+
+    manifest.tasks.forEach(task => {
+      const visited = new Set<string>();
+      const recursionStack = new Set<string>();
+      
+      if (hasCircularDependency(task.id, visited, recursionStack)) {
+        errors.push({
+          type: 'circular_reference',
+          message: `Circular dependency detected involving task "${task.id}"`,
+          taskId: task.id,
+          details: 'Tasks must form a directed acyclic graph (DAG) without cycles'
+        });
+      }
+    });
+
+    // Check for invalid task structure
+    manifest.tasks.forEach(task => {
+      if (!task.id || !task.agent) {
+        errors.push({
+          type: 'invalid_task',
+          message: `Invalid task structure: missing id or agent`,
+          taskId: task.id || 'unknown',
+          details: JSON.stringify(task)
+        });
+      }
+    });
+
+    return errors;
+  };
+
   const parseManifest = (yaml: string): ParsedManifest | null => {
     try {
       // Simple YAML parser for demo (replace with proper YAML library in production)
@@ -244,6 +321,31 @@ Respond with valid JSON only: {"name": "...", "description": "...", "tasks": [{"
       }
 
       setOutputs(prev => [...prev, `📋 Parsed manifest: ${parsed.name}`]);
+      
+      // Validate manifest structure and dependencies
+      setOutputs(prev => [...prev, `🔍 Validating workflow structure...`]);
+      const validationErrors = validateManifest(parsed);
+      
+      if (validationErrors.length > 0) {
+        setOutputs(prev => [...prev, `❌ Validation failed: ${validationErrors.length} error(s) found`]);
+        validationErrors.forEach(error => {
+          const errorIcon = error.type === 'circular_reference' ? '🔄' : 
+                           error.type === 'missing_dependency' ? '🔗' : '⚠️';
+          setOutputs(prev => [...prev, `${errorIcon} ${error.message}`]);
+          if (error.details) {
+            setOutputs(prev => [...prev, `   ${error.details}`]);
+          }
+        });
+        
+        toast({
+          title: "Workflow validation failed",
+          description: `Found ${validationErrors.length} error(s). Check output for details.`,
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      setOutputs(prev => [...prev, `✅ Validation passed`]);
       setOutputs(prev => [...prev, `📝 Description: ${parsed.description}`]);
       setOutputs(prev => [...prev, `🔢 Total tasks: ${parsed.tasks.length}`]);
       
