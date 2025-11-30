@@ -37,7 +37,7 @@ export function useOrchestrator() {
   }, []);
 
   const reset = useCallback(() => {
-    orchestratorService.reset();
+    orchestratorService.resetWithSampleTasks();
     setState(orchestratorService.getState());
   }, []);
 
