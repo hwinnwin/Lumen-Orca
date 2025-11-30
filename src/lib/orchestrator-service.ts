@@ -124,6 +124,11 @@ class OrchestratorService {
 
   reset(): void {
     this.orchestrator.reset();
+    // Don't re-initialize sample tasks - let caller add tasks
+  }
+  
+  resetWithSampleTasks(): void {
+    this.orchestrator.reset();
     this.initializeSampleTasks();
   }
 
