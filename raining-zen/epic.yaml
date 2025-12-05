@@ -1,0 +1,394 @@
+# ───────────────────────────────────────────────
+# RAINING ZEN EPIC MANIFEST
+# Project: White-Label Poker Platform
+# Powered by: 69 Protocol / Lumen-Orca
+# ───────────────────────────────────────────────
+
+meta:
+  id: raining-zen-poker-platform
+  title: "Raining Zen — White-Label Poker Platform"
+  owner: HwinNwin Enterprises / Lumen Systems Division
+  version: 1.0.0
+  intent: >
+    Build a fully customizable white-label poker platform enabling entrepreneurs
+    and club operators to launch branded poker applications with tournament support,
+    real-time multiplayer, and admin dashboards under 69 Protocol reliability standards.
+  status: specification-phase
+  priority: high
+  tone: zen-precision
+  color_accent: "#2D5A27"
+  typography:
+    ui: Inter
+    code: JetBrains Mono
+  tagline: "Flow like rain. Play like an emperor."
+
+# ───────────────────────────────────────────────
+# CORE DELIVERABLES
+# ───────────────────────────────────────────────
+deliverables:
+  - Poker engine (Texas Hold'em, Omaha, tournaments)
+  - Real-time multiplayer WebSocket infrastructure
+  - White-label theming system (logos, colors, assets)
+  - Mobile apps (React Native iOS/Android)
+  - Admin dashboard (club management, analytics)
+  - Multi-tenant SaaS architecture
+  - Provably fair cryptographic shuffle system
+
+# ───────────────────────────────────────────────
+# DEVELOPMENT PHASES
+# ───────────────────────────────────────────────
+
+phases:
+
+  - id: phase-1-core-engine
+    title: "Phase 1: Core Poker Engine"
+    duration: "Months 1-3"
+    goal: "Functional poker game with basic multiplayer"
+    milestone: "Internal alpha with Johnny's group testing"
+    agents: [A0, A1, A2, A3, A4, A5, A6]
+
+    work_packages:
+      - id: poker-logic
+        title: "Poker Logic Engine"
+        tasks:
+          - Implement card deck and shuffle (cryptographic RNG)
+          - Build hand evaluator (all standard rankings)
+          - Create betting round state machine
+          - Implement pot and side pot calculations
+          - Add all-in equity and run-it-twice logic
+          - Property-based testing with fast-check
+        quality_gates:
+          hand_accuracy: "100% (1M+ test hands)"
+          mutation_score: "≥0.85"
+          coverage: "≥95%"
+
+      - id: game-server
+        title: "Real-Time Game Server"
+        tasks:
+          - Set up Node.js + Socket.io infrastructure
+          - Implement table state synchronization
+          - Build player action handling (fold, call, raise)
+          - Add turn timer and timeout logic
+          - Implement reconnection and state recovery
+          - Create spectator mode
+        quality_gates:
+          latency_p95: "<100ms"
+          reconnect_time: "<3s"
+          uptime: "99.9%"
+
+      - id: mobile-app-v1
+        title: "Basic Mobile App"
+        tasks:
+          - Set up React Native project
+          - Create table view component
+          - Implement player seat UI
+          - Build card display and animations
+          - Add betting controls
+          - Integrate WebSocket client
+        quality_gates:
+          fps: "≥60fps"
+          crash_rate: "<0.1%"
+
+      - id: auth-system
+        title: "User Authentication"
+        tasks:
+          - Implement email/password auth
+          - Add social login (Google, Apple)
+          - Create JWT token management
+          - Build user profile system
+          - Add device fingerprinting
+        quality_gates:
+          security: "OWASP compliant"
+          session_reliability: "99.99%"
+
+  - id: phase-2-white-label
+    title: "Phase 2: White-Label System"
+    duration: "Months 4-5"
+    goal: "Customizable branding for different clients"
+    milestone: "Raining Zen branded app for Johnny (beta)"
+    agents: [A0, A2, A4, A5, A7]
+
+    work_packages:
+      - id: theme-engine
+        title: "Theme Customization Engine"
+        tasks:
+          - Build color scheme configuration system
+          - Implement font/typography overrides
+          - Create asset management (logos, icons)
+          - Add table felt customization
+          - Implement card back designs
+          - Build sound/music theming
+        quality_gates:
+          theme_switch: "<500ms"
+          asset_load: "<2s"
+
+      - id: multi-tenant
+        title: "Multi-Tenant Architecture"
+        tasks:
+          - Design tenant isolation strategy
+          - Implement database partitioning
+          - Create tenant configuration service
+          - Build feature flags per tenant
+          - Add tenant-specific domains/subdomains
+        quality_gates:
+          data_isolation: "100% verified"
+          tenant_switch: "<100ms"
+
+      - id: admin-dashboard-v1
+        title: "Admin Dashboard v1"
+        tasks:
+          - Create club management interface
+          - Build player roster management
+          - Implement chip bank system
+          - Add game scheduling tools
+          - Create basic analytics views
+          - Build dispute resolution interface
+        quality_gates:
+          operations_logged: "100%"
+          load_time: "<3s"
+
+  - id: phase-3-tournaments
+    title: "Phase 3: Tournaments & Scale"
+    duration: "Months 6-7"
+    goal: "Full feature parity with competitors"
+    milestone: "Production-ready platform, app store launch"
+    agents: [A0, A3, A4, A6, A8, A9]
+
+    work_packages:
+      - id: tournament-engine
+        title: "Tournament System"
+        tasks:
+          - Implement SNG tournament format
+          - Build MTT (multi-table) support
+          - Create blind structure configuration
+          - Add rebuy and add-on mechanics
+          - Implement prize pool distribution
+          - Build table balancing algorithm
+          - Add leaderboards and seasons
+        quality_gates:
+          payout_accuracy: "100%"
+          table_balance: "<30s"
+
+      - id: scale-infrastructure
+        title: "Scalability Infrastructure"
+        tasks:
+          - Implement horizontal scaling
+          - Add load balancing for game servers
+          - Create Redis cluster for state
+          - Build database read replicas
+          - Implement CDN for static assets
+          - Add multi-region support
+        quality_gates:
+          concurrent_users: "1000+ per server"
+          p99_latency: "<200ms"
+          failover: "<30s"
+
+      - id: analytics-dashboard
+        title: "Advanced Analytics"
+        tasks:
+          - Build revenue metrics dashboard
+          - Create player retention analytics
+          - Implement game popularity tracking
+          - Add rake reporting
+          - Build export functionality
+        quality_gates:
+          data_accuracy: "99.9%"
+          report_generation: "<10s"
+
+      - id: app-store-prep
+        title: "App Store Deployment"
+        tasks:
+          - Prepare iOS App Store submission
+          - Prepare Google Play submission
+          - Create app store assets (screenshots, descriptions)
+          - Implement in-app purchase integration
+          - Add crash reporting (Sentry/Crashlytics)
+        quality_gates:
+          store_compliance: "100%"
+          crash_free_rate: "≥99.5%"
+
+  - id: phase-4-growth
+    title: "Phase 4: Growth & Premium Features"
+    duration: "Months 8+"
+    goal: "Market expansion and premium features"
+    milestone: "$5K+ MRR, path to profitability"
+    agents: [A0, A2, A3, A4, A7, A10]
+
+    work_packages:
+      - id: game-variants
+        title: "Additional Game Variants"
+        tasks:
+          - Implement Short Deck Hold'em
+          - Add PLO5 (5-card Omaha)
+          - Build Mixed Games rotation
+          - Create custom game builder
+        quality_gates:
+          variant_accuracy: "100%"
+
+      - id: payments
+        title: "Payment Processing"
+        tasks:
+          - Integrate Stripe/payment gateway
+          - Build deposit/withdrawal flows
+          - Implement transaction ledger
+          - Add fraud detection
+        quality_gates:
+          transaction_accuracy: "100%"
+          pci_compliance: "Level 1"
+
+      - id: affiliate-system
+        title: "Affiliate/Agent Management"
+        tasks:
+          - Build affiliate registration
+          - Implement commission tracking
+          - Create payout management
+          - Add referral analytics
+        quality_gates:
+          commission_accuracy: "100%"
+
+      - id: streaming
+        title: "Streaming Integration"
+        tasks:
+          - Add Twitch integration
+          - Build YouTube streaming support
+          - Create delayed broadcast mode
+          - Implement overlay widgets
+        quality_gates:
+          stream_latency: "<5s"
+
+# ───────────────────────────────────────────────
+# 69 PROTOCOL QUALITY GATES
+# ───────────────────────────────────────────────
+quality_protocol:
+  name: "69 Protocol"
+  principle: "Never take, always give back more"
+
+  reliability_targets:
+    uptime: "99.9999%"
+    f_total: "≤1e-6"
+    mttr: "<5 minutes"
+
+  testing_requirements:
+    unit_coverage: "≥95%"
+    mutation_score: "≥0.80"
+    property_tests: "≥1000 iterations"
+    hand_accuracy: "100%"
+
+  security_requirements:
+    shuffle_rng: "Cryptographic (CSPRNG)"
+    provably_fair: "Hash-based verification"
+    data_encryption: "TLS 1.3 + AES-256"
+    anti_collusion: "IP + pattern + fingerprint"
+
+  performance_targets:
+    action_latency: "<100ms p95"
+    reconnect_time: "<3s"
+    concurrent_tables: "100+ per server"
+
+# ───────────────────────────────────────────────
+# SUCCESS METRICS
+# ───────────────────────────────────────────────
+success_metrics:
+  month_3:
+    milestone: "Alpha with Johnny's group"
+    active_testers: "10+"
+    games_played: "100+"
+
+  month_6:
+    milestone: "Beta with paying customers"
+    customers: "5+"
+    active_players: "250+"
+
+  month_9:
+    milestone: "App store launch"
+    customers: "20+"
+    active_players: "1000+"
+    mrr: "$2,000+"
+
+  month_12:
+    milestone: "Path to profitability"
+    customers: "40+"
+    active_players: "2000+"
+    mrr: "$5,000+"
+    retention: "≥90%"
+
+# ───────────────────────────────────────────────
+# REVENUE MODEL
+# ───────────────────────────────────────────────
+revenue:
+  subscription_tiers:
+    starter:
+      price: "$99/mo"
+      players: 50
+      tables: 3
+      features: ["Basic colors", "SNG only", "Email support"]
+    pro:
+      price: "$299/mo"
+      players: 500
+      tables: 20
+      features: ["Full theme", "SNG + MTT", "Priority support"]
+    enterprise:
+      price: "$999/mo"
+      players: "Unlimited"
+      tables: "Unlimited"
+      features: ["Custom app", "Full suite", "Dedicated support"]
+
+  additional_streams:
+    - "Custom development: $5K-$50K"
+    - "Premium themes: $500-$2K"
+    - "Transaction fees: 1-3%"
+    - "Source license: $25K+"
+
+# ───────────────────────────────────────────────
+# DESIGN GUIDELINES
+# ───────────────────────────────────────────────
+design:
+  palette:
+    primary: "#2D5A27"      # Deep forest green
+    secondary: "#C9A227"    # Golden accent
+    background: "#0A1208"   # Dark zen
+    surface: "#1A2A18"      # Card surface
+    text: "#E8F0E8"         # Soft white
+    accent: "#4A90D9"       # Water blue
+
+  motifs:
+    - "Water/rain elements"
+    - "Zen circles (enso)"
+    - "Ox/emperor iconography"
+    - "Bamboo patterns"
+
+  motion: "easeInOutQuint"
+  aesthetic: "Zen Precision × Imperial Elegance"
+
+# ───────────────────────────────────────────────
+# FIRST CLIENT: JOHNNY (OX EMPEROR)
+# ───────────────────────────────────────────────
+proof_of_concept:
+  client: "Johnny"
+  title: "The Ox Emperor"
+  brand: "Raining Zen"
+  purpose: "Flagship case study demonstrating full white-label capabilities"
+  custom_elements:
+    - "Ox Emperor avatar"
+    - "Imperial gold accents"
+    - "Custom table felt with rain motif"
+    - "Exclusive card backs"
+
+# ───────────────────────────────────────────────
+# LUMEN-ORCA INTEGRATION
+# ───────────────────────────────────────────────
+lumen_integration:
+  orchestration: "A0 coordinates all poker engine development"
+  spec_parsing: "A1 formalizes poker rules and game logic"
+  architecture: "A2 designs microservices topology"
+  dual_codegen: "A3/A4 implement critical paths (hand eval, shuffle)"
+  adjudication: "A5 verifies correctness of poker logic"
+  qa_harness: "A6 runs mutation + property testing"
+  evidence: "A7 generates compliance bundles"
+  performance: "A8 benchmarks real-time systems"
+  security: "A9 audits auth and fair play"
+  incidents: "A10 routes critical game issues"
+
+# ───────────────────────────────────────────────
+# END OF MANIFEST
+# ───────────────────────────────────────────────
