@@ -20,6 +20,7 @@ import MfaSetup from "./pages/MfaSetup";
 import RateLimitManagement from "./pages/RateLimitManagement";
 import AuditLogs from "./pages/AuditLogs";
 import SystemLogs from "./pages/SystemLogs";
+import NoMoreHunger from "./pages/NoMoreHunger";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -48,6 +49,7 @@ const App = () => (
               <Route path="/rate-limit" element={<RateLimitManagement />} />
               <Route path="/audit-logs" element={<AuditLogs />} />
               <Route path="/system-logs" element={<SystemLogs />} />
+              <Route path="/no-more-hunger" element={<NoMoreHunger />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>

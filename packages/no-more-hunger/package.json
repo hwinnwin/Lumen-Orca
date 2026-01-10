@@ -1,0 +1,30 @@
+{
+  "name": "@lumen/no-more-hunger",
+  "version": "0.1.0",
+  "description": "NoMoreHunger - Distributed food redistribution network powered by Lumen",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "test:unit": "vitest run",
+    "test:mutation": "stryker run",
+    "test:property": "vitest run -c ./vitest.property.config.ts",
+    "typecheck": "tsc -p tsconfig.build.json --noEmit"
+  },
+  "keywords": [
+    "hunger",
+    "food-distribution",
+    "distributed-computing",
+    "lumen",
+    "protocol-69"
+  ],
+  "dependencies": {
+    "@lumen/contracts": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "@stryker-mutator/core": "^8.0.0",
+    "vitest": "^1.0.0",
+    "fast-check": "^3.0.0"
+  }
+}
