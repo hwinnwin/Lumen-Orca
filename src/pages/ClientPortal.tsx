@@ -8,7 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  Rocket,
+  Sparkles,
   CheckCircle2,
   Clock,
   Calendar,
@@ -43,7 +43,7 @@ const ClientPortal = () => {
     successManager: {
       name: "Sarah Chen",
       avatar: "SC",
-      email: "sarah@launchpad.com",
+      email: "sarah@lumyn.global",
     },
   };
 
@@ -114,10 +114,11 @@ const ClientPortal = () => {
       <nav className="fixed top-0 left-0 right-0 z-50 border-b bg-background/80 backdrop-blur-sm">
         <div className="container mx-auto flex h-16 items-center justify-between px-4">
           <Link to="/home" className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
-              <Rocket className="h-5 w-5 text-primary-foreground" />
+            <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center">
+              <Sparkles className="h-5 w-5 text-white" />
             </div>
-            <span className="text-xl font-bold">LaunchPad</span>
+            <span className="text-xl font-bold">Song</span>
+            <span className="text-xs text-muted-foreground">by Lumyn</span>
           </Link>
           <div className="flex items-center gap-4">
             <Button variant="ghost" size="icon">

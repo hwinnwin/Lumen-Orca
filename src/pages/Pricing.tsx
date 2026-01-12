@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
-  Rocket,
+  Sparkles,
   CheckCircle2,
   ArrowRight,
   Zap,
@@ -152,10 +152,11 @@ const Pricing = () => {
       <nav className="fixed top-0 left-0 right-0 z-50 border-b bg-background/80 backdrop-blur-sm">
         <div className="container mx-auto flex h-16 items-center justify-between px-4">
           <Link to="/home" className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
-              <Rocket className="h-5 w-5 text-primary-foreground" />
+            <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center">
+              <Sparkles className="h-5 w-5 text-white" />
             </div>
-            <span className="text-xl font-bold">LaunchPad</span>
+            <span className="text-xl font-bold">Song</span>
+            <span className="text-xs text-muted-foreground">by Lumyn</span>
           </Link>
           <div className="flex items-center gap-4">
             <Link to="/home">
@@ -390,10 +391,11 @@ const Pricing = () => {
         <div className="container mx-auto max-w-6xl">
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
             <Link to="/home" className="flex items-center gap-2">
-              <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
-                <Rocket className="h-5 w-5 text-primary-foreground" />
+              <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center">
+                <Sparkles className="h-5 w-5 text-white" />
               </div>
-              <span className="text-xl font-bold">LaunchPad</span>
+              <span className="text-xl font-bold">Song</span>
+              <span className="text-xs text-muted-foreground">by Lumyn</span>
             </Link>
             <div className="flex items-center gap-6 text-sm text-muted-foreground">
               <Link to="/home" className="hover:text-foreground transition-colors">Home</Link>
@@ -402,7 +404,7 @@ const Pricing = () => {
               <a href="#" className="hover:text-foreground transition-colors">Terms</a>
             </div>
             <div className="text-sm text-muted-foreground">
-              © 2025 LaunchPad. All rights reserved.
+              © 2025 Lumyn Global. All rights reserved.
             </div>
           </div>
         </div>
