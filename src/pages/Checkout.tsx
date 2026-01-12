@@ -314,9 +314,9 @@ const Checkout = () => {
                     <div className="flex items-start gap-3">
                       <Shield className="h-5 w-5 text-green-500 mt-0.5" />
                       <div>
-                        <div className="font-semibold text-sm">100% Money-Back Guarantee</div>
+                        <div className="font-semibold text-sm">90-Day Money-Back Guarantee</div>
                         <p className="text-xs text-muted-foreground mt-1">
-                          Not satisfied during discovery? Full refund, no questions asked.
+                          Not happy within 90 days? Full refund, no questions asked.
                           We're that confident.
                         </p>
                       </div>

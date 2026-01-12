@@ -84,7 +84,7 @@ const Landing = () => {
             <div className="flex items-center justify-center gap-8 pt-8 text-sm text-muted-foreground">
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="h-4 w-4 text-green-500" />
-                <span>Money-Back Guarantee</span>
+                <span>90-Day Money-Back Guarantee</span>
               </div>
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="h-4 w-4 text-green-500" />

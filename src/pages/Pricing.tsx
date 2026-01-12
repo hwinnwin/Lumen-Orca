@@ -118,7 +118,7 @@ const Pricing = () => {
     },
     {
       question: "What's the money-back guarantee?",
-      answer: "If we don't deliver a working, launched business within 30 days—or if you're not satisfied with the direction during our discovery phase—you get 100% of your $25K back. No questions asked. We're that confident.",
+      answer: "Not happy with your launched business? Request a full refund within 90 days of kickoff—no questions asked. We'll return 100% of your $25K. We're that confident in what we deliver.",
     },
     {
       question: "What exactly do I get for $25K?",
