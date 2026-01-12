@@ -35,7 +35,7 @@ const ROICalculator = () => {
 
   const packages = {
     Solo: { price: 50000, aiAgents: 1, automationHours: 10 },
-    Growth: { price: 100000, aiAgents: 5, automationHours: 25 },
+    Growth: { price: 250000, aiAgents: 5, automationHours: 25 },
     Empire: { price: 1000000, aiAgents: 999, automationHours: 60 },
   };
 

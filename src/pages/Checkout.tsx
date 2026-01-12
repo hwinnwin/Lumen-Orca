@@ -33,9 +33,9 @@ const packages = {
   },
   growth: {
     name: "Growth",
-    price: 100000,
+    price: 250000,
     downPayment: 25000,
-    monthlyPayment: 6250,
+    monthlyPayment: 18750,
     monthlyTerms: 12,
     features: [
       "Everything in Solo",

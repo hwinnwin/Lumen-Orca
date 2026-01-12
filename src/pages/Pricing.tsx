@@ -54,9 +54,9 @@ const Pricing = () => {
     {
       name: "Growth",
       description: "Scale with AI-powered automation and dedicated support",
-      price: 100000,
+      price: 250000,
       downPayment: 25000,
-      monthlyPayment: 6250,
+      monthlyPayment: 18750,
       monthlyTerms: 12,
       icon: Crown,
       popular: true,
