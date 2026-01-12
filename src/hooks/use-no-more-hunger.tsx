@@ -9,15 +9,13 @@ import { useState, useEffect, useCallback } from 'react';
 import {
   noMoreHungerService,
   type NoMoreHungerState,
+  type HungerAssessment,
+  type FoodSourceType,
+  type DepotTier,
+  type TransportMode,
+  type CreditActionType,
+  type GeoLocation,
 } from '@/lib/no-more-hunger-service';
-import type {
-  HungerAssessment,
-  FoodSource,
-  Depot,
-  Carrier,
-  GeoLocation,
-  Credit,
-} from '@lumen/no-more-hunger';
 
 export function useNoMoreHunger() {
   const [state, setState] = useState<NoMoreHungerState>(
@@ -46,9 +44,7 @@ export function useNoMoreHunger() {
   // ============================================================================
 
   const submitAssessment = useCallback(
-    async (
-      assessment: Omit<HungerAssessment, 'assessmentId' | 'timestamp'>
-    ) => {
+    async (assessment: HungerAssessment) => {
       return noMoreHungerService.submitHungerAssessment(assessment);
     },
     []
@@ -63,7 +59,7 @@ export function useNoMoreHunger() {
   }, []);
 
   const earnCredits = useCallback(
-    (actionType: Credit['actionType'], multiplier?: number) => {
+    (actionType: CreditActionType, multiplier?: number) => {
       return noMoreHungerService.earnCredits(actionType, multiplier);
     },
     []
@@ -78,9 +74,13 @@ export function useNoMoreHunger() {
   // ============================================================================
 
   const mapSource = useCallback(
-    async (
-      source: Omit<FoodSource, 'sourceId' | 'mappedAt' | 'reliability'>
-    ) => {
+    async (source: {
+      sourceType: FoodSourceType;
+      name: string;
+      location: GeoLocation;
+      verified: boolean;
+      address?: string;
+    }) => {
       return noMoreHungerService.mapFoodSource(source);
     },
     []
@@ -91,7 +91,13 @@ export function useNoMoreHunger() {
   // ============================================================================
 
   const registerDepot = useCallback(
-    async (depot: Omit<Depot, 'depotId' | 'createdAt' | 'currentStock'>) => {
+    async (depot: {
+      tier: DepotTier;
+      name: string;
+      location: GeoLocation;
+      capacity: number;
+      address?: string;
+    }) => {
       return noMoreHungerService.registerDepot(depot);
     },
     []
@@ -102,16 +108,8 @@ export function useNoMoreHunger() {
   // ============================================================================
 
   const registerAsCarrier = useCallback(
-    async (
-      userId: string,
-      location: GeoLocation,
-      transportMode: Carrier['transportMode']
-    ) => {
-      return noMoreHungerService.registerAsCarrier(
-        userId,
-        location,
-        transportMode
-      );
+    async (location: GeoLocation, transportMode: TransportMode) => {
+      return noMoreHungerService.registerAsCarrier(location, transportMode);
     },
     []
   );
