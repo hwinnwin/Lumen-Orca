@@ -113,36 +113,36 @@ const Pricing = () => {
 
   const faqs = [
     {
-      question: "What exactly do I get for my investment?",
-      answer: "You get a complete, custom-built online business platform. This includes a professional website, AI automation systems, user management, analytics, and all the infrastructure needed to run your business online. We build it, launch it, and support you through growth.",
+      question: "Why do you keep 66.7% equity?",
+      answer: "Because we're not just a vendor—we're your partner. We build, launch, AND grow your business alongside you. Our 66.7% stake means we're financially invested in your success. We don't profit unless you profit. This aligns our incentives completely.",
+    },
+    {
+      question: "What's the money-back guarantee?",
+      answer: "If we don't deliver a working, launched business within 30 days—or if you're not satisfied with the direction during our discovery phase—you get 100% of your $25K back. No questions asked. We're that confident.",
+    },
+    {
+      question: "What exactly do I get for $25K?",
+      answer: "A complete, revenue-ready online business: custom website, AI automation, user management, analytics, payment processing—everything. Plus 33.3% equity ownership. We handle all the tech. You focus on your expertise.",
     },
     {
       question: "How long does it take to launch?",
-      answer: "Our standard launch timeline is 30 days from project kickoff. During week 1 we do discovery and planning, weeks 2-3 are build and development, and week 4 is testing and launch. Enterprise projects may take 45-60 days depending on complexity.",
+      answer: "30 days from kickoff. Week 1: discovery and planning. Weeks 2-3: build and development. Week 4: testing and launch. Your business will be live and taking customers within a month.",
     },
     {
       question: "What if I don't have a business idea yet?",
-      answer: "That's okay! Our discovery process includes business model consulting. We'll help you identify the right business model based on your skills, experience, and goals. Many of our most successful clients started with just a vague idea.",
+      answer: "Perfect—that's what discovery is for. We'll identify the right business model based on your skills, experience, and market opportunities. Many of our best businesses started as 'I'm not sure what to build.'",
     },
     {
       question: "Do I need technical skills?",
-      answer: "Absolutely not. We handle all the technical work. You'll receive training on how to use your platform, but you won't need to code, design, or manage servers. That's what we're here for.",
+      answer: "Zero. We handle all the tech—forever. You'll get training on using your platform, but you'll never need to code, design, or manage servers. That's literally why we exist.",
     },
     {
-      question: "What's included in the ongoing support?",
-      answer: "Support includes regular strategy calls, technical support, bug fixes, minor updates, and ongoing optimization. We're invested in your success—when you grow, we grow.",
+      question: "How does the profit split work?",
+      answer: "You keep 33.3% of all profits. We keep 66.7%. Distributions happen monthly. Full transparency—you'll have access to all financial dashboards and reports.",
     },
     {
-      question: "Can I pay in installments?",
-      answer: "Yes! All packages offer a payment plan option. You pay a down payment to start, then monthly payments over 6 months. This makes it accessible while ensuring commitment from both sides.",
-    },
-    {
-      question: "What if I'm not satisfied?",
-      answer: "We offer a satisfaction guarantee through the discovery phase. If after our initial discovery call and planning session you don't feel confident in the direction, we'll refund your deposit. Once development begins, we work closely with you to ensure the final product exceeds expectations.",
-    },
-    {
-      question: "Do you offer ongoing services after launch?",
-      answer: "Yes! After your initial support period, you can continue with a monthly retainer for ongoing development, optimization, and growth support. Many clients choose to stay on for continued scaling.",
+      question: "Can I buy out your equity later?",
+      answer: "Yes. Once the business reaches certain revenue milestones, you'll have the option to buy out our stake at a pre-agreed multiple. We want you to succeed—even if that means eventually going solo.",
     },
   ];
 
@@ -172,13 +172,13 @@ const Pricing = () => {
       {/* Header */}
       <section className="pt-32 pb-12 px-4">
         <div className="container mx-auto max-w-6xl text-center">
-          <Badge variant="secondary" className="mb-4">$25K to Start</Badge>
+          <Badge variant="secondary" className="mb-4">$25K Down • Money-Back Guarantee</Badge>
           <h1 className="text-4xl md:text-5xl font-bold mb-4">
             Your Business, <span className="bg-gradient-to-r from-violet-500 to-fuchsia-500 bg-clip-text text-transparent">Xong</span>
           </h1>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            One down payment. One complete business. Ongoing support to scale.
-            Choose your level and let's make it happen.
+            You own 33.3%. We own 66.7%. We only profit when you profit.
+            That's why we guarantee results—or your money back.
           </p>
         </div>
       </section>

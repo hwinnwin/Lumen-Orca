@@ -62,11 +62,11 @@ const Landing = () => {
             </Badge>
             <h1 className="text-4xl md:text-6xl font-bold tracking-tight">
               We Build It.
-              <span className="bg-gradient-to-r from-violet-500 to-fuchsia-500 bg-clip-text text-transparent block mt-2">You Own It.</span>
+              <span className="bg-gradient-to-r from-violet-500 to-fuchsia-500 bg-clip-text text-transparent block mt-2">We Grow It Together.</span>
             </h1>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              Your complete online business—website, AI automation, everything—built and
-              launched for you. $25K to start. We handle the tech. You keep 100% of the profits.
+              $25K gets you a complete online business. You own 33.3%, we keep 66.7%—because
+              we only win when you win. <span className="font-semibold text-foreground">Money-back guaranteed.</span>
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
               <Link to="/book-consultation">
@@ -84,15 +84,15 @@ const Landing = () => {
             <div className="flex items-center justify-center gap-8 pt-8 text-sm text-muted-foreground">
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="h-4 w-4 text-green-500" />
-                <span>100% Done For You</span>
+                <span>Money-Back Guarantee</span>
               </div>
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="h-4 w-4 text-green-500" />
-                <span>AI-Powered</span>
+                <span>We're Your Partner</span>
               </div>
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="h-4 w-4 text-green-500" />
-                <span>Ongoing Support</span>
+                <span>Aligned Incentives</span>
               </div>
             </div>
           </div>
@@ -407,8 +407,8 @@ const Landing = () => {
                 Your Business, Xong.
               </h2>
               <p className="text-lg opacity-90 mb-8 max-w-2xl mx-auto">
-                Stop dreaming. Start owning. Book a free strategy call and let's compose
-                your success story together.
+                $25K. Money-back guaranteed. We become partners—and we don't get paid
+                until you succeed. Let's build something together.
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <Link to="/book-consultation">
