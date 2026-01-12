@@ -26,10 +26,10 @@ export class Orchestrator {
   // Initialize all agent states (built-in + custom agents)
   private initializeAgentStates(): void {
     const roles: AgentRole[] = [
-      'A0_orchestrator', 'A1_spec', 'A2_architect', 
+      'A0_orchestrator', 'A1_spec', 'A2_architect',
       'A3_codegen_a', 'A4_codegen_b', 'A5_adjudicator',
       'A6_qa_harness', 'A7_evidence', 'A8_performance',
-      'A9_security', 'A10_incident'
+      'A9_security', 'A10_incident', 'A11_meta_learner'
     ];
 
     // Load custom agents from registry
@@ -298,8 +298,20 @@ export class Orchestrator {
       }
 
       console.log(`[Orchestrator] ✅ ${task.role} completed in ${data.usage.latencyMs}ms`);
-      
+
       const parsedResult = this.parseAgentResponse(task.role, data.result);
+
+      // Record execution for meta-learning
+      await this.recordExecution(
+        task,
+        true,
+        llmLatency,
+        data.usage?.provider,
+        data.usage?.model,
+        data.usage?.tokensInput,
+        data.usage?.tokensOutput,
+        data.usage?.estimatedCost
+      );
 
       // Log LLM call success
       try {
@@ -336,6 +348,29 @@ export class Orchestrator {
     } catch (error) {
       console.error(`[Orchestrator] ❌ ${task.role} failed:`, error);
 
+      // Determine error type for learning
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      let errorType = 'unknown';
+      if (errorMessage.includes('timeout')) errorType = 'timeout';
+      else if (errorMessage.includes('rate limit') || errorMessage.includes('429')) errorType = 'rate_limit';
+      else if (errorMessage.includes('invalid') || errorMessage.includes('parse')) errorType = 'invalid_output';
+      else if (errorMessage.includes('network') || errorMessage.includes('fetch')) errorType = 'provider_error';
+      else if (errorMessage.includes('memory') || errorMessage.includes('resource')) errorType = 'resource_limit';
+
+      // Record failed execution for meta-learning
+      await this.recordExecution(
+        task,
+        false,
+        Date.now() - (task as any)._startTime || 0,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        errorMessage,
+        errorType
+      );
+
       // Log LLM call failure
       try {
         const { logAuditEvent } = await import('../../../src/lib/audit-logger');
@@ -345,7 +380,8 @@ export class Orchestrator {
           eventDetails: {
             taskId: task.id,
             agentRole: task.role,
-            error: error instanceof Error ? error.message : String(error)
+            error: errorMessage,
+            errorType
           }
         });
       } catch (err) {
@@ -353,6 +389,46 @@ export class Orchestrator {
       }
 
       throw error;
+    }
+  }
+
+  /**
+   * Record agent execution to database for meta-learning
+   */
+  private async recordExecution(
+    task: AgentTask,
+    success: boolean,
+    executionTimeMs: number,
+    provider?: string,
+    model?: string,
+    tokensInput?: number,
+    tokensOutput?: number,
+    estimatedCost?: number,
+    errorMessage?: string,
+    errorType?: string
+  ): Promise<void> {
+    try {
+      const { supabase } = await import('../../../src/integrations/supabase/client');
+
+      await supabase.rpc('record_agent_execution', {
+        p_agent_role: task.role,
+        p_task_id: task.id,
+        p_model: model || 'unknown',
+        p_provider: provider || 'unknown',
+        p_success: success,
+        p_execution_time_ms: executionTimeMs,
+        p_input_tokens: tokensInput || null,
+        p_output_tokens: tokensOutput || null,
+        p_estimated_cost: estimatedCost || null,
+        p_quality_score: null, // Will be updated by QA harness
+        p_error_message: errorMessage || null,
+        p_error_type: errorType || null,
+      });
+
+      console.log(`[Orchestrator] Recorded execution for ${task.role} (success: ${success})`);
+    } catch (err) {
+      // Don't fail the task if recording fails - this is auxiliary data
+      console.warn('[Orchestrator] Failed to record execution:', err);
     }
   }
 
@@ -448,6 +524,22 @@ export class Orchestrator {
       'A8_performance': 'You are a performance analyst. Measure latency, throughput, and resource usage. Return JSON with: {latency: number, throughput: number}',
       'A9_security': 'You are a security auditor. Scan for vulnerabilities, validate RLS policies, check OWASP top 10. Return JSON with: {vulnerabilities: any[], passed: boolean}',
       'A10_incident': 'You are an incident responder. Analyze failures, recommend fixes, and generate postmortems. Return JSON with: {analysis: string, recommendations: any[]}',
+      'A11_meta_learner': `You are the Meta-Learner agent responsible for continuous self-improvement of the Lumen-Orca system.
+
+Your responsibilities:
+1. Analyze execution history to identify patterns in successes and failures
+2. Detect performance regressions across all agents
+3. Generate optimization hypotheses for prompts, parameters, and model selection
+4. Learn from human feedback to improve agent behavior
+5. Recommend and track A/B experiments for prompt variants
+6. Monitor system health and alert on anomalies
+
+Return JSON with: {
+  insights: Array<{type: string, title: string, description: string, confidence: number, targetAgents: string[]}>,
+  recommendations: Array<{type: string, targetAgent: string, action: string, expectedImprovement: number}>,
+  systemHealth: number,
+  priorityAgents: string[]
+}`,
     };
     return prompts[role] || 'You are an AI agent in the Lumen Orca orchestration system. Complete your assigned task with precision and return structured JSON output.';
   }

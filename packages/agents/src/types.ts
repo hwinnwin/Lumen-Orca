@@ -24,7 +24,7 @@ export interface AgentLog {
 }
 
 // Built-in agent roles
-export type BuiltInAgentRole = 
+export type BuiltInAgentRole =
   | 'A0_orchestrator'
   | 'A1_spec'
   | 'A2_architect'
@@ -35,7 +35,54 @@ export type BuiltInAgentRole =
   | 'A7_evidence'
   | 'A8_performance'
   | 'A9_security'
-  | 'A10_incident';
+  | 'A10_incident'
+  | 'A11_meta_learner';
+
+// Meta-learner specific types
+export interface LearningInsight {
+  id: string;
+  insightType: 'pattern' | 'optimization' | 'anomaly' | 'recommendation' | 'correlation';
+  sourceAgent: string;
+  targetAgents: string[];
+  title: string;
+  description: string;
+  evidence: Record<string, unknown>;
+  confidence: number;
+  potentialImprovement: number;
+  priority: number;
+}
+
+export interface FailurePattern {
+  patternSignature: string;
+  failureType: string;
+  failureCategory: string;
+  occurrenceCount: number;
+  affectedAgents: string[];
+  rootCause: string;
+  recommendedAction: string;
+}
+
+export interface AgentPerformanceSnapshot {
+  agentRole: string;
+  successRate: number;
+  avgLatencyMs: number;
+  avgQuality: number;
+  avgCost: number;
+  executionCount: number;
+  isRegressed: boolean;
+  trendDirection: 'improving' | 'stable' | 'declining';
+}
+
+export interface MetaLearnerState {
+  lastAnalysisAt: string | null;
+  lastOptimizationAt: string | null;
+  analysisCount: number;
+  priorityAgents: string[];
+  activeExperiments: string[];
+  overallSystemHealth: number;
+  totalImprovementsMade: number;
+  totalCostSaved: number;
+}
 
 // AgentRole can be any string to support custom agents
 export type AgentRole = BuiltInAgentRole | string;
