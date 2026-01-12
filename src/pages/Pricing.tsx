@@ -41,7 +41,8 @@ const Pricing = () => {
         "Analytics & reporting",
         "SSL & enterprise security",
         "30-day launch timeline",
-        "3 months of support",
+        "Unlimited bug fixes",
+        "You report, we resolve",
         "2 strategy calls per month",
       ],
       notIncluded: [
@@ -68,13 +69,13 @@ const Pricing = () => {
         "Full email automation suite",
         "CRM integration",
         "Payment processing (Stripe)",
-        "Custom workflows",
+        "Custom workflows & features on demand",
         "Advanced analytics",
         "30-day launch timeline",
-        "6 months of support",
+        "Full tech team on retainer",
+        "Unlimited support requests",
         "Weekly strategy calls",
         "Dedicated success manager",
-        "Priority support channel",
       ],
       notIncluded: [
         "White-label platform",
@@ -101,11 +102,11 @@ const Pricing = () => {
         "Dedicated development team",
         "99.9999% uptime SLA",
         "Enterprise security audit",
-        "12 months of support",
-        "Unlimited strategy calls",
         "24/7 priority support",
-        "Quarterly business reviews",
-        "Revenue share option available",
+        "You request, we build",
+        "Full backend customization",
+        "Unlimited feature development",
+        "Your own tech department",
       ],
       notIncluded: [],
     },
@@ -122,7 +123,7 @@ const Pricing = () => {
     },
     {
       question: "What exactly do I get for $25K?",
-      answer: "A complete, revenue-ready online business: custom website, AI automation, user management, analytics, payment processing—everything. Plus 33.3% equity ownership. We handle all the tech. You focus on your expertise.",
+      answer: "A complete, revenue-ready online business: custom website, AI automation, user management, analytics, payment processing—everything. Plus a full tech team on retainer. You tell us what you need, we build it. You report issues, we fix them. It's like having your own tech department.",
     },
     {
       question: "How long does it take to launch?",
@@ -134,7 +135,7 @@ const Pricing = () => {
     },
     {
       question: "Do I need technical skills?",
-      answer: "Zero. We handle all the tech—forever. You'll get training on using your platform, but you'll never need to code, design, or manage servers. That's literally why we exist.",
+      answer: "Zero. You're our eyes and ears—you tell us what's working, what needs fixing, and what new features you want. We handle all the technical execution. Your job is to run your business and communicate what you need. Our job is to make it happen.",
     },
     {
       question: "How does the profit split work?",
@@ -143,6 +144,10 @@ const Pricing = () => {
     {
       question: "Can I buy out your equity later?",
       answer: "Yes. Once the business reaches certain revenue milestones, you'll have the option to buy out our stake at a pre-agreed multiple. We want you to succeed—even if that means eventually going solo.",
+    },
+    {
+      question: "What does the monthly retainer include?",
+      answer: "Everything technical. Bug fixes, server maintenance, security updates, new feature development, platform customizations—unlimited requests. You're our eyes and ears: you spot issues or need something new, you tell us, we handle it. It's like having a full tech team on staff without the hiring headaches.",
     },
   ];
 
@@ -177,8 +182,8 @@ const Pricing = () => {
             Your Business, <span className="bg-gradient-to-r from-violet-500 to-fuchsia-500 bg-clip-text text-transparent">Xong</span>
           </h1>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            You own 33.3%. We own 66.7%. We only profit when you profit.
-            That's why we guarantee results—or your money back.
+            Done-for-you platform + full tech team on retainer. We build it, run it, and support it forever.
+            You focus on customers. We handle everything else.
           </p>
         </div>
       </section>
@@ -221,7 +226,10 @@ const Pricing = () => {
                         ${pkg.downPayment.toLocaleString()} down
                       </div>
                       <div className="text-sm text-muted-foreground">
-                        + ${pkg.monthlyPayment.toLocaleString()}/mo × {pkg.monthlyTerms} months
+                        + ${pkg.monthlyPayment.toLocaleString()}/mo retainer × {pkg.monthlyTerms} months
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-1">
+                        Includes full tech support & development
                       </div>
                     </div>
                   </div>

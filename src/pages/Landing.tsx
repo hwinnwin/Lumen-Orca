@@ -61,12 +61,12 @@ const Landing = () => {
               Your Business, Xong. Your Success, Our Song.
             </Badge>
             <h1 className="text-4xl md:text-6xl font-bold tracking-tight">
-              We Build It.
-              <span className="bg-gradient-to-r from-violet-500 to-fuchsia-500 bg-clip-text text-transparent block mt-2">We Grow It Together.</span>
+              We Build It. We Run It.
+              <span className="bg-gradient-to-r from-violet-500 to-fuchsia-500 bg-clip-text text-transparent block mt-2">You Own It.</span>
             </h1>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              $25K gets you a complete online business. You own 33.3%, we keep 66.7%—because
-              we only win when you win. <span className="font-semibold text-foreground">Money-back guaranteed.</span>
+              A complete business—built, managed, and supported forever. Full tech team. Infinite support.
+              You just run your business. <span className="font-semibold text-foreground">Money-back guaranteed.</span>
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
               <Link to="/book-consultation">
@@ -81,18 +81,18 @@ const Landing = () => {
                 </Button>
               </Link>
             </div>
-            <div className="flex items-center justify-center gap-8 pt-8 text-sm text-muted-foreground">
+            <div className="flex flex-wrap items-center justify-center gap-6 pt-8 text-sm text-muted-foreground">
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="h-4 w-4 text-green-500" />
-                <span>90-Day Money-Back Guarantee</span>
+                <span>Full Tech Team Included</span>
               </div>
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="h-4 w-4 text-green-500" />
-                <span>We're Your Partner</span>
+                <span>Infinite Support</span>
               </div>
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="h-4 w-4 text-green-500" />
-                <span>Aligned Incentives</span>
+                <span>90-Day Money-Back</span>
               </div>
             </div>
           </div>
@@ -141,46 +141,46 @@ const Landing = () => {
       <section id="services" className="py-20 px-4">
         <div className="container mx-auto max-w-6xl">
           <div className="text-center mb-12">
-            <Badge variant="secondary" className="mb-4">What You Get</Badge>
+            <Badge variant="secondary" className="mb-4">Full Managed Service</Badge>
             <h2 className="text-3xl md:text-4xl font-bold mb-4">
-              A Complete Business, <span className="text-violet-500">Xong</span>
+              We Handle Everything, <span className="text-violet-500">Forever</span>
             </h2>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              Not templates. Not courses. A real, revenue-generating business entity—
-              built, launched, and supported. Done.
+              Not just a build—a full tech team on retainer. We build it, host it, secure it,
+              update it, and support it. You just focus on your customers.
             </p>
           </div>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {[
               {
                 icon: Globe,
-                title: "Custom Website & Platform",
-                description: "Professional, conversion-optimized website built on enterprise-grade infrastructure.",
+                title: "Custom Platform Built For You",
+                description: "We design and build your entire platform from scratch. No templates. Fully customized to your business.",
               },
               {
                 icon: Bot,
-                title: "AI Automation Suite",
-                description: "Custom AI agents that handle customer service, content, operations, and more.",
+                title: "AI That Works For You",
+                description: "Custom AI agents for customer support, content, operations—we build them, we maintain them.",
               },
               {
                 icon: Shield,
-                title: "Enterprise Security",
-                description: "Bank-level security with 99.9999% uptime guarantee. Your business never sleeps.",
+                title: "We Handle All The Tech",
+                description: "Servers, security, updates, backups—that's our job. You never touch a line of code.",
               },
               {
                 icon: BarChart3,
-                title: "Analytics & Insights",
-                description: "Real-time dashboards showing every metric that matters for your business.",
+                title: "New Features On Demand",
+                description: "Need something new? We build it. Your platform evolves as your business grows.",
               },
               {
                 icon: Users,
-                title: "User Management",
-                description: "Full authentication, roles, permissions—manage your team and customers effortlessly.",
+                title: "Full Backend Support",
+                description: "Database, APIs, integrations—we manage it all. Infinite customization, zero headaches.",
               },
               {
                 icon: TrendingUp,
-                title: "Growth Strategy",
-                description: "Ongoing coaching and optimization to scale your revenue month over month.",
+                title: "Ongoing Development",
+                description: "Monthly retainer = continuous improvements. We're your permanent tech team.",
               },
             ].map((feature, i) => (
               <Card key={i} className="group hover:border-primary/50 transition-colors">
@@ -358,16 +358,16 @@ const Landing = () => {
               ))}
             </div>
             <div className="space-y-4">
-              <h3 className="text-xl font-semibold mb-4">Support & Growth</h3>
+              <h3 className="text-xl font-semibold mb-4">Infinite Support</h3>
               {[
-                "1-on-1 strategy sessions",
+                "You report it, we fix it",
+                "Unlimited support requests",
+                "All bug fixes included",
+                "Feature requests? We build them",
+                "You're our eyes and ears",
+                "We're your tech team",
                 "Dedicated success manager",
-                "Weekly check-in calls",
-                "Priority support channel",
-                "Monthly performance reviews",
-                "Ongoing optimization",
-                "Training & documentation",
-                "Community access",
+                "Weekly strategy calls",
               ].map((item, i) => (
                 <div key={i} className="flex items-center gap-3">
                   <CheckCircle2 className="h-5 w-5 text-green-500 shrink-0" />
@@ -407,8 +407,8 @@ const Landing = () => {
                 Your Business, Xong.
               </h2>
               <p className="text-lg opacity-90 mb-8 max-w-2xl mx-auto">
-                $25K. Money-back guaranteed. We become partners—and we don't get paid
-                until you succeed. Let's build something together.
+                We build it. We run it. You manage your business, we handle everything else.
+                Full tech team. Infinite support. Monthly retainer. Done.
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <Link to="/book-consultation">
