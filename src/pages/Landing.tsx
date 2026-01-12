@@ -58,15 +58,15 @@ const Landing = () => {
         <div className="container mx-auto max-w-6xl">
           <div className="text-center space-y-6">
             <Badge variant="secondary" className="px-4 py-1">
-              Done-For-You Business Platform
+              Your Business, Xong. Your Success, Our Song.
             </Badge>
             <h1 className="text-4xl md:text-6xl font-bold tracking-tight">
-              We Build Your Entire
-              <span className="text-primary block mt-2">Online Business</span>
+              We Build It.
+              <span className="bg-gradient-to-r from-violet-500 to-fuchsia-500 bg-clip-text text-transparent block mt-2">You Own It.</span>
             </h1>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              Stop struggling with tech, marketing, and operations. We handle everything—from
-              website to AI automation to growth strategy. You focus on your expertise.
+              Your complete online business—website, AI automation, everything—built and
+              launched for you. $25K to start. We handle the tech. You keep 100% of the profits.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
               <Link to="/book-consultation">
@@ -141,13 +141,13 @@ const Landing = () => {
       <section id="services" className="py-20 px-4">
         <div className="container mx-auto max-w-6xl">
           <div className="text-center mb-12">
-            <Badge variant="secondary" className="mb-4">Our Solution</Badge>
+            <Badge variant="secondary" className="mb-4">What You Get</Badge>
             <h2 className="text-3xl md:text-4xl font-bold mb-4">
-              Everything You Need, Built For You
+              A Complete Business, <span className="text-violet-500">Xong</span>
             </h2>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              We deliver a complete, revenue-ready business platform. Not templates.
-              Not courses. A real business, built and launched.
+              Not templates. Not courses. A real, revenue-generating business entity—
+              built, launched, and supported. Done.
             </p>
           </div>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -199,12 +199,12 @@ const Landing = () => {
       <section id="process" className="py-20 px-4 bg-muted/30">
         <div className="container mx-auto max-w-6xl">
           <div className="text-center mb-12">
-            <Badge variant="secondary" className="mb-4">Our Process</Badge>
+            <Badge variant="secondary" className="mb-4">The Process</Badge>
             <h2 className="text-3xl md:text-4xl font-bold mb-4">
-              From Vision to Launch in 30 Days
+              Idea to Income in 30 Days
             </h2>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              Our proven 4-phase process takes you from idea to revenue-generating business.
+              Four phases. One month. Your business, xong.
             </p>
           </div>
           <div className="grid md:grid-cols-4 gap-6">
@@ -400,15 +400,15 @@ const Landing = () => {
       {/* CTA Section */}
       <section className="py-20 px-4">
         <div className="container mx-auto max-w-4xl">
-          <Card className="bg-primary text-primary-foreground">
+          <Card className="bg-gradient-to-br from-violet-600 to-fuchsia-600 text-white border-0">
             <CardContent className="pt-10 pb-10 text-center">
-              <HeartHandshake className="h-12 w-12 mx-auto mb-6 opacity-80" />
+              <Sparkles className="h-12 w-12 mx-auto mb-6 opacity-80" />
               <h2 className="text-3xl md:text-4xl font-bold mb-4">
-                Ready to Launch Your Business?
+                Your Business, Xong.
               </h2>
               <p className="text-lg opacity-90 mb-8 max-w-2xl mx-auto">
-                Book a free 30-minute strategy call. We'll map out exactly how to bring your
-                business online—no pressure, no obligation.
+                Stop dreaming. Start owning. Book a free strategy call and let's compose
+                your success story together.
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <Link to="/book-consultation">

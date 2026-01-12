@@ -23,51 +23,51 @@ import {
 const Pricing = () => {
   const packages = [
     {
-      name: "Starter",
-      description: "Perfect for solopreneurs ready to launch their first online business",
-      price: 25000,
-      downPayment: 10000,
-      monthlyPayment: 2500,
+      name: "Solo",
+      description: "Perfect for solopreneurs launching their first online business",
+      price: 50000,
+      downPayment: 25000,
+      monthlyPayment: 4167,
       monthlyTerms: 6,
       icon: Zap,
       popular: false,
       features: [
         "Custom website (up to 10 pages)",
         "Mobile-responsive design",
-        "Basic AI chatbot",
+        "AI chatbot assistant",
         "Email automation (3 sequences)",
         "User authentication",
         "Admin dashboard",
         "Analytics & reporting",
-        "SSL & security",
+        "SSL & enterprise security",
         "30-day launch timeline",
-        "60 days of support",
+        "3 months of support",
         "2 strategy calls per month",
       ],
       notIncluded: [
-        "Advanced AI agents",
+        "Multiple AI agents",
         "Multi-LLM system",
         "Custom integrations",
         "Priority support",
       ],
     },
     {
-      name: "Professional",
-      description: "For established businesses ready to scale with AI-powered automation",
-      price: 50000,
-      downPayment: 20000,
-      monthlyPayment: 5000,
-      monthlyTerms: 6,
+      name: "Growth",
+      description: "Scale with AI-powered automation and dedicated support",
+      price: 100000,
+      downPayment: 25000,
+      monthlyPayment: 6250,
+      monthlyTerms: 12,
       icon: Crown,
       popular: true,
       features: [
-        "Everything in Starter, plus:",
+        "Everything in Solo, plus:",
         "Unlimited pages",
         "Advanced AI agents (5 custom)",
         "Multi-LLM system (GPT, Claude, Gemini)",
         "Full email automation suite",
         "CRM integration",
-        "Payment processing setup",
+        "Payment processing (Stripe)",
         "Custom workflows",
         "Advanced analytics",
         "30-day launch timeline",
@@ -82,16 +82,16 @@ const Pricing = () => {
       ],
     },
     {
-      name: "Enterprise",
-      description: "Full-scale business platform with white-label capabilities and unlimited support",
-      price: 100000,
-      downPayment: 40000,
-      monthlyPayment: 10000,
-      monthlyTerms: 6,
+      name: "Empire",
+      description: "Full-scale platform with white-label and unlimited everything",
+      price: 250000,
+      downPayment: 25000,
+      monthlyPayment: 9375,
+      monthlyTerms: 24,
       icon: Building2,
       popular: false,
       features: [
-        "Everything in Professional, plus:",
+        "Everything in Growth, plus:",
         "White-label platform",
         "Unlimited AI agents",
         "Custom LLM fine-tuning",
@@ -172,13 +172,13 @@ const Pricing = () => {
       {/* Header */}
       <section className="pt-32 pb-12 px-4">
         <div className="container mx-auto max-w-6xl text-center">
-          <Badge variant="secondary" className="mb-4">Investment Options</Badge>
+          <Badge variant="secondary" className="mb-4">$25K to Start</Badge>
           <h1 className="text-4xl md:text-5xl font-bold mb-4">
-            Choose Your Growth Path
+            Your Business, <span className="bg-gradient-to-r from-violet-500 to-fuchsia-500 bg-clip-text text-transparent">Xong</span>
           </h1>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            Every package includes a complete, custom-built business platform.
-            Pick the level of support and features that match your ambitions.
+            One down payment. One complete business. Ongoing support to scale.
+            Choose your level and let's make it happen.
           </p>
         </div>
       </section>
