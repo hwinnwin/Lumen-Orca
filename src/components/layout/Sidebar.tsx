@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-import { Activity, Box, FileText, BarChart3, Network, Terminal, BookOpen, Presentation, Settings, User, Shield } from "lucide-react";
+import { Activity, Box, FileText, BarChart3, Network, Terminal, BookOpen, Presentation, Settings, User, Shield, Users, ExternalLink } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
@@ -12,6 +12,7 @@ const navItems = [
   { title: "Contracts", path: "/contracts", icon: Box },
   { title: "Evidence", path: "/evidence", icon: FileText },
   { title: "Telemetry", path: "/telemetry", icon: BarChart3 },
+  { title: "Clients", path: "/clients", icon: Users, requiresAdmin: true },
   { title: "User Guide", path: "/guide", icon: BookOpen },
   { title: "Demo Plan", path: "/demo", icon: Presentation },
   { title: "Master Prompt", path: "/prompt", icon: Terminal },
