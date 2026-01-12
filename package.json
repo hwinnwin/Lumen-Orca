@@ -43,6 +43,7 @@
     "@supabase/supabase-js": "^2.76.1",
     "@tanstack/react-query": "^5.83.0",
     "@types/qrcode": "^1.5.6",
+    "canvas-confetti": "^1.9.4",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
@@ -50,6 +51,7 @@
     "embla-carousel-react": "^8.6.0",
     "fast-check": "^4.3.0",
     "input-otp": "^1.4.2",
+    "localtunnel": "^2.0.2",
     "lucide-react": "^0.462.0",
     "next-themes": "^0.3.0",
     "qrcode": "^1.5.4",
@@ -71,6 +73,7 @@
   "devDependencies": {
     "@eslint/js": "^9.32.0",
     "@tailwindcss/typography": "^0.5.16",
+    "@types/canvas-confetti": "^1.9.0",
     "@types/node": "^22.16.5",
     "@types/react": "^18.3.23",
     "@types/react-dom": "^18.3.7",

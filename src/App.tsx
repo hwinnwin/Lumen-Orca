@@ -21,6 +21,17 @@ import RateLimitManagement from "./pages/RateLimitManagement";
 import AuditLogs from "./pages/AuditLogs";
 import SystemLogs from "./pages/SystemLogs";
 import NotFound from "./pages/NotFound";
+// Business Platform Pages
+import Landing from "./pages/Landing";
+import Pricing from "./pages/Pricing";
+import BookConsultation from "./pages/BookConsultation";
+import ConsultationConfirmed from "./pages/ConsultationConfirmed";
+import ClientPortal from "./pages/ClientPortal";
+import AdminClients from "./pages/AdminClients";
+import ROICalculator from "./pages/ROICalculator";
+import Checkout from "./pages/Checkout";
+import PaymentSuccess from "./pages/PaymentSuccess";
+import PaymentCancelled from "./pages/PaymentCancelled";
 
 const queryClient = new QueryClient();
 
@@ -32,7 +43,23 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <Routes>
+            {/* Public Business Platform Routes */}
+            <Route path="/home" element={<Landing />} />
+            <Route path="/pricing" element={<Pricing />} />
+            <Route path="/book-consultation" element={<BookConsultation />} />
+            <Route path="/consultation-confirmed" element={<ConsultationConfirmed />} />
+            <Route path="/roi-calculator" element={<ROICalculator />} />
+            <Route path="/checkout" element={<Checkout />} />
+            <Route path="/payment-success" element={<PaymentSuccess />} />
+            <Route path="/payment-cancelled" element={<PaymentCancelled />} />
+
+            {/* Auth */}
             <Route path="/auth" element={<Auth />} />
+
+            {/* Client Portal (Protected) */}
+            <Route path="/portal" element={<ClientPortal />} />
+
+            {/* Admin Dashboard (Protected) */}
             <Route element={<DashboardLayout />}>
               <Route path="/" element={<Dashboard />} />
               <Route path="/agents" element={<Agents />} />
@@ -48,6 +75,7 @@ const App = () => (
               <Route path="/rate-limit" element={<RateLimitManagement />} />
               <Route path="/audit-logs" element={<AuditLogs />} />
               <Route path="/system-logs" element={<SystemLogs />} />
+              <Route path="/clients" element={<AdminClients />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>
