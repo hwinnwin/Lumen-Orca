@@ -243,18 +243,27 @@ const Pricing = () => {
                   </div>
                 </CardContent>
                 <CardFooter className="flex flex-col gap-3">
+                  <Link to={`/checkout?package=${pkg.name.toLowerCase()}`} className="w-full">
+                    <Button
+                      className={`w-full ${pkg.popular ? 'bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-700 hover:to-fuchsia-700' : ''}`}
+                      size="lg"
+                      variant={pkg.popular ? "default" : "default"}
+                    >
+                      Get Started - $25K Down
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </Button>
+                  </Link>
                   <Link to="/book-consultation" className="w-full">
                     <Button
                       className="w-full"
                       size="lg"
-                      variant={pkg.popular ? "default" : "outline"}
+                      variant="outline"
                     >
-                      Book Strategy Call
-                      <ArrowRight className="ml-2 h-4 w-4" />
+                      Book Free Call First
                     </Button>
                   </Link>
                   <div className="text-xs text-center text-muted-foreground">
-                    30-minute call • No obligation
+                    Money-back guaranteed
                   </div>
                 </CardFooter>
               </Card>

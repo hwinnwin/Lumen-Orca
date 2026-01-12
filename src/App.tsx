@@ -29,6 +29,9 @@ import ConsultationConfirmed from "./pages/ConsultationConfirmed";
 import ClientPortal from "./pages/ClientPortal";
 import AdminClients from "./pages/AdminClients";
 import ROICalculator from "./pages/ROICalculator";
+import Checkout from "./pages/Checkout";
+import PaymentSuccess from "./pages/PaymentSuccess";
+import PaymentCancelled from "./pages/PaymentCancelled";
 
 const queryClient = new QueryClient();
 
@@ -46,6 +49,9 @@ const App = () => (
             <Route path="/book-consultation" element={<BookConsultation />} />
             <Route path="/consultation-confirmed" element={<ConsultationConfirmed />} />
             <Route path="/roi-calculator" element={<ROICalculator />} />
+            <Route path="/checkout" element={<Checkout />} />
+            <Route path="/payment-success" element={<PaymentSuccess />} />
+            <Route path="/payment-cancelled" element={<PaymentCancelled />} />
 
             {/* Auth */}
             <Route path="/auth" element={<Auth />} />
