@@ -114,40 +114,40 @@ const Pricing = () => {
 
   const faqs = [
     {
+      question: "How does the milestone guarantee work?",
+      answer: "We guarantee delivery of agreed milestones by agreed dates. If we fail to deliver a milestone on time, you're entitled to a pro-rata refund for undelivered work. This is objective and rule-based—no ambiguity. You must meet your operating requirements (respond to leads, attend calls, provide assets) for the guarantee to apply.",
+    },
+    {
+      question: "What is the Cash Waterfall?",
+      answer: "Revenue flows through a structured waterfall: (1) Tax/GST set-aside, (2) Operating costs, (3) Growth budget floor, (4) Your operator draw, (5) Our recoupment until investment cleared, (6) Then the 66.7/33.3 profit split. This keeps the business funded while we both get paid.",
+    },
+    {
       question: "Why do you keep 66.7% equity?",
-      answer: "Because we're not just a vendor—we're your partner. We build, launch, AND grow your business alongside you. Our 66.7% stake means we're financially invested in your success. We don't profit unless you profit. This aligns our incentives completely.",
+      answer: "Because we're not a vendor—we're co-owners. We build, operate, AND grow the business with you. Our stake means we only profit when you profit. We're financially committed to making this work, not just collecting fees and walking away.",
     },
     {
-      question: "What's the money-back guarantee?",
-      answer: "Not happy with your launched business? Request a full refund within 90 days of kickoff—no questions asked. We'll return 100% of your $25K. We're that confident in what we deliver.",
+      question: "What are my operating requirements?",
+      answer: "You commit to: 10+ hours/week, responding to leads within agreed SLA, attending weekly ops calls, providing assets within 72 hours, funding agreed ad budget (if applicable), and following the operating playbook. You're the operator—we handle tech, you handle execution.",
     },
     {
-      question: "What exactly do I get for $25K?",
-      answer: "A complete, revenue-ready online business: custom website, AI automation, user management, analytics, payment processing—everything. Plus a full tech team on retainer. You tell us what you need, we build it. You report issues, we fix them. It's like having your own tech department.",
+      question: "What exactly do I get for $25K down?",
+      answer: "A complete revenue-ready system: lead capture, CRM pipeline, AI agents, booking flow, payment processing, and a full tech team on retainer. We build it in 30 days, then operate and optimize it with you ongoing. The $25K is your skin in the game.",
     },
     {
-      question: "How long does it take to launch?",
-      answer: "30 days from kickoff. Week 1: discovery and planning. Weeks 2-3: build and development. Week 4: testing and launch. Your business will be live and taking customers within a month.",
+      question: "How does recoupment work?",
+      answer: "After the business starts generating revenue, we recoup our remaining investment ($50K for Solo, more for higher tiers) from cash flow before the profit split kicks in. The waterfall ensures the business stays funded during this period.",
     },
     {
-      question: "What if I don't have a business idea yet?",
-      answer: "Perfect—that's what discovery is for. We'll identify the right business model based on your skills, experience, and market opportunities. Many of our best businesses started as 'I'm not sure what to build.'",
-    },
-    {
-      question: "Do I need technical skills?",
-      answer: "Zero. You're our eyes and ears—you tell us what's working, what needs fixing, and what new features you want. We handle all the technical execution. Your job is to run your business and communicate what you need. Our job is to make it happen.",
-    },
-    {
-      question: "How does the profit split work?",
-      answer: "You keep 33.3% of all profits. We keep 66.7%. Distributions happen monthly. Full transparency—you'll have access to all financial dashboards and reports.",
+      question: "Can I cancel anytime?",
+      answer: "Yes. You may cancel at any point. Fees earned for delivered milestones are not refundable. Refunds are pro-rated to undelivered work only. No lock-in, no hidden penalties—just clear terms.",
     },
     {
       question: "Can I buy out your equity later?",
-      answer: "Yes. Once the business reaches certain revenue milestones, you'll have the option to buy out our stake at a pre-agreed multiple. We want you to succeed—even if that means eventually going solo.",
+      answer: "Yes. Once the business hits defined revenue milestones, you have the option to buy out our stake at a pre-agreed multiple. Terms are in the agreement upfront—no surprises.",
     },
     {
-      question: "What does the monthly retainer include?",
-      answer: "Everything technical. Bug fixes, server maintenance, security updates, new feature development, platform customizations—unlimited requests. You're our eyes and ears: you spot issues or need something new, you tell us, we handle it. It's like having a full tech team on staff without the hiring headaches.",
+      question: "Do I need technical skills?",
+      answer: "Zero. You're our eyes and ears—you tell us what's working, what needs fixing, what customers are saying. We handle all technical execution. Your job is to operate and communicate. Our job is to build and support.",
     },
   ];
 
@@ -177,13 +177,13 @@ const Pricing = () => {
       {/* Header */}
       <section className="pt-32 pb-12 px-4">
         <div className="container mx-auto max-w-6xl text-center">
-          <Badge variant="secondary" className="mb-4">$25K Down • Money-Back Guarantee</Badge>
+          <Badge variant="secondary" className="mb-4">$25K USD Down • Milestone Guarantee</Badge>
           <h1 className="text-4xl md:text-5xl font-bold mb-4">
-            Your Business, <span className="bg-gradient-to-r from-violet-500 to-fuchsia-500 bg-clip-text text-transparent">Xong</span>
+            Build. Operate. <span className="bg-gradient-to-r from-violet-500 to-fuchsia-500 bg-clip-text text-transparent">Transfer.</span>
           </h1>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            Done-for-you platform + full tech team on retainer. We build it, run it, and support it forever.
-            You focus on customers. We handle everything else.
+            We build your revenue machine, operate it with you, then you keep 33.3% equity.
+            Milestone-based guarantee. Cash waterfall model. You're an operator, not a passenger.
           </p>
         </div>
       </section>
@@ -271,12 +271,48 @@ const Pricing = () => {
                     </Button>
                   </Link>
                   <div className="text-xs text-center text-muted-foreground">
-                    Money-back guaranteed
+                    Milestone guarantee
                   </div>
                 </CardFooter>
               </Card>
             ))}
           </div>
+        </div>
+      </section>
+
+      {/* Client Requirements */}
+      <section className="py-16 px-4">
+        <div className="container mx-auto max-w-4xl">
+          <div className="text-center mb-8">
+            <Badge variant="outline" className="mb-4">Operating Requirements</Badge>
+            <h2 className="text-2xl font-bold mb-2">You're an Operator, Not a Passenger</h2>
+            <p className="text-muted-foreground">
+              This is a partnership. We handle tech. You handle execution. Here's what we need from you:
+            </p>
+          </div>
+          <div className="grid md:grid-cols-2 gap-4">
+            {[
+              { req: "10+ hours/week availability", desc: "Or a dedicated team member" },
+              { req: "Respond to leads within SLA", desc: "Or use our AI agents" },
+              { req: "Attend weekly ops calls", desc: "30-60 minutes per week" },
+              { req: "Provide assets within 72 hours", desc: "Content, branding, access" },
+              { req: "Fund agreed ad budget", desc: "If paid traffic is part of the model" },
+              { req: "Follow the operating playbook", desc: "SOPs exist for a reason" },
+              { req: "No cowboy pricing/offer changes", desc: "Joint approval required" },
+              { req: "Close sales or use our closer", desc: "Revenue requires conversion" },
+            ].map((item, i) => (
+              <div key={i} className="flex items-start gap-3 p-3 rounded-lg border bg-card">
+                <CheckCircle2 className="h-5 w-5 text-violet-500 shrink-0 mt-0.5" />
+                <div>
+                  <div className="font-medium text-sm">{item.req}</div>
+                  <div className="text-xs text-muted-foreground">{item.desc}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+          <p className="text-center text-sm text-muted-foreground mt-6">
+            If you can't commit to these, this isn't the right fit. We say no to protect both sides.
+          </p>
         </div>
       </section>
 

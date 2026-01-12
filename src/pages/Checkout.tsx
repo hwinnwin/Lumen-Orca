@@ -25,10 +25,10 @@ const packages = {
     monthlyPayment: 4167,
     monthlyTerms: 6,
     features: [
-      "Custom website (up to 10 pages)",
-      "AI chatbot assistant",
-      "3 months of support",
-      "33.3% equity ownership",
+      "Full platform build (30 days)",
+      "AI chatbot + lead capture",
+      "Tech team on retainer",
+      "33.3% equity yours",
     ],
   },
   growth: {
@@ -40,8 +40,8 @@ const packages = {
     features: [
       "Everything in Solo",
       "5 custom AI agents",
-      "6 months of support",
-      "33.3% equity ownership",
+      "Multi-LLM system",
+      "33.3% equity yours",
     ],
   },
   empire: {
@@ -53,8 +53,8 @@ const packages = {
     features: [
       "Everything in Growth",
       "White-label platform",
-      "12 months of support",
-      "33.3% equity ownership",
+      "Dedicated dev team",
+      "33.3% equity yours",
     ],
   },
 };

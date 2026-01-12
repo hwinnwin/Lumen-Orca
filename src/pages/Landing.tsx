@@ -61,12 +61,12 @@ const Landing = () => {
               Your Business, Xong. Your Success, Our Song.
             </Badge>
             <h1 className="text-4xl md:text-6xl font-bold tracking-tight">
-              We Build It. We Run It.
-              <span className="bg-gradient-to-r from-violet-500 to-fuchsia-500 bg-clip-text text-transparent block mt-2">You Own It.</span>
+              Build. Operate. Transfer.
+              <span className="bg-gradient-to-r from-violet-500 to-fuchsia-500 bg-clip-text text-transparent block mt-2">Your Business, Xong.</span>
             </h1>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              A complete business—built, managed, and supported forever. Full tech team. Infinite support.
-              You just run your business. <span className="font-semibold text-foreground">Money-back guaranteed.</span>
+              We build your revenue machine, operate it with you, and you keep 33.3% equity from day one.
+              Full tech team on retainer. <span className="font-semibold text-foreground">Milestone-based guarantee.</span>
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
               <Link to="/book-consultation">
@@ -84,15 +84,15 @@ const Landing = () => {
             <div className="flex flex-wrap items-center justify-center gap-6 pt-8 text-sm text-muted-foreground">
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="h-4 w-4 text-green-500" />
-                <span>Full Tech Team Included</span>
+                <span>$25K USD Down</span>
               </div>
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="h-4 w-4 text-green-500" />
-                <span>Infinite Support</span>
+                <span>Milestone Guarantee</span>
               </div>
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="h-4 w-4 text-green-500" />
-                <span>90-Day Money-Back</span>
+                <span>33.3% Equity Yours</span>
               </div>
             </div>
           </div>
@@ -211,26 +211,26 @@ const Landing = () => {
             {[
               {
                 step: "01",
-                title: "Discovery",
-                description: "Deep dive into your vision, audience, and goals. We map out your entire business model.",
-                duration: "Week 1",
+                title: "Foundation",
+                description: "Offer locked, lead capture live, CRM pipeline active, AI agents deployed. A working revenue loop.",
+                duration: "Days 1-7",
               },
               {
                 step: "02",
-                title: "Design & Build",
-                description: "Our team builds your platform, integrations, and AI automations from scratch.",
-                duration: "Weeks 2-3",
+                title: "Launch & Proof",
+                description: "First leads, first calls, first measurable outcomes. We validate before we scale.",
+                duration: "Days 8-21",
               },
               {
                 step: "03",
-                title: "Launch",
-                description: "We go live together. Full support, testing, and optimization for a smooth launch.",
-                duration: "Week 4",
+                title: "Scale & Stabilize",
+                description: "Predictable lead flow, documented SOPs, team roles assigned. Your business runs.",
+                duration: "Days 22-90",
               },
               {
                 step: "04",
-                title: "Scale",
-                description: "Ongoing support, strategy calls, and continuous improvements to grow your revenue.",
+                title: "Operate & Grow",
+                description: "Monthly retainer kicks in. We operate, optimize, and build new features on demand.",
                 duration: "Ongoing",
               },
             ].map((phase, i) => (
@@ -358,14 +358,14 @@ const Landing = () => {
               ))}
             </div>
             <div className="space-y-4">
-              <h3 className="text-xl font-semibold mb-4">Infinite Support</h3>
+              <h3 className="text-xl font-semibold mb-4">What We Handle</h3>
               {[
-                "You report it, we fix it",
-                "Unlimited support requests",
-                "All bug fixes included",
-                "Feature requests? We build them",
-                "You're our eyes and ears",
-                "We're your tech team",
+                "Full platform build & hosting",
+                "All bug fixes & maintenance",
+                "Security updates & backups",
+                "New feature development",
+                "AI agent management",
+                "Server infrastructure",
                 "Dedicated success manager",
                 "Weekly strategy calls",
               ].map((item, i) => (
@@ -376,19 +376,19 @@ const Landing = () => {
               ))}
             </div>
             <div className="space-y-4">
-              <h3 className="text-xl font-semibold mb-4">Business Setup</h3>
+              <h3 className="text-xl font-semibold mb-4">What You Handle</h3>
               {[
-                "Business model consulting",
-                "Pricing strategy",
-                "Offer positioning",
-                "Brand identity guidance",
-                "Customer journey mapping",
-                "Sales funnel design",
-                "Launch strategy",
-                "Growth roadmap",
+                "10+ hours/week availability",
+                "Respond to leads within SLA",
+                "Attend weekly ops calls",
+                "Provide assets within 72 hours",
+                "Fund agreed ad budget (if applicable)",
+                "Follow the operating playbook",
+                "Report issues & requests",
+                "Close sales (or use our closer)",
               ].map((item, i) => (
                 <div key={i} className="flex items-center gap-3">
-                  <CheckCircle2 className="h-5 w-5 text-green-500 shrink-0" />
+                  <CheckCircle2 className="h-5 w-5 text-violet-500 shrink-0" />
                   <span>{item}</span>
                 </div>
               ))}
