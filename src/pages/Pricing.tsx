@@ -84,9 +84,9 @@ const Pricing = () => {
     {
       name: "Empire",
       description: "Full-scale platform with white-label and unlimited everything",
-      price: 250000,
+      price: 1000000,
       downPayment: 25000,
-      monthlyPayment: 9375,
+      monthlyPayment: 40625,
       monthlyTerms: 24,
       icon: Building2,
       popular: false,

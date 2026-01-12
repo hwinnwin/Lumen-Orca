@@ -31,12 +31,12 @@ const ROICalculator = () => {
   const [hoursPerWeek, setHoursPerWeek] = useState(20);
   const [hourlyValue, setHourlyValue] = useState(150);
   const [expectedGrowth, setExpectedGrowth] = useState(50);
-  const [selectedPackage, setSelectedPackage] = useState("Professional");
+  const [selectedPackage, setSelectedPackage] = useState("Growth");
 
   const packages = {
-    Starter: { price: 25000, aiAgents: 1, automationHours: 10 },
-    Professional: { price: 50000, aiAgents: 5, automationHours: 25 },
-    Enterprise: { price: 100000, aiAgents: 999, automationHours: 40 },
+    Solo: { price: 50000, aiAgents: 1, automationHours: 10 },
+    Growth: { price: 100000, aiAgents: 5, automationHours: 25 },
+    Empire: { price: 1000000, aiAgents: 999, automationHours: 60 },
   };
 
   const calculations = useMemo(() => {
@@ -220,9 +220,9 @@ const ROICalculator = () => {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="Starter">Starter ($25,000)</SelectItem>
-                        <SelectItem value="Professional">Professional ($50,000)</SelectItem>
-                        <SelectItem value="Enterprise">Enterprise ($100,000)</SelectItem>
+                        <SelectItem value="Solo">Solo ($50,000)</SelectItem>
+                        <SelectItem value="Growth">Growth ($100,000)</SelectItem>
+                        <SelectItem value="Empire">Empire ($1,000,000)</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>

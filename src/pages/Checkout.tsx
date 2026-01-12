@@ -46,9 +46,9 @@ const packages = {
   },
   empire: {
     name: "Empire",
-    price: 250000,
+    price: 1000000,
     downPayment: 25000,
-    monthlyPayment: 9375,
+    monthlyPayment: 40625,
     monthlyTerms: 24,
     features: [
       "Everything in Growth",
