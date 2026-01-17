@@ -298,25 +298,35 @@ export class AIBuilderService {
     // Rebuild
     const result = this.build(mergedConfig, existingAI.ownerId);
 
-    // Preserve ID and increment version
-    result.aiObject.id = existingAI.id;
-    result.aiObject.createdAt = existingAI.createdAt;
-    result.aiObject.version.history = [
-      ...existingAI.version.history,
-      {
-        versionId: existingAI.version.currentVersionId,
-        versionNumber: existingAI.version.versionNumber,
-        createdAt: existingAI.updatedAt,
-        createdBy: existingAI.ownerId,
-        changeSummary: 'Previous version',
-        snapshot: { ...existingAI, version: undefined as never },
-      },
-    ];
-    result.aiObject.version.versionNumber = this.incrementVersion(
-      existingAI.version.versionNumber
-    );
+    // Create snapshot without version property
+    const { version: _version, ...snapshotWithoutVersion } = existingAI;
 
-    return result;
+    // Preserve ID and increment version by creating new object
+    const updatedAIObject: AIObject = {
+      ...result.aiObject,
+      id: existingAI.id,
+      createdAt: existingAI.createdAt,
+      version: {
+        ...result.aiObject.version,
+        history: [
+          ...existingAI.version.history,
+          {
+            versionId: existingAI.version.currentVersionId,
+            versionNumber: existingAI.version.versionNumber,
+            createdAt: existingAI.updatedAt,
+            createdBy: existingAI.ownerId,
+            changeSummary: 'Previous version',
+            snapshot: snapshotWithoutVersion,
+          },
+        ],
+        versionNumber: this.incrementVersion(existingAI.version.versionNumber),
+      },
+    };
+
+    return {
+      ...result,
+      aiObject: updatedAIObject,
+    };
   }
 
   /**

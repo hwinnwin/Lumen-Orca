@@ -484,6 +484,7 @@ export class ComplianceEngine {
     const appStore = this.checkCompliance(aiObject, 'app_store');
     const enterprise = this.checkCompliance(aiObject, 'enterprise');
     const regulated = this.checkCompliance(aiObject, 'regulated');
+    const custom = this.checkCompliance(aiObject, 'custom');
 
     const currentLevel = this.getComplianceLevel(aiObject);
 
@@ -496,6 +497,7 @@ export class ComplianceEngine {
         app_store: appStore,
         enterprise: enterprise,
         regulated: regulated,
+        custom: custom,
       },
       summary: this.generateSummary(currentLevel, appStore, enterprise, regulated),
     };
