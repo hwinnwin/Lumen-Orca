@@ -286,6 +286,15 @@ importers:
         specifier: ^5.0.0
         version: 5.9.3
 
+  packages/orca-core:
+    devDependencies:
+      typescript:
+        specifier: ^5.3.0
+        version: 5.9.3
+      vitest:
+        specifier: ^1.0.0
+        version: 1.6.1(@types/node@22.19.7)
+
   packages/qa:
     dependencies:
       '@lumen/contracts':
