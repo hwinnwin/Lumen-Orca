@@ -32,6 +32,27 @@ function log(message: string, color: keyof typeof colors = 'reset'): void {
   console.log(`${colors[color]}${message}${colors.reset}`);
 }
 
+/**
+ * Strip markdown code fences from LLM-generated content
+ * LLMs often wrap code in ```typescript...``` blocks
+ */
+function stripCodeFences(content: string): string {
+  // Match ```typescript or ```ts or just ``` at start, and ``` at end
+  const fencePattern = /^```(?:typescript|ts|javascript|js)?\s*\n?([\s\S]*?)\n?```\s*$/;
+  const match = content.match(fencePattern);
+  if (match) {
+    return match[1].trim();
+  }
+  // Also handle case where content starts with fence but doesn't end properly
+  const startFencePattern = /^```(?:typescript|ts|javascript|js)?\s*\n/;
+  if (startFencePattern.test(content)) {
+    content = content.replace(startFencePattern, '');
+    // Remove trailing fence if present
+    content = content.replace(/\n?```\s*$/, '');
+  }
+  return content.trim();
+}
+
 function logPhase(phase: string): void {
   console.log();
   log(`━━━ ${phase.toUpperCase()} ━━━`, 'cyan');
@@ -206,12 +227,14 @@ ${colors.bold}Environment:${colors.reset}
       for (const artifact of component.artifacts) {
         if (artifact.type === 'code') {
           const filename = `${component.id}.ts`;
-          await writeFile(join(outputDir, filename), artifact.content);
+          const cleanContent = stripCodeFences(artifact.content);
+          await writeFile(join(outputDir, filename), cleanContent);
           log(`  → ${filename}`, 'green');
         }
         if (artifact.type === 'test') {
           const filename = `${component.id}.test.ts`;
-          await writeFile(join(outputDir, filename), artifact.content);
+          const cleanContent = stripCodeFences(artifact.content);
+          await writeFile(join(outputDir, filename), cleanContent);
           log(`  → ${filename}`, 'green');
         }
       }
