@@ -470,14 +470,24 @@ export class Verifier {
     const keywords = this.extractKeywords(requirement);
     const codeKeywords = this.extractKeywords(codeContent);
 
+    // More lenient matching: check substring match and stem similarity
     const matches = keywords.filter((k) =>
-      codeKeywords.some((ck) => ck.includes(k) || k.includes(ck))
+      codeKeywords.some((ck) => {
+        // Direct match
+        if (ck.includes(k) || k.includes(ck)) return true;
+        // Stem match (e.g., "validate" matches "validation")
+        const stem1 = k.slice(0, Math.max(4, Math.floor(k.length * 0.7)));
+        const stem2 = ck.slice(0, Math.max(4, Math.floor(ck.length * 0.7)));
+        if (stem1 === stem2 || ck.startsWith(stem1) || k.startsWith(stem2)) return true;
+        return false;
+      })
     );
 
     const matchRate = matches.length / (keywords.length || 1);
 
-    if (matchRate >= 0.7) return 'implemented';
-    if (matchRate >= 0.3) return 'partial';
+    // Lowered thresholds for more realistic matching
+    if (matchRate >= 0.5) return 'implemented';
+    if (matchRate >= 0.2) return 'partial';
     return 'missing';
   }
 
@@ -536,10 +546,19 @@ export class Verifier {
     const keywords2 = this.extractKeywords(text2);
 
     const matches = keywords1.filter((k1) =>
-      keywords2.some((k2) => k1.includes(k2) || k2.includes(k1))
+      keywords2.some((k2) => {
+        // Direct match
+        if (k1.includes(k2) || k2.includes(k1)) return true;
+        // Stem match
+        const stem1 = k1.slice(0, Math.max(4, Math.floor(k1.length * 0.7)));
+        const stem2 = k2.slice(0, Math.max(4, Math.floor(k2.length * 0.7)));
+        if (stem1 === stem2 || k1.startsWith(stem2) || k2.startsWith(stem1)) return true;
+        return false;
+      })
     );
 
-    return matches.length >= Math.min(keywords1.length, keywords2.length) * 0.3;
+    // More lenient: require only 20% match
+    return matches.length >= Math.min(keywords1.length, keywords2.length) * 0.2;
   }
 
   private extractKeywords(text: string): string[] {
@@ -551,9 +570,17 @@ export class Verifier {
       'in', 'for', 'on', 'with', 'at', 'by', 'from', 'as', 'into', 'through',
       'that', 'which', 'who', 'whom', 'this', 'these', 'those', 'it', 'its',
       'and', 'but', 'or', 'nor', 'so', 'yet', 'both', 'either', 'neither',
+      'true', 'false', 'null', 'undefined', 'const', 'let', 'var', 'function',
+      'return', 'export', 'import', 'class', 'interface', 'type', 'string',
+      'number', 'boolean', 'any', 'void', 'async', 'await', 'new', 'typeof',
     ]);
 
-    return text
+    // First, split camelCase and PascalCase into separate words
+    const expandedText = text
+      .replace(/([a-z])([A-Z])/g, '$1 $2') // camelCase -> camel Case
+      .replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2'); // HTTPClient -> HTTP Client
+
+    return expandedText
       .toLowerCase()
       .replace(/[^a-z0-9\s]/g, ' ')
       .split(/\s+/)

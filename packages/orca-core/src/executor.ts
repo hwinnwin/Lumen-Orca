@@ -588,6 +588,15 @@ Time: ${Math.floor(Math.random() * 1000)}ms
       return createPendingVerification();
     }
 
+    // Use LLM-based verification for better accuracy
+    const llmVerification = await this.llmVerify(codeArtifact, specArtifact, testArtifact, contractArtifact);
+
+    // If LLM verification passes with high confidence, use that
+    if (llmVerification.confidence >= 0.7) {
+      return llmVerification;
+    }
+
+    // Fall back to keyword-based verification and combine results
     const references = new Map<CrossReferenceType, Artifact[]>();
 
     if (specArtifact) {
@@ -607,7 +616,133 @@ Time: ${Math.floor(Math.random() * 1000)}ms
       references.set('consistent', [existingArtifact]);
     }
 
-    return this.verifier.verifyArtifact(codeArtifact, references);
+    const keywordVerification = await this.verifier.verifyArtifact(codeArtifact, references);
+
+    // Combine: use higher confidence of the two
+    if (llmVerification.confidence > keywordVerification.confidence) {
+      return llmVerification;
+    }
+    return keywordVerification;
+  }
+
+  /**
+   * LLM-based verification: Ask the LLM to check if code meets requirements
+   */
+  private async llmVerify(
+    codeArtifact: Artifact,
+    specArtifact: Artifact | undefined,
+    testArtifact: Artifact | undefined,
+    contractArtifact: Artifact | undefined
+  ): Promise<Artifact['verification']> {
+    const verifyPrompt = `
+You are a code reviewer. Analyze if this code meets the requirements.
+
+${specArtifact ? `REQUIREMENTS:\n${specArtifact.content}\n` : ''}
+${contractArtifact ? `INTERFACES:\n${contractArtifact.content}\n` : ''}
+
+CODE TO VERIFY:
+${codeArtifact.content}
+
+${testArtifact ? `TESTS:\n${testArtifact.content}\n` : ''}
+
+Rate the code on these dimensions (0-100 each):
+1. SPEC_ALIGNMENT: Does the code implement all required features?
+2. CODE_QUALITY: Is the code well-structured and production-ready?
+3. TEST_COVERAGE: Do the tests cover the important functionality?
+4. CONTRACT_CONFORMANCE: Does the code match the interfaces?
+
+Also list any ISSUES found.
+
+Respond in EXACTLY this format:
+SPEC_ALIGNMENT: [0-100]
+CODE_QUALITY: [0-100]
+TEST_COVERAGE: [0-100]
+CONTRACT_CONFORMANCE: [0-100]
+OVERALL: [pass/partial/fail]
+ISSUES:
+- [issue 1]
+- [issue 2]
+`;
+
+    try {
+      const response = await this.llm.complete(verifyPrompt);
+      return this.parseLLMVerification(response);
+    } catch (error) {
+      // If LLM verification fails, return low confidence result
+      return {
+        overall: 'pending',
+        crossReferences: [],
+        confidence: 0,
+        dimensions: {
+          specAlignment: 'pending',
+          testCoverage: 'pending',
+          contractConformance: 'pending',
+          codeConsistency: 'pending',
+          runtimeBehavior: 'pending',
+        },
+      };
+    }
+  }
+
+  private parseLLMVerification(response: string): Artifact['verification'] {
+    const specMatch = response.match(/SPEC_ALIGNMENT:\s*(\d+)/);
+    const qualityMatch = response.match(/CODE_QUALITY:\s*(\d+)/);
+    const coverageMatch = response.match(/TEST_COVERAGE:\s*(\d+)/);
+    const contractMatch = response.match(/CONTRACT_CONFORMANCE:\s*(\d+)/);
+    const overallMatch = response.match(/OVERALL:\s*(pass|partial|fail)/i);
+
+    const specScore = specMatch ? parseInt(specMatch[1]) / 100 : 0.5;
+    const qualityScore = qualityMatch ? parseInt(qualityMatch[1]) / 100 : 0.5;
+    const coverageScore = coverageMatch ? parseInt(coverageMatch[1]) / 100 : 0.5;
+    const contractScore = contractMatch ? parseInt(contractMatch[1]) / 100 : 0.5;
+
+    const avgScore = (specScore + qualityScore + coverageScore + contractScore) / 4;
+
+    const scoreToResult = (score: number): 'pass' | 'partial' | 'fail' | 'pending' => {
+      if (score >= 0.8) return 'pass';
+      if (score >= 0.5) return 'partial';
+      return 'fail';
+    };
+
+    const overall = overallMatch
+      ? overallMatch[1].toLowerCase() as 'pass' | 'partial' | 'fail'
+      : scoreToResult(avgScore);
+
+    // Extract issues
+    const issues: Array<{ severity: 'error' | 'warning' | 'info'; message: string }> = [];
+    const issuesMatch = response.match(/ISSUES:\s*([\s\S]*?)(?:$|(?=\n[A-Z]+:))/);
+    if (issuesMatch) {
+      const issueLines = issuesMatch[1].split('\n').filter(l => l.trim().startsWith('-'));
+      for (const line of issueLines) {
+        issues.push({
+          severity: 'warning',
+          message: line.replace(/^-\s*/, '').trim(),
+        });
+      }
+    }
+
+    return {
+      overall,
+      crossReferences: [{
+        id: `llm-verify-${Date.now()}`,
+        sourceArtifact: 'code',
+        targetArtifact: 'spec',
+        relationship: 'implements',
+        result: overall,
+        confidence: avgScore,
+        reasoning: `LLM verification: spec=${Math.round(specScore*100)}%, quality=${Math.round(qualityScore*100)}%, coverage=${Math.round(coverageScore*100)}%, contract=${Math.round(contractScore*100)}%`,
+        issues,
+        verifiedAt: new Date(),
+      }],
+      confidence: avgScore,
+      dimensions: {
+        specAlignment: scoreToResult(specScore),
+        testCoverage: scoreToResult(coverageScore),
+        contractConformance: scoreToResult(contractScore),
+        codeConsistency: scoreToResult(qualityScore),
+        runtimeBehavior: 'pending',
+      },
+    };
   }
 
   private async diagnoseAndFix(

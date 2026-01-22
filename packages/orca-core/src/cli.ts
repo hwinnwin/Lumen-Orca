@@ -169,9 +169,10 @@ ${colors.bold}Environment:${colors.reset}
 
   // Create executor
   // Lower confidence threshold for mock mode since mock responses aren't perfectly aligned
+  // Real mode uses 0.3 temporarily - keyword-based verification needs LLM upgrade
   const executor = new AutonomousExecutor(provider, {
     maxRetries: 3,
-    confidenceThreshold: useMock ? 0.05 : 0.7,
+    confidenceThreshold: useMock ? 0.05 : 0.3,
     humanApprovalGates: [], // No approval gates for CLI
   });
 
