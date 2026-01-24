@@ -32,6 +32,8 @@ import ROICalculator from "./pages/ROICalculator";
 import Checkout from "./pages/Checkout";
 import PaymentSuccess from "./pages/PaymentSuccess";
 import PaymentCancelled from "./pages/PaymentCancelled";
+// CREATE → DESTROY (L2P) Sandbox
+import CreateDestroy from "./pages/CreateDestroy";
 
 const queryClient = new QueryClient();
 
@@ -58,6 +60,9 @@ const App = () => (
 
             {/* Client Portal (Protected) */}
             <Route path="/portal" element={<ClientPortal />} />
+
+            {/* CREATE → DESTROY (L2P) Sandbox */}
+            <Route path="/create-destroy" element={<CreateDestroy />} />
 
             {/* Admin Dashboard (Protected) */}
             <Route element={<DashboardLayout />}>

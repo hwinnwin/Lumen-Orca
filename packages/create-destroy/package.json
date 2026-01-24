@@ -1,0 +1,56 @@
+{
+  "name": "@lumen/create-destroy",
+  "version": "0.1.0",
+  "description": "CREATE → DESTROY (L2P) - A physics sandbox where creation meets destruction",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./components": {
+      "types": "./dist/components/index.d.ts",
+      "import": "./dist/components/index.js"
+    },
+    "./hooks": {
+      "types": "./dist/hooks/index.d.ts",
+      "import": "./dist/hooks/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint src/",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "physics",
+    "sandbox",
+    "destruction",
+    "creation",
+    "replay",
+    "simulation",
+    "L2P"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "@dimforge/rapier3d-compat": "^0.12.0",
+    "three": "^0.160.0",
+    "@react-three/fiber": "^8.15.0",
+    "@react-three/drei": "^9.92.0"
+  },
+  "peerDependencies": {
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.0",
+    "@types/three": "^0.160.0",
+    "typescript": "^5.3.0",
+    "vitest": "^1.0.0"
+  }
+}
