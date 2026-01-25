@@ -1,4 +1,4 @@
-# @lumen/create-destroy
+# lumen-create-destroy
 
 **CREATE → DESTROY (L2P)** - A minimalist physics sandbox where building structures and watching them collapse is the entire experience.
 
@@ -7,15 +7,15 @@
 ## Installation
 
 ```bash
-npm install @lumen/create-destroy
+npm install lumen-create-destroy
 # or
-pnpm add @lumen/create-destroy
+pnpm add lumen-create-destroy
 ```
 
 ## Quick Start
 
 ```tsx
-import { CreateDestroy } from '@lumen/create-destroy';
+import { CreateDestroy } from 'lumen-create-destroy';
 
 function App() {
   return (
@@ -80,7 +80,7 @@ No winning. No punishment. No grind.
 ### CreateDestroy Component
 
 ```tsx
-import { CreateDestroy } from '@lumen/create-destroy';
+import { CreateDestroy } from 'lumen-create-destroy';
 
 <CreateDestroy
   settings={{
@@ -99,7 +99,7 @@ import { CreateDestroy } from '@lumen/create-destroy';
 For custom UI implementations:
 
 ```tsx
-import { useCreateDestroy } from '@lumen/create-destroy/hooks';
+import { useCreateDestroy } from 'lumen-create-destroy/hooks';
 
 function CustomSandbox() {
   const {
@@ -123,7 +123,7 @@ import type {
   BuildPiece,      // Piece data structure
   PieceType,       // 'block' | 'beam' | 'anchor'
   DestructionMethod, // 'explode' | 'stress' | 'entropy'
-} from '@lumen/create-destroy';
+} from 'lumen-create-destroy';
 ```
 
 ## Tech Stack

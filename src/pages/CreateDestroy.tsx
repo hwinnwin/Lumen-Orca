@@ -14,7 +14,7 @@ import { ArrowLeft, Info, X } from 'lucide-react';
 
 // Lazy load the CreateDestroy component for code splitting
 const CreateDestroyComponent = React.lazy(() =>
-  import('@lumen/create-destroy').then((module) => ({
+  import('lumen-create-destroy').then((module) => ({
     default: module.CreateDestroy,
   }))
 );

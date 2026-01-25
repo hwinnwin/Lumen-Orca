@@ -1,5 +1,5 @@
 {
-  "name": "@lumen/create-destroy",
+  "name": "lumen-create-destroy",
   "version": "0.1.0",
   "description": "CREATE → DESTROY (L2P) - A physics sandbox where creation meets destruction",
   "author": "Lumen",
