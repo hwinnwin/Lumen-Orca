@@ -1,5 +1,5 @@
 # ============================================
-# Social Command Center â Production Dockerfile
+# Social Command Center - Production Dockerfile
 # Single container: API + Frontend static files
 # ============================================
 
@@ -41,10 +41,10 @@ RUN mkdir -p /app/_prisma_generated && \
   cp -rL "$PRISMA_DIR"/.. /app/_prisma_generated/
 
 # Build shared package (used by both web and api)
-# No build step needed â shared exports raw .ts files consumed directly
+# No build step needed - shared exports raw .ts files consumed directly
 
 # Build the frontend (outputs to apps/web/dist)
-# Skip tsc -b (noEmit: true anyway) â Vite handles the actual build
+# Skip tsc -b (noEmit: true anyway) - Vite handles the actual build
 RUN cd apps/web && npx vite build
 
 # Build the API (outputs to apps/api/dist)
@@ -70,7 +70,7 @@ COPY packages/shared/package.json packages/shared/
 # Install production dependencies only
 RUN pnpm install --frozen-lockfile --prod
 
-# Copy Prisma schema and generate client
+# Copy Prisma schema and generated client
 # Prisma client was generated in builder and copied with dereferenced symlinks
 COPY apps/api/prisma ./apps/api/prisma
 COPY --from=builder /app/_prisma_generated ./node_modules/.prisma
@@ -94,4 +94,5 @@ EXPOSE ${PORT:-3001}
 ENTRYPOINT ["dumb-init", "--"]
 
 # Run database migrations then start the server
-CMD ["sh", "-c", "cd apps/api && npx prisma db push --accept-data-loss && node dist/index.js"]
+# Pin prisma@6 to avoid npx downloading v7 which has breaking schema changes
+CMD ["sh", "-c", "cd apps/api && npx prisma@6 db push --accept-data-loss && node dist/index.js"]
