@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { env } from '../config/env.js';
 import {
   planCarousel,
   generateCarousel,
@@ -24,6 +25,12 @@ generatorRouter.get('/capabilities', (_req, res) => {
 
 // Plan a carousel (Claude only — fast)
 generatorRouter.post('/plan', async (req, res) => {
+  if (!env.ANTHROPIC_API_KEY) {
+    return res.status(503).json({
+      error: 'AI is not configured. Add your ANTHROPIC_API_KEY to enable the content generator.',
+    });
+  }
+
   try {
     const { topic, contentType = 'carousel', slideCount = 5, tone = 'professional' } = req.body as {
       topic: string;
@@ -41,8 +48,9 @@ generatorRouter.post('/plan', async (req, res) => {
 
     res.json({ data: plan });
   } catch (error) {
-    console.error('[Generator] Plan failed:', error);
-    res.status(500).json({ error: 'Failed to generate carousel plan' });
+    const errMsg = error instanceof Error ? error.message : String(error);
+    console.error('[Generator] Plan failed:', errMsg);
+    res.status(500).json({ error: `Carousel plan generation failed: ${errMsg}` });
   }
 });
 
@@ -66,8 +74,9 @@ generatorRouter.post('/generate', async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('[Generator] Generate failed:', error);
-    res.status(500).json({ error: 'Failed to generate carousel slides' });
+    const errMsg = error instanceof Error ? error.message : String(error);
+    console.error('[Generator] Generate failed:', errMsg);
+    res.status(500).json({ error: `Slide generation failed: ${errMsg}` });
   }
 });
 
@@ -84,8 +93,9 @@ generatorRouter.post('/regenerate-slide', async (req, res) => {
     const result = await regenerateSlideService(slide, userId);
     res.json({ data: result });
   } catch (error) {
-    console.error('[Generator] Regenerate slide failed:', error);
-    res.status(500).json({ error: 'Failed to regenerate slide' });
+    const errMsg = error instanceof Error ? error.message : String(error);
+    console.error('[Generator] Regenerate slide failed:', errMsg);
+    res.status(500).json({ error: `Slide regeneration failed: ${errMsg}` });
   }
 });
 
@@ -106,7 +116,8 @@ generatorRouter.post('/quote-card', async (req, res) => {
     const result = await generateQuoteCardService(quote, author || 'Unknown', style, userId);
     res.json({ data: result });
   } catch (error) {
-    console.error('[Generator] Quote card failed:', error);
-    res.status(500).json({ error: 'Failed to generate quote card' });
+    const errMsg = error instanceof Error ? error.message : String(error);
+    console.error('[Generator] Quote card failed:', errMsg);
+    res.status(500).json({ error: `Quote card generation failed: ${errMsg}` });
   }
 });
