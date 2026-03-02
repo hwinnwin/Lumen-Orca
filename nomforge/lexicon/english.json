@@ -1,0 +1,15 @@
+{
+  "concepts": {
+    "strength": {"sino_viet": "cường", "han": "強", "nom": "𠬠", "strategy": "concept"},
+    "wealth": {"sino_viet": "phú", "han": "富", "strategy": "concept"},
+    "flow": {"sino_viet": "lưu", "han": "流", "strategy": "concept"},
+    "light": {"sino_viet": "minh", "han": "明", "strategy": "concept"},
+    "wisdom": {"sino_viet": "trí", "han": "智", "strategy": "concept"},
+    "creation": {"sino_viet": "tạo", "han": "造", "strategy": "concept"}
+  },
+  "phonetic": {
+    "vyberology": {"approx": "vai-bơ-rô-lo-gi"},
+    "lumen": {"approx": "lu-men"},
+    "orca": {"approx": "o-ka"}
+  }
+}

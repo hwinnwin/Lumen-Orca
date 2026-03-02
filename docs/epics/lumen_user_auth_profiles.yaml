@@ -1,0 +1,100 @@
+# ───────────────────────────────────────────────────────────────
+# LUMEN EPIC MANIFEST
+# Title: User Identity & Access Layer — Google Sign-In + Profiles
+# Phase: II (Autonomy Prep)
+# ID: lumen-user-auth-profiles
+# Owner: Lumen Orchestrator / A0
+# Status After: Authentication Certified ✅ | RBAC Active 🚧
+# Tone: calm-precision
+# ───────────────────────────────────────────────────────────────
+
+meta:
+  version: 1.0.0
+  priority: high
+  intent: >
+    Enable Google OAuth sign-in, persistent user profiles, and role-based access control (RBAC)
+    integrated with Lumen's governance layer. Auth-gate admin APIs (numeric metrics, settings),
+    wire profile UI, and ensure seamless session management for internal testing and future launch.
+
+deliverables:
+  - Google OAuth sign-in via Supabase Auth (team Google Workspace ready)
+  - Profiles table with auto-provisioning trigger on user creation
+  - RBAC roles: admin, developer, viewer (extensible)
+  - Auth UI (login, logout, avatar menu) + Profile page
+  - Protected admin endpoints for numeric metrics & settings
+  - Docs: USER_AUTH_AND_PROFILES.md (onboarding & ops)
+
+env:
+  required:
+    - SUPABASE_URL
+    - SUPABASE_ANON_KEY
+    - VITE_SUPABASE_URL
+    - VITE_SUPABASE_PUBLISHABLE_KEY
+  optional:
+    - LUMEN_METRICS_EXPOSE=none   # {none|admin|all}
+
+rbac:
+  roles: [admin, developer, viewer]
+  permissions:
+    admin:
+      - metrics.read.numeric
+      - settings.write
+      - profiles.role.update
+    developer:
+      - metrics.read.grades
+      - jobs.run
+    viewer:
+      - dashboard.view
+  default_role: viewer
+
+work_packages:
+
+  - id: auth-supabase-oauth
+    title: "Enable Google OAuth in Supabase & client wiring"
+    status: ✅ COMPLETED
+    agents: [A0, A6]
+
+  - id: db-profiles
+    title: "Profiles table + provisioning trigger"
+    status: ✅ COMPLETED
+    agents: [A2, A9]
+
+  - id: ui-auth
+    title: "Login/Logout & Profile UI"
+    status: ✅ COMPLETED
+    agents: [A4]
+
+  - id: rbac-enforcement
+    title: "Protect admin routes & numeric metrics"
+    status: ✅ COMPLETED
+    agents: [A6, A9]
+
+  - id: telemetry-bindings
+    title: "Last-seen + usage linkage"
+    status: ✅ COMPLETED
+    agents: [A7, A6]
+
+  - id: documentation
+    title: "Author & ops docs"
+    status: ✅ COMPLETED
+    agents: [A1]
+
+success_metrics:
+  sign_in_latency_ms: "<=2000"
+  profile_autocreate_rate: "100%"
+  rbac_accuracy: "100%"
+  session_persistence_hours: ">=24"
+  onboarding_time_minutes: "<=10"
+
+design:
+  palette:
+    background: "#0B0C0E"
+    primary: "#C7F9CC"
+    secondary: "#81B29A"
+    accent: "#FFD166"
+  motion: "easeInOutQuint"
+
+notes:
+  - Auto-confirm email enabled for testing (disable in production)
+  - First user must be assigned admin role via SQL
+  - Activity tracking updates last_seen on visibility change

@@ -1,0 +1,216 @@
+import { Router } from 'express';
+import { prisma } from '../db/client.js';
+import type { Platform, Prisma, ScheduleType } from '@prisma/client';
+import { enqueuePublishJobs, publishNow, cancelScheduled, getPostStatus } from '../services/publish-service.js';
+
+export const postsRouter = Router();
+
+// Create a new post
+postsRouter.post('/', async (req, res) => {
+  try {
+    const {
+      content,
+      platforms,
+      platformOverrides,
+      scheduleType,
+      scheduledAt,
+      timezone,
+      tags,
+      mediaAssetIds,
+      aiEnhancement,
+    } = req.body as {
+      content: string;
+      platforms: Platform[];
+      platformOverrides?: Record<string, string>;
+      scheduleType: ScheduleType;
+      scheduledAt?: string;
+      timezone?: string;
+      tags?: string[];
+      mediaAssetIds?: string[];
+      aiEnhancement?: Record<string, unknown>;
+    };
+
+    if (!content?.trim()) {
+      return res.status(400).json({ error: 'Content is required' });
+    }
+    if (!platforms?.length) {
+      return res.status(400).json({ error: 'At least one platform is required' });
+    }
+
+    const post = await prisma.post.create({
+      data: {
+        userId: req.userId,
+        content: content.trim(),
+        platforms,
+        platformOverrides: (platformOverrides || undefined) as Prisma.InputJsonValue | undefined,
+        scheduleType: scheduleType || 'IMMEDIATE',
+        scheduledAt: scheduledAt ? new Date(scheduledAt) : null,
+        timezone: timezone || 'UTC',
+        tags: tags || [],
+        aiEnhancement: (aiEnhancement || undefined) as Prisma.InputJsonValue | undefined,
+        status: scheduleType === 'IMMEDIATE' ? 'QUEUED' : 'DRAFT',
+        mediaAttachments: mediaAssetIds?.length
+          ? {
+              create: mediaAssetIds.map((mediaId, i) => ({
+                mediaId,
+                position: i,
+              })),
+            }
+          : undefined,
+      },
+      include: {
+        publishResults: true,
+        mediaAttachments: {
+          include: { media: true },
+          orderBy: { position: 'asc' },
+        },
+      },
+    });
+
+    // If IMMEDIATE, enqueue publish jobs now
+    if (scheduleType === 'IMMEDIATE' || !scheduleType) {
+      await enqueuePublishJobs(post);
+    }
+    // If SCHEDULED, the scheduler worker will pick it up when scheduledAt passes
+
+    res.status(201).json({ data: post });
+  } catch (error) {
+    console.error('Failed to create post:', error);
+    res.status(500).json({ error: 'Failed to create post' });
+  }
+});
+
+// List posts for the authenticated user
+postsRouter.get('/', async (req, res) => {
+  try {
+    const { status, page = '1', limit = '20' } = req.query as {
+      status?: string;
+      page?: string;
+      limit?: string;
+    };
+
+    const pageNum = Math.max(1, parseInt(page));
+    const limitNum = Math.min(50, Math.max(1, parseInt(limit)));
+    const skip = (pageNum - 1) * limitNum;
+
+    const where = {
+      userId: req.userId,
+      ...(status ? { status: status as any } : {}),
+    };
+
+    const [posts, total] = await Promise.all([
+      prisma.post.findMany({
+        where,
+        include: {
+          publishResults: true,
+          mediaAttachments: {
+            include: { media: true },
+            orderBy: { position: 'asc' as const },
+          },
+        },
+        orderBy: { createdAt: 'desc' as const },
+        skip,
+        take: limitNum,
+      }),
+      prisma.post.count({ where }),
+    ]);
+
+    res.json({
+      data: posts,
+      meta: { page: pageNum, limit: limitNum, total },
+    });
+  } catch (error) {
+    console.error('Failed to list posts:', error);
+    res.status(500).json({ error: 'Failed to list posts' });
+  }
+});
+
+// Get a single post
+postsRouter.get('/:id', async (req, res) => {
+  try {
+    const post = await prisma.post.findFirst({
+      where: { id: req.params.id, userId: req.userId },
+      include: {
+        publishResults: true,
+        mediaAttachments: {
+          include: { media: true },
+          orderBy: { position: 'asc' },
+        },
+      },
+    });
+
+    if (!post) {
+      return res.status(404).json({ error: 'Post not found' });
+    }
+
+    res.json({ data: post });
+  } catch (error) {
+    console.error('Failed to get post:', error);
+    res.status(500).json({ error: 'Failed to get post' });
+  }
+});
+
+// Delete a post (only if draft or scheduled)
+postsRouter.delete('/:id', async (req, res) => {
+  try {
+    const post = await prisma.post.findFirst({
+      where: { id: req.params.id, userId: req.userId },
+    });
+
+    if (!post) {
+      return res.status(404).json({ error: 'Post not found' });
+    }
+
+    if (!['DRAFT', 'QUEUED'].includes(post.status)) {
+      return res.status(400).json({ error: 'Cannot delete a post that has been published or is publishing' });
+    }
+
+    await prisma.post.delete({ where: { id: req.params.id } });
+    res.json({ data: { success: true } });
+  } catch (error) {
+    console.error('Failed to delete post:', error);
+    res.status(500).json({ error: 'Failed to delete post' });
+  }
+});
+
+// Force publish a draft post
+postsRouter.post('/:id/publish', async (req, res) => {
+  try {
+    const updated = await publishNow(req.params.id, req.userId);
+    res.json({ data: updated });
+  } catch (error: any) {
+    if (error.message === 'Post not found') {
+      return res.status(404).json({ error: error.message });
+    }
+    console.error('Failed to publish post:', error);
+    res.status(500).json({ error: error.message || 'Failed to publish post' });
+  }
+});
+
+// Cancel a scheduled post
+postsRouter.post('/:id/cancel', async (req, res) => {
+  try {
+    const post = await cancelScheduled(req.params.id, req.userId);
+    res.json({ data: post });
+  } catch (error: any) {
+    if (error.message === 'Post not found') {
+      return res.status(404).json({ error: error.message });
+    }
+    console.error('Failed to cancel post:', error);
+    res.status(500).json({ error: error.message || 'Failed to cancel post' });
+  }
+});
+
+// Get detailed publish status for a post
+postsRouter.get('/:id/status', async (req, res) => {
+  try {
+    const status = await getPostStatus(req.params.id, req.userId);
+    res.json({ data: status });
+  } catch (error: any) {
+    if (error.message === 'Post not found') {
+      return res.status(404).json({ error: error.message });
+    }
+    console.error('Failed to get post status:', error);
+    res.status(500).json({ error: 'Failed to get post status' });
+  }
+});

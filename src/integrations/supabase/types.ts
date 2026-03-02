@@ -1,0 +1,483 @@
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[]
+
+export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "13.0.5"
+  }
+  public: {
+    Tables: {
+      audit_logs: {
+        Row: {
+          created_at: string
+          event_details: Json | null
+          event_status: string
+          event_type: string
+          id: string
+          ip_address: string | null
+          user_agent: string | null
+          user_email: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          event_details?: Json | null
+          event_status: string
+          event_type: string
+          id?: string
+          ip_address?: string | null
+          user_agent?: string | null
+          user_email?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          event_details?: Json | null
+          event_status?: string
+          event_type?: string
+          id?: string
+          ip_address?: string | null
+          user_agent?: string | null
+          user_email?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      budget_settings: {
+        Row: {
+          alert_threshold: number | null
+          alerts_enabled: boolean | null
+          created_at: string | null
+          current_spend: number | null
+          id: string
+          monthly_budget: number
+          provider: string
+          reset_date: string
+          updated_at: string | null
+        }
+        Insert: {
+          alert_threshold?: number | null
+          alerts_enabled?: boolean | null
+          created_at?: string | null
+          current_spend?: number | null
+          id?: string
+          monthly_budget: number
+          provider: string
+          reset_date: string
+          updated_at?: string | null
+        }
+        Update: {
+          alert_threshold?: number | null
+          alerts_enabled?: boolean | null
+          created_at?: string | null
+          current_spend?: number | null
+          id?: string
+          monthly_budget?: number
+          provider?: string
+          reset_date?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      llm_configurations: {
+        Row: {
+          agent_role: string | null
+          cache_ttl_seconds: number | null
+          created_at: string | null
+          fallback_model: string | null
+          fallback_provider: string | null
+          id: string
+          is_active: boolean | null
+          max_tokens: number | null
+          model: string
+          provider: string
+          temperature: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          agent_role?: string | null
+          cache_ttl_seconds?: number | null
+          created_at?: string | null
+          fallback_model?: string | null
+          fallback_provider?: string | null
+          id?: string
+          is_active?: boolean | null
+          max_tokens?: number | null
+          model: string
+          provider: string
+          temperature?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          agent_role?: string | null
+          cache_ttl_seconds?: number | null
+          created_at?: string | null
+          fallback_model?: string | null
+          fallback_provider?: string | null
+          id?: string
+          is_active?: boolean | null
+          max_tokens?: number | null
+          model?: string
+          provider?: string
+          temperature?: number | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      llm_usage_logs: {
+        Row: {
+          agent_role: string
+          cache_hit: boolean | null
+          created_at: string | null
+          estimated_cost: number
+          id: string
+          latency_ms: number
+          model: string
+          prompt_hash: string | null
+          provider: string
+          task_id: string | null
+          tokens_input: number
+          tokens_output: number
+        }
+        Insert: {
+          agent_role: string
+          cache_hit?: boolean | null
+          created_at?: string | null
+          estimated_cost: number
+          id?: string
+          latency_ms: number
+          model: string
+          prompt_hash?: string | null
+          provider: string
+          task_id?: string | null
+          tokens_input: number
+          tokens_output: number
+        }
+        Update: {
+          agent_role?: string
+          cache_hit?: boolean | null
+          created_at?: string | null
+          estimated_cost?: number
+          id?: string
+          latency_ms?: number
+          model?: string
+          prompt_hash?: string | null
+          provider?: string
+          task_id?: string | null
+          tokens_input?: number
+          tokens_output?: number
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string | null
+          email: string | null
+          full_name: string | null
+          id: string
+          last_seen: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string | null
+          email?: string | null
+          full_name?: string | null
+          id: string
+          last_seen?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string | null
+          email?: string | null
+          full_name?: string | null
+          id?: string
+          last_seen?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      provider_health: {
+        Row: {
+          avg_latency_ms: number | null
+          checked_at: string | null
+          consecutive_failures: number | null
+          id: string
+          last_failure_at: string | null
+          last_success_at: string | null
+          provider: string
+          status: string | null
+          success_rate: number | null
+        }
+        Insert: {
+          avg_latency_ms?: number | null
+          checked_at?: string | null
+          consecutive_failures?: number | null
+          id?: string
+          last_failure_at?: string | null
+          last_success_at?: string | null
+          provider: string
+          status?: string | null
+          success_rate?: number | null
+        }
+        Update: {
+          avg_latency_ms?: number | null
+          checked_at?: string | null
+          consecutive_failures?: number | null
+          id?: string
+          last_failure_at?: string | null
+          last_success_at?: string | null
+          provider?: string
+          status?: string | null
+          success_rate?: number | null
+        }
+        Relationships: []
+      }
+      rate_limit_attempts: {
+        Row: {
+          attempts: number
+          blocked_until: string | null
+          created_at: string
+          endpoint: string
+          first_attempt_at: string
+          id: string
+          ip_address: string
+          last_attempt_at: string
+          updated_at: string
+        }
+        Insert: {
+          attempts?: number
+          blocked_until?: string | null
+          created_at?: string
+          endpoint: string
+          first_attempt_at?: string
+          id?: string
+          ip_address: string
+          last_attempt_at?: string
+          updated_at?: string
+        }
+        Update: {
+          attempts?: number
+          blocked_until?: string | null
+          created_at?: string
+          endpoint?: string
+          first_attempt_at?: string
+          id?: string
+          ip_address?: string
+          last_attempt_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      rate_limit_config: {
+        Row: {
+          block_duration_minutes: number
+          created_at: string
+          endpoint: string
+          id: string
+          max_attempts: number
+          updated_at: string
+          window_minutes: number
+        }
+        Insert: {
+          block_duration_minutes?: number
+          created_at?: string
+          endpoint: string
+          id?: string
+          max_attempts?: number
+          updated_at?: string
+          window_minutes?: number
+        }
+        Update: {
+          block_duration_minutes?: number
+          created_at?: string
+          endpoint?: string
+          id?: string
+          max_attempts?: number
+          updated_at?: string
+          window_minutes?: number
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          created_at: string | null
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      cleanup_old_audit_logs: { Args: never; Returns: undefined }
+      cleanup_rate_limit_attempts: { Args: never; Returns: undefined }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      increment_provider_spend: {
+        Args: { p_amount: number; p_provider: string }
+        Returns: undefined
+      }
+    }
+    Enums: {
+      app_role: "admin" | "developer" | "viewer"
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
+}
+
+type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
+
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
+
+export type Tables<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+      Row: infer R
+    }
+    ? R
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+        Row: infer R
+      }
+      ? R
+      : never
+    : never
+
+export type TablesInsert<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Insert: infer I
+    }
+    ? I
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Insert: infer I
+      }
+      ? I
+      : never
+    : never
+
+export type TablesUpdate<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Update: infer U
+    }
+    ? U
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Update: infer U
+      }
+      ? U
+      : never
+    : never
+
+export type Enums<
+  DefaultSchemaEnumNameOrOptions extends
+    | keyof DefaultSchema["Enums"]
+    | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    : never = never,
+> = DefaultSchemaEnumNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
+    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+    : never
+
+export type CompositeTypes<
+  PublicCompositeTypeNameOrOptions extends
+    | keyof DefaultSchema["CompositeTypes"]
+    | { schema: keyof DatabaseWithoutInternals },
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    : never = never,
+> = PublicCompositeTypeNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
+    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+    : never
+
+export const Constants = {
+  public: {
+    Enums: {
+      app_role: ["admin", "developer", "viewer"],
+    },
+  },
+} as const

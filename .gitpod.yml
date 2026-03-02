@@ -1,0 +1,58 @@
+# Gitpod Configuration for Lumen-Orca
+# Open with: https://gitpod.io/#https://github.com/hwinnwin/Lumen-Orca
+
+image: node:20
+
+tasks:
+  - name: Setup
+    init: |
+      npm install -g pnpm
+      pnpm install
+    command: |
+      echo "🚀 Lumen-Orca Development Environment Ready"
+      echo ""
+      echo "Quick Start Commands:"
+      echo "  pnpm dev          - Start development server"
+      echo "  pnpm build        - Build for production"
+      echo "  pnpm test         - Run tests"
+      echo ""
+      echo "📚 Key Documentation:"
+      echo "  docs/OPERATIONAL_STATUS.md - Current system status"
+      echo "  docs/GO_NO_GO_CHECKLIST.md - Deployment checklist"
+      echo ""
+      pnpm dev
+
+  - name: Database
+    command: |
+      echo "Supabase CLI available for database management"
+      echo "Run: npx supabase start (requires Docker)"
+
+ports:
+  - port: 5173
+    onOpen: open-preview
+    name: Dev Server
+  - port: 54321
+    onOpen: ignore
+    name: Supabase API
+  - port: 54322
+    onOpen: ignore
+    name: Supabase DB
+
+vscode:
+  extensions:
+    - bradlc.vscode-tailwindcss
+    - dbaeumer.vscode-eslint
+    - esbenp.prettier-vscode
+    - prisma.prisma
+    - ms-azuretools.vscode-docker
+    - github.copilot
+
+github:
+  prebuilds:
+    master: true
+    branches: true
+    pullRequests: true
+    pullRequestsFromForks: false
+    addCheck: true
+    addComment: false
+    addBadge: true

@@ -1,0 +1,10 @@
+project_id = "qqlcywthffxaxmnnrfmk"
+
+[functions.llm-proxy]
+verify_jwt = false
+
+[functions.execute-code]
+verify_jwt = false
+
+[functions.build-app]
+verify_jwt = true

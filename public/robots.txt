@@ -1,0 +1,16 @@
+# Lumen Orca - Multi-Agent Orchestration System
+# https://orca.lumyn.global
+
+# Sitemap location
+Sitemap: https://orca.lumyn.global/sitemap.xml
+
+# Allow all crawlers to index public content
+User-agent: *
+Allow: /
+
+# Disallow authentication and API routes from indexing
+Disallow: /auth
+Disallow: /api/
+
+# Crawl delay for polite crawling (optional)
+# Crawl-delay: 1

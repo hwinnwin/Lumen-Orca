@@ -1,0 +1,5 @@
+# Contracts: schema-first, strict review
+packages/contracts/ @contract-guardian-team @qa-team
+
+# Evidence pipeline: tamper-proofing
+packages/evidence/ @contract-guardian-team

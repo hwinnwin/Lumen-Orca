@@ -1,0 +1,174 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String               @id @default(cuid())
+  email        String               @unique
+  passwordHash String
+  name         String?
+  connections  PlatformConnection[]
+  posts        Post[]
+  mediaAssets  MediaAsset[]
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+}
+
+model PlatformConnection {
+  id             String    @id @default(cuid())
+  userId         String
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  platform       Platform
+  accessToken    String    // Encrypted at rest (AES-256-GCM)
+  refreshToken   String?   // Encrypted at rest
+  tokenIv        String    // IV for decryption
+  tokenExpiresAt DateTime?
+  platformUserId String?
+  platformPageId String?   // For Facebook pages, LinkedIn company pages
+  platformName   String?   // Display name on that platform
+  scopes         String[]
+  isActive       Boolean   @default(true)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@unique([userId, platform])
+  @@index([tokenExpiresAt])
+}
+
+model Post {
+  id                String          @id @default(cuid())
+  userId            String
+  user              User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  content           String
+  platformOverrides Json?           // { "x": "shorter version", "linkedin": "professional version" }
+  platforms         Platform[]
+  scheduleType      ScheduleType    @default(IMMEDIATE)
+  scheduledAt       DateTime?
+  timezone          String          @default("UTC")
+  status            PostStatus      @default(DRAFT)
+  tags              String[]
+  aiEnhancement     Json?           // Store AI suggestions and selected tone
+  publishResults    PublishResult[]
+  mediaAttachments  PostMedia[]
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  @@index([userId, status])
+  @@index([scheduledAt])
+}
+
+model MediaAsset {
+  id           String      @id @default(cuid())
+  userId       String
+  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  originalUrl  String
+  originalKey  String      // S3 key
+  variants     Json?       // [{ aspectRatio, url, key, width, height }]
+  type         MediaType
+  mimeType     String
+  fileSize     Int
+  width        Int?
+  height       Int?
+  duration     Float?      // Video duration in seconds
+  altText      String?
+  thumbnailUrl String?
+  thumbnailKey String?
+  status       MediaStatus @default(UPLOADING)
+  posts        PostMedia[]
+  createdAt    DateTime    @default(now())
+
+  @@index([userId])
+}
+
+model PostMedia {
+  id       String     @id @default(cuid())
+  postId   String
+  post     Post       @relation(fields: [postId], references: [id], onDelete: Cascade)
+  mediaId  String
+  media    MediaAsset @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+  position Int        @default(0)
+
+  @@unique([postId, mediaId])
+}
+
+model PublishResult {
+  id               String        @id @default(cuid())
+  postId           String
+  post             Post          @relation(fields: [postId], references: [id], onDelete: Cascade)
+  platform         Platform
+  status           PublishStatus @default(PENDING)
+  platformPostId   String?
+  platformUrl      String?
+  error            String?
+  retryCount       Int           @default(0)
+  publishedAt      DateTime?
+  metrics          Json?         // { impressions, likes, comments, shares, etc. }
+  metricsFetchedAt DateTime?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  @@unique([postId, platform])
+  @@index([status])
+}
+
+model AiEnhancement {
+  id               String   @id @default(cuid())
+  userId           String
+  originalContent  String
+  enhancedContent  String
+  tone             String
+  model            String   @default("claude-sonnet-4-6")
+  promptTokens     Int      @default(0)
+  completionTokens Int      @default(0)
+  createdAt        DateTime @default(now())
+}
+
+enum Platform {
+  FACEBOOK
+  INSTAGRAM
+  LINKEDIN
+  X
+  TIKTOK
+  YOUTUBE
+}
+
+enum PostStatus {
+  DRAFT
+  QUEUED
+  PUBLISHING
+  PUBLISHED
+  PARTIAL_FAILURE
+  FAILED
+}
+
+enum PublishStatus {
+  PENDING
+  PUBLISHING
+  SUCCESS
+  FAILED
+  RETRYING
+}
+
+enum ScheduleType {
+  IMMEDIATE
+  SCHEDULED
+  OPTIMAL
+}
+
+enum MediaType {
+  IMAGE
+  VIDEO
+  DOCUMENT
+}
+
+enum MediaStatus {
+  UPLOADING
+  PROCESSING
+  READY
+  FAILED
+}

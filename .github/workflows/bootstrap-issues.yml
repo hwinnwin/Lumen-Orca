@@ -1,0 +1,25 @@
+name: Bootstrap Issues & Labels
+on:
+  workflow_dispatch:
+    inputs:
+      repo_name:
+        description: "Repo name (leave default)"
+        required: true
+        default: ${{ github.event.repository.name }}
+jobs:
+  bootstrap:
+    permissions:
+      contents: write
+      issues: write
+      metadata: read
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run bootstrap
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OWNER: ${{ github.repository_owner }}
+          REPO: ${{ inputs.repo_name }}
+        run: |
+          chmod +x scripts/bootstrap_lumen_issues.sh
+          bash scripts/bootstrap_lumen_issues.sh

@@ -1,0 +1,59 @@
+name: Create Example PR #1
+on:
+  workflow_dispatch:
+
+jobs:
+  example_pr:
+    permissions:
+      contents: write
+      pull-requests: write
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create Example Pull Request
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cat > example-pr-body.md <<'EOF'
+          ### Agent Log
+          **Agent ID:** A8 (Integrator)
+          **Contributor:** @example-contributor  
+          **Scope:** Demonstration of Six-Nines Governance PR template
+
+          **Logic Summary:**
+          - Shows pass/fail F_total gating
+          - Displays Evidence Bundle format and Go/No-Go table
+          - Demonstrates correct PR body and review flow
+
+          **Evidence:** packages/evidence/dist/index.html  
+          **Reviewer:** A3 (Contract Guardian)
+
+          ### Go / No-Go Table
+          | Criterion | Threshold | Status |
+          |------------|------------|---------|
+          | Mutation | ≥ 0.80 | ✅ |
+          | Coverage | ≥ 95 % | ✅ |
+          | Determinism | > 99.99 % | ✅ |
+          | Flake | < 0.1 % | ✅ |
+          | **F_total** | **≤ 1 × 10⁻⁶** | ✅ |
+
+          ### Validation Log
+          ```
+          Contracts-First: ✅ PASS
+          Evidence Bundle: ✅ packages/evidence/dist/index.html
+          Six-Nines Gate: ✅ F_total = 8.1e-7 (≤ 1e-6)
+          CI Matrix: ✅ ALL PASS
+          CODEOWNERS Review: ✅ APPROVED
+          ```
+
+          ### References
+          - [Branch Protection Setup](docs/BRANCH_PROTECTION_SETUP.md)
+          - [Go/No-Go Checklist](docs/GO_NO_GO_CHECKLIST.md)
+          - [Contributing Guide](CONTRIBUTING.md)
+          EOF
+
+          gh pr create \
+            --title "Example: Six-Nines Governance PR Template" \
+            --body-file example-pr-body.md \
+            --head main \
+            --base main || echo "PR creation skipped (may already exist)"

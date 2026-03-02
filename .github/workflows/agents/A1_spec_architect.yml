@@ -1,0 +1,19 @@
+name: A1 Spec Architect (Placeholder)
+on:
+  workflow_dispatch:
+
+jobs:
+  agent_a1:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Agent A1 Placeholder
+        run: |
+          echo "🤖 Agent A1: Spec Architect"
+          echo "Status: Placeholder — awaiting LLM integration"
+          echo ""
+          echo "Planned capabilities:"
+          echo "  - Parse user requirements into formal specifications"
+          echo "  - Generate contract schemas for A3 validation"
+          echo "  - Produce testable acceptance criteria"
+          echo "  - Interface: OpenAI/Anthropic LLM APIs"

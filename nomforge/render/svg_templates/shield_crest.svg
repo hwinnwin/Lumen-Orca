@@ -1,0 +1,4 @@
+<svg width="320" height="380" viewBox="0 0 320 380" xmlns="http://www.w3.org/2000/svg">
+  <path d="M160 10 L300 90 L260 330 L160 370 L60 330 L20 90 Z" fill="#0ea5e9" stroke="#0369a1" stroke-width="8" />
+  <text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-size="56" fill="#f8fafc">強</text>
+</svg>

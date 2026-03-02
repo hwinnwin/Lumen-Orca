@@ -1,0 +1,23 @@
+{
+  "name": "@lumen/qa",
+  "version": "0.1.0",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "test:mutation": "stryker run",
+    "test:property": "vitest run -c ./vitest.property.config.ts",
+    "qa:perf": "node dist/perf.js",
+    "qa:security": "node dist/security.js",
+    "typecheck": "tsc -p tsconfig.build.json --noEmit"
+  },
+  "dependencies": {
+    "@lumen/contracts": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "@stryker-mutator/core": "^8.0.0",
+    "vitest": "^1.0.0",
+    "fast-check": "^3.0.0"
+  }
+}
