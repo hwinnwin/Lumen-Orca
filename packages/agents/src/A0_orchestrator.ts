@@ -281,7 +281,7 @@ export class Orchestrator {
   // Agent execution via LLM proxy with optional code execution
   private async executeAgent(task: AgentTask): Promise<Record<string, unknown>> {
     const prompt = this.buildPromptForAgent(task);
-    const systemPrompt = this.getSystemPromptForAgent(task.role);
+    const systemPrompt = await this.getSystemPromptForAgent(task.role);
 
     try {
       // Dynamic import to avoid circular dependencies
@@ -514,12 +514,20 @@ export class Orchestrator {
     return `Execute your role as ${task.role}.\n\nTask Inputs:\n${context}${depContext}\n\nProvide your output in the structured JSON format specified in your role description.`;
   }
 
-  private getSystemPromptForAgent(role: AgentRole): string {
+  private async getSystemPromptForAgent(role: AgentRole): Promise<string> {
     // Priority: Database Champion Prompt > Active Agent Profile > Custom Agent > Optimized Built-in
 
-    // TODO: In production, check database for champion prompt first
-    // const championPrompt = await promptOptimizer.getChampionPrompt(role);
-    // if (championPrompt) return championPrompt;
+    // Check database for champion prompt first
+    try {
+      const { supabase } = await import('../../../src/integrations/supabase/client');
+      const { data } = await supabase.rpc('get_champion_prompt', { p_agent_role: role });
+      if (data && data.length > 0 && data[0].prompt_text) {
+        console.log(`[Orchestrator] Using champion prompt for ${role} (success_rate: ${data[0].success_rate})`);
+        return data[0].prompt_text;
+      }
+    } catch (error) {
+      console.warn('[Orchestrator] Failed to fetch champion prompt, falling back:', error);
+    }
 
     // Check for active agent profile
     if (typeof window !== 'undefined') {

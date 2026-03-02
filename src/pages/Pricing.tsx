@@ -160,8 +160,7 @@ const Pricing = () => {
             <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center">
               <Sparkles className="h-5 w-5 text-white" />
             </div>
-            <span className="text-xl font-bold">Song</span>
-            <span className="text-xs text-muted-foreground">by Lumyn</span>
+            <span className="text-xl font-bold">Lumen Orca</span>
           </Link>
           <div className="flex items-center gap-4">
             <Link to="/home">
@@ -447,8 +446,7 @@ const Pricing = () => {
               <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center">
                 <Sparkles className="h-5 w-5 text-white" />
               </div>
-              <span className="text-xl font-bold">Song</span>
-              <span className="text-xs text-muted-foreground">by Lumyn</span>
+              <span className="text-xl font-bold">Lumen Orca</span>
             </Link>
             <div className="flex items-center gap-6 text-sm text-muted-foreground">
               <Link to="/home" className="hover:text-foreground transition-colors">Home</Link>

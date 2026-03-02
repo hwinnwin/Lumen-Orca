@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -90,11 +91,40 @@ const BookConsultation = () => {
 
   const prevStep = () => setStep(step - 1);
 
-  const handleSubmit = () => {
-    toast.success("Your consultation has been booked! Check your email for confirmation.");
-    setTimeout(() => {
-      navigate("/consultation-confirmed");
-    }, 1500);
+  const handleSubmit = async () => {
+    try {
+      const { error } = await supabase.from('consultations' as any).insert({
+        first_name: formData.firstName,
+        last_name: formData.lastName,
+        email: formData.email,
+        phone: formData.phone || null,
+        business_name: formData.businessName || null,
+        business_type: formData.businessType || null,
+        current_revenue: formData.currentRevenue || null,
+        target_revenue: formData.targetRevenue || null,
+        biggest_challenge: formData.biggestChallenge || null,
+        timeline: formData.timeline || null,
+        budget: formData.budget || null,
+        preferred_date: date ? date.toISOString().split('T')[0] : null,
+        preferred_time: formData.selectedTime || null,
+        how_did_you_hear: formData.howDidYouHear || null,
+        additional_info: formData.additionalInfo || null,
+      } as any);
+
+      if (error) {
+        console.error('Failed to save consultation:', error);
+        toast.error("Something went wrong. Please try again.");
+        return;
+      }
+
+      toast.success("Your consultation has been booked! Check your email for confirmation.");
+      setTimeout(() => {
+        navigate("/consultation-confirmed");
+      }, 1500);
+    } catch (err) {
+      console.error('Consultation submission error:', err);
+      toast.error("Something went wrong. Please try again.");
+    }
   };
 
   return (
@@ -106,8 +136,7 @@ const BookConsultation = () => {
             <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center">
               <Sparkles className="h-5 w-5 text-white" />
             </div>
-            <span className="text-xl font-bold">Song</span>
-            <span className="text-xs text-muted-foreground">by Lumyn</span>
+            <span className="text-xl font-bold">Lumen Orca</span>
           </Link>
           <div className="flex items-center gap-4">
             <Link to="/pricing">

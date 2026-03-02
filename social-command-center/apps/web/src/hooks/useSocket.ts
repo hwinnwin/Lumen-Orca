@@ -49,7 +49,13 @@ export function useSocket() {
           (p) => p.id === data.platform.toLowerCase(),
         );
         toast.success(`Published to ${platformConfig?.name || data.platform}`, {
-          description: data.platformUrl ? 'Click to view' : undefined,
+          description: data.platformUrl ? 'Your post is live!' : undefined,
+          action: data.platformUrl
+            ? {
+                label: 'View Post',
+                onClick: () => window.open(data.platformUrl!, '_blank'),
+              }
+            : undefined,
         });
         addNotification({
           type: 'success',

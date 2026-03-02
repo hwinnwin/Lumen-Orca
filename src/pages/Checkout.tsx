@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link, useSearchParams, useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -89,13 +90,8 @@ const Checkout = () => {
     setIsLoading(true);
 
     try {
-      // Call Stripe checkout edge function
-      const response = await fetch("/api/create-checkout-session", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
+      const { data, error } = await supabase.functions.invoke('create-checkout-session', {
+        body: {
           packageId,
           packageName: selectedPackage.name,
           amount: selectedPackage.downPayment,
@@ -108,16 +104,15 @@ const Checkout = () => {
             monthlyPayment: selectedPackage.monthlyPayment,
             monthlyTerms: selectedPackage.monthlyTerms,
           },
-        }),
+        },
       });
 
-      const data = await response.json();
+      if (error) throw error;
 
-      if (data.url) {
-        // Redirect to Stripe Checkout
+      if (data?.url) {
         window.location.href = data.url;
       } else {
-        throw new Error(data.error || "Failed to create checkout session");
+        throw new Error(data?.error || "Failed to create checkout session");
       }
     } catch (error) {
       console.error("Checkout error:", error);
@@ -140,8 +135,7 @@ const Checkout = () => {
             <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center">
               <Sparkles className="h-5 w-5 text-white" />
             </div>
-            <span className="text-xl font-bold">Song</span>
-            <span className="text-xs text-muted-foreground">by Lumyn</span>
+            <span className="text-xl font-bold">Lumen Orca</span>
           </Link>
           <Link to="/pricing">
             <Button variant="ghost" size="sm">

@@ -103,7 +103,7 @@ class OrchestratorService {
     
     // Generate evidence bundle after execution completes
     const state = this.orchestrator.getState();
-    evidenceService.generateFromOrchestrator({
+    await evidenceService.generateFromOrchestrator({
       tasks: state.tasks.map(t => ({
         id: t.id,
         status: t.status,

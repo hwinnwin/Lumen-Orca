@@ -30,8 +30,7 @@ const Landing = () => {
             <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center">
               <Sparkles className="h-5 w-5 text-white" />
             </div>
-            <span className="text-xl font-bold">Song</span>
-            <span className="text-xs text-muted-foreground">by Lumyn</span>
+            <span className="text-xl font-bold">Lumen Orca</span>
           </div>
           <div className="hidden md:flex items-center gap-8">
             <a href="#services" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
@@ -436,8 +435,7 @@ const Landing = () => {
               <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center">
                 <Sparkles className="h-5 w-5 text-white" />
               </div>
-              <span className="text-xl font-bold">Song</span>
-              <span className="text-xs text-muted-foreground">by Lumyn</span>
+              <span className="text-xl font-bold">Lumen Orca</span>
             </div>
             <div className="flex items-center gap-6 text-sm text-muted-foreground">
               <Link to="/pricing" className="hover:text-foreground transition-colors">Pricing</Link>
