@@ -8,6 +8,8 @@ import AnalyticsPage from './pages/AnalyticsPage';
 import ConnectionManager from './components/connections/ConnectionManager';
 import OAuthCallback from './pages/OAuthCallback';
 import LoginPage from './pages/LoginPage';
+import SettingsPage from './pages/SettingsPage';
+import GeneratorPage from './pages/GeneratorPage';
 import { useSocket } from './hooks/useSocket';
 import { useUIStore } from './store/ui-store';
 import { useAuthStore } from './store/auth-store';
@@ -91,6 +93,26 @@ export function App() {
                 <ProtectedRoute>
                   <SocketProvider>
                     <ConnectionManager />
+                  </SocketProvider>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/generator"
+              element={
+                <ProtectedRoute>
+                  <SocketProvider>
+                    <GeneratorPage />
+                  </SocketProvider>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/settings"
+              element={
+                <ProtectedRoute>
+                  <SocketProvider>
+                    <SettingsPage />
                   </SocketProvider>
                 </ProtectedRoute>
               }

@@ -1286,7 +1286,7 @@ export default function SocialCommandCenter() {
   const [activePlatforms, setActivePlatforms] = useState<PlatformId[]>([]);
   const [content, setContent] = useState('');
   const [schedule, setSchedule] = useState<string>('Now');
-  const [customScheduleDate, _setCustomScheduleDate] = useState('');
+  const [customScheduleDate, setCustomScheduleDate] = useState('');
   const [mediaFiles, setMediaFiles] = useState<UploadedFile[]>([]);
   const [queue, setQueue] = useState<QueueItem[]>([]);
   const [posting, setPosting] = useState(false);
@@ -1394,15 +1394,17 @@ export default function SocialCommandCenter() {
       let scheduledAt: string | undefined;
       if (schedule === 'Custom' && customScheduleDate) {
         scheduledAt = new Date(customScheduleDate).toISOString();
+      } else if (schedule === 'Tomorrow 9AM') {
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        tomorrow.setHours(9, 0, 0, 0);
+        scheduledAt = tomorrow.toISOString();
       } else if (schedule !== 'Now') {
-        // Convert schedule options like "+30min", "+1h", etc. to actual dates
         const delayMap: Record<string, number> = {
-          '+30min': 30 * 60 * 1000,
-          '+1h': 60 * 60 * 1000,
-          '+3h': 3 * 60 * 60 * 1000,
-          '+6h': 6 * 60 * 60 * 1000,
-          '+12h': 12 * 60 * 60 * 1000,
-          '+24h': 24 * 60 * 60 * 1000,
+          '1h': 60 * 60 * 1000,
+          '3h': 3 * 60 * 60 * 1000,
+          '6h': 6 * 60 * 60 * 1000,
+          '12h': 12 * 60 * 60 * 1000,
         };
         const delay = delayMap[schedule];
         if (delay) {
@@ -1806,6 +1808,25 @@ export default function SocialCommandCenter() {
                 </button>
               ))}
             </div>
+
+            {schedule === 'Custom' && (
+              <input
+                type="datetime-local"
+                value={customScheduleDate}
+                onChange={(e) => setCustomScheduleDate(e.target.value)}
+                min={new Date().toISOString().slice(0, 16)}
+                style={{
+                  padding: '8px 12px',
+                  background: 'var(--bg-tertiary)',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: '10px',
+                  color: 'var(--text-primary)',
+                  fontSize: '12px',
+                  fontFamily: "'Sora', sans-serif",
+                  outline: 'none',
+                }}
+              />
+            )}
 
             <button
               onClick={handlePost}

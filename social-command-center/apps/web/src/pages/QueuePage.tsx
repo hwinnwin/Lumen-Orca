@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { PLATFORMS } from '@scc/shared';
 import type { PlatformId } from '@scc/shared';
-import { usePosts, usePublishPost, useCancelPost, useDeletePost } from '../hooks/usePosts';
+import { usePosts, usePublishPost, useCancelPost, useDeletePost, useUpdatePost } from '../hooks/usePosts';
+import { toast } from 'sonner';
 import Header from '../components/layout/Header';
 
 const PLATFORM_MAP_REVERSE: Record<string, PlatformId> = {
@@ -22,8 +23,203 @@ const STATUS_COLORS: Record<string, { bg: string; color: string; label: string }
   FAILED: { bg: 'rgba(255,68,68,0.1)', color: '#ff4444', label: 'Failed' },
 };
 
+function EditPostModal({
+  post,
+  onClose,
+}: {
+  post: any;
+  onClose: () => void;
+}) {
+  const updatePost = useUpdatePost();
+  const [content, setContent] = useState(post.content);
+  const [scheduledAt, setScheduledAt] = useState(
+    post.scheduledAt ? new Date(post.scheduledAt).toISOString().slice(0, 16) : '',
+  );
+
+  const handleSave = async () => {
+    try {
+      await updatePost.mutateAsync({
+        postId: post.id,
+        data: {
+          content: content.trim(),
+          scheduledAt: scheduledAt ? new Date(scheduledAt).toISOString() : null,
+          scheduleType: scheduledAt ? 'SCHEDULED' : 'IMMEDIATE',
+        },
+      });
+      toast.success('Post updated');
+      onClose();
+    } catch {
+      toast.error('Failed to update post');
+    }
+  };
+
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 1000,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'rgba(0,0,0,0.5)',
+        backdropFilter: 'blur(4px)',
+      }}
+      onClick={onClose}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          width: '100%',
+          maxWidth: '560px',
+          background: 'var(--bg-secondary)',
+          border: '1px solid var(--border-color)',
+          borderRadius: '20px',
+          padding: '28px',
+          boxShadow: 'var(--shadow-lg)',
+        }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+          <h3 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text-primary)' }}>Edit Post</h3>
+          <button
+            onClick={onClose}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: 'var(--text-muted)',
+              fontSize: '18px',
+              cursor: 'pointer',
+            }}
+          >
+            {'\u00D7'}
+          </button>
+        </div>
+
+        {/* Platforms (read-only) */}
+        <div style={{ display: 'flex', gap: '6px', marginBottom: '16px' }}>
+          {post.platforms.map((p: string) => {
+            const pid = PLATFORM_MAP_REVERSE[p];
+            const platform = PLATFORMS.find((pl) => pl.id === pid);
+            return (
+              <span
+                key={p}
+                style={{
+                  padding: '3px 10px',
+                  borderRadius: '16px',
+                  background: platform?.bg || 'var(--bg-hover)',
+                  border: `1px solid ${platform?.border || 'var(--border-color)'}`,
+                  fontSize: '10px',
+                  fontWeight: 600,
+                  color: platform?.accent || platform?.color || 'var(--text-tertiary)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                }}
+              >
+                {platform?.icon} {platform?.name || p}
+              </span>
+            );
+          })}
+        </div>
+
+        {/* Content editor */}
+        <textarea
+          value={content}
+          onChange={(e) => setContent(e.target.value)}
+          style={{
+            width: '100%',
+            height: '160px',
+            resize: 'vertical',
+            padding: '14px',
+            background: 'var(--bg-tertiary)',
+            border: '1px solid var(--border-color)',
+            borderRadius: '12px',
+            color: 'var(--text-primary)',
+            fontSize: '13px',
+            lineHeight: 1.6,
+            fontFamily: "'Sora', sans-serif",
+            outline: 'none',
+            marginBottom: '16px',
+          }}
+        />
+
+        {/* Schedule */}
+        <div style={{ marginBottom: '20px' }}>
+          <label
+            style={{
+              fontSize: '11px',
+              fontWeight: 700,
+              color: 'var(--text-muted)',
+              letterSpacing: '0.1em',
+              textTransform: 'uppercase' as const,
+              fontFamily: "'IBM Plex Mono', monospace",
+              display: 'block',
+              marginBottom: '8px',
+            }}
+          >
+            Schedule (leave empty for immediate)
+          </label>
+          <input
+            type="datetime-local"
+            value={scheduledAt}
+            onChange={(e) => setScheduledAt(e.target.value)}
+            style={{
+              width: '100%',
+              padding: '10px 14px',
+              background: 'var(--bg-tertiary)',
+              border: '1px solid var(--border-color)',
+              borderRadius: '10px',
+              color: 'var(--text-primary)',
+              fontSize: '13px',
+              fontFamily: "'Sora', sans-serif",
+              outline: 'none',
+            }}
+          />
+        </div>
+
+        {/* Actions */}
+        <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+          <button
+            onClick={onClose}
+            style={{
+              padding: '10px 20px',
+              borderRadius: '10px',
+              background: 'var(--bg-hover)',
+              border: '1px solid var(--border-color)',
+              color: 'var(--text-secondary)',
+              fontSize: '13px',
+              fontWeight: 600,
+              cursor: 'pointer',
+            }}
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={updatePost.isPending || !content.trim()}
+            style={{
+              padding: '10px 24px',
+              borderRadius: '10px',
+              background: 'linear-gradient(135deg, #8b5cf6, #06b6d4)',
+              border: 'none',
+              color: '#fff',
+              fontSize: '13px',
+              fontWeight: 700,
+              cursor: updatePost.isPending ? 'wait' : 'pointer',
+              opacity: updatePost.isPending || !content.trim() ? 0.5 : 1,
+            }}
+          >
+            {updatePost.isPending ? 'Saving...' : 'Save Changes'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function QueuePage() {
   const [filter, setFilter] = useState<string | undefined>(undefined);
+  const [editingPost, setEditingPost] = useState<any>(null);
   const { data, isLoading } = usePosts({ status: filter, limit: 50 });
   const publishPost = usePublishPost();
   const cancelPost = useCancelPost();
@@ -42,6 +238,11 @@ export default function QueuePage() {
       }}
     >
       <Header />
+
+      {editingPost && (
+        <EditPostModal post={editingPost} onClose={() => setEditingPost(null)} />
+      )}
+
       <div style={{ maxWidth: '1000px', margin: '0 auto', padding: '32px' }}>
         <h1
           style={{
@@ -122,6 +323,7 @@ export default function QueuePage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           {posts.map((post: any) => {
             const statusInfo = STATUS_COLORS[post.status] || STATUS_COLORS.DRAFT;
+            const canEdit = ['DRAFT', 'QUEUED'].includes(post.status);
             return (
               <div
                 key={post.id}
@@ -213,6 +415,23 @@ export default function QueuePage() {
                     </span>
 
                     <div style={{ display: 'flex', gap: '6px' }}>
+                      {canEdit && (
+                        <button
+                          onClick={() => setEditingPost(post)}
+                          style={{
+                            padding: '4px 10px',
+                            borderRadius: '6px',
+                            background: 'rgba(6,182,212,0.1)',
+                            border: '1px solid rgba(6,182,212,0.2)',
+                            color: '#06b6d4',
+                            fontSize: '10px',
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                          }}
+                        >
+                          Edit
+                        </button>
+                      )}
                       {['DRAFT', 'FAILED'].includes(post.status) && (
                         <button
                           onClick={() => publishPost.mutate(post.id)}
@@ -251,7 +470,11 @@ export default function QueuePage() {
                       )}
                       {['DRAFT', 'QUEUED'].includes(post.status) && (
                         <button
-                          onClick={() => deletePost.mutate(post.id)}
+                          onClick={() => {
+                            if (confirm('Delete this post?')) {
+                              deletePost.mutate(post.id);
+                            }
+                          }}
                           disabled={deletePost.isPending}
                           style={{
                             padding: '4px 10px',

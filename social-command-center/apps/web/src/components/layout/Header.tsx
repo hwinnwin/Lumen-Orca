@@ -5,9 +5,11 @@ import { useAuthStore } from '../../store/auth-store';
 
 const NAV_ITEMS = [
   { key: 'compose', path: '/' },
+  { key: 'generator', path: '/generator' },
   { key: 'queue', path: '/queue' },
   { key: 'analytics', path: '/analytics' },
   { key: 'connections', path: '/connections' },
+  { key: 'settings', path: '/settings' },
 ];
 
 export default function Header() {

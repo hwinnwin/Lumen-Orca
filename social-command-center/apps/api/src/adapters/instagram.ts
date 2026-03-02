@@ -1,6 +1,6 @@
 import type { PlatformAdapter, PublishParams, PublishResponse, MediaUploadParams, MediaUploadResponse, PostMetrics, ValidationResult } from './types.js';
 
-const GRAPH_API = 'https://graph.facebook.com/v19.0';
+const GRAPH_API = 'https://graph.facebook.com/v21.0';
 const POLL_INTERVAL = 3000; // 3 seconds
 const MAX_POLL_ATTEMPTS = 60; // 3 minutes max wait
 
@@ -9,6 +9,9 @@ const MAX_POLL_ATTEMPTS = 60; // 3 minutes max wait
  * CRITICAL: Instagram publishing is a 2-step process:
  *   1. Create a media container
  *   2. Publish the container (after it finishes processing)
+ *
+ * Instagram REQUIRES publicly accessible media URLs.
+ * Local URLs (localhost) will NOT work — use S3, Cloudflare R2, or a tunnel.
  */
 export class InstagramAdapter implements PlatformAdapter {
   platform = 'INSTAGRAM' as const;
@@ -40,9 +43,6 @@ export class InstagramAdapter implements PlatformAdapter {
   }
 
   async uploadMedia(_params: MediaUploadParams): Promise<MediaUploadResponse> {
-    // Instagram doesn't have a separate media upload step.
-    // Media URLs are passed directly to the container creation.
-    // The media must be publicly accessible.
     throw new Error('Instagram uses URL-based media in container creation. Upload to S3 first.');
   }
 
@@ -51,44 +51,85 @@ export class InstagramAdapter implements PlatformAdapter {
 
     if (!pageId) throw new Error('Instagram requires pageId (IG User ID)');
 
-    const mediaType = platformSpecific?.mediaType as string | undefined;
+    // Validate media URLs are publicly accessible
+    const validUrls = (mediaUrls || []).filter((url) => {
+      if (!url) return false;
+      // Reject localhost/local-only URLs — Instagram can't reach them
+      if (url.startsWith('/api/') || url.includes('localhost') || url.includes('127.0.0.1')) {
+        console.warn(`[Instagram] Skipping local media URL (not reachable by Instagram): ${url}`);
+        return false;
+      }
+      return true;
+    });
 
-    if (mediaUrls && mediaUrls.length > 1) {
-      return this.publishCarousel(accessToken, content, mediaUrls, pageId);
+    if (validUrls.length === 0 && (mediaUrls?.length || 0) > 0) {
+      throw new Error(
+        'Instagram requires publicly accessible media URLs. ' +
+        'Local storage URLs cannot be reached by Instagram. ' +
+        'Configure S3_BUCKET, S3_ACCESS_KEY, and S3_SECRET_KEY in your .env for cloud storage.',
+      );
     }
 
+    if (validUrls.length === 0) {
+      throw new Error('Instagram posts require at least one image or video');
+    }
+
+    const mediaType = platformSpecific?.mediaType as string | undefined;
+
+    // Carousel: multiple images/videos
+    if (validUrls.length > 1) {
+      return this.publishCarousel(accessToken, content, validUrls, pageId);
+    }
+
+    // Single post (image or reel)
+    return this.publishSingle(accessToken, content, validUrls[0], pageId, mediaType);
+  }
+
+  private async publishSingle(
+    accessToken: string,
+    caption: string,
+    mediaUrl: string,
+    igUserId: string,
+    mediaType?: string,
+  ): Promise<PublishResponse> {
     // Step 1: Create media container
     const containerBody: Record<string, string> = {
-      caption: content,
+      caption,
       access_token: accessToken,
     };
 
-    if (mediaUrls?.[0]) {
-      if (mediaType === 'VIDEO' || mediaType === 'REELS') {
-        containerBody.media_type = 'REELS';
-        containerBody.video_url = mediaUrls[0];
-      } else {
-        containerBody.image_url = mediaUrls[0];
-      }
+    const isVideo = mediaType === 'VIDEO' || mediaType === 'REELS' || this.isVideoUrl(mediaUrl);
+
+    if (isVideo) {
+      containerBody.media_type = 'REELS';
+      containerBody.video_url = mediaUrl;
+      containerBody.share_to_feed = 'true'; // Also share to feed, not just Reels tab
+    } else {
+      containerBody.image_url = mediaUrl;
     }
 
-    const containerRes = await fetch(`${GRAPH_API}/${pageId}/media`, {
+    console.log(`[Instagram] Creating ${isVideo ? 'REELS' : 'IMAGE'} container for IG user ${igUserId}`);
+
+    const containerRes = await fetch(`${GRAPH_API}/${igUserId}/media`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(containerBody),
     });
 
     if (!containerRes.ok) {
-      throw new Error(`Instagram container creation failed: ${await containerRes.text()}`);
+      const errorText = await containerRes.text();
+      console.error(`[Instagram] Container creation failed:`, errorText);
+      throw new Error(`Instagram container creation failed: ${errorText}`);
     }
 
-    const { id: containerId } = await containerRes.json() as { id: string };
+    const { id: containerId } = (await containerRes.json()) as { id: string };
+    console.log(`[Instagram] Container created: ${containerId}, waiting for processing...`);
 
     // Step 2: Wait for container to finish processing
     await this.waitForContainer(containerId, accessToken);
 
     // Step 3: Publish the container
-    const publishRes = await fetch(`${GRAPH_API}/${pageId}/media_publish`, {
+    const publishRes = await fetch(`${GRAPH_API}/${igUserId}/media_publish`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -98,14 +139,20 @@ export class InstagramAdapter implements PlatformAdapter {
     });
 
     if (!publishRes.ok) {
-      throw new Error(`Instagram publish failed: ${await publishRes.text()}`);
+      const errorText = await publishRes.text();
+      console.error(`[Instagram] Publish failed:`, errorText);
+      throw new Error(`Instagram publish failed: ${errorText}`);
     }
 
-    const { id: mediaId } = await publishRes.json() as { id: string };
+    const { id: mediaId } = (await publishRes.json()) as { id: string };
+    console.log(`[Instagram] Published! Media ID: ${mediaId}`);
+
+    // Fetch the permalink for the post URL
+    const permalink = await this.getPermalink(mediaId, accessToken);
 
     return {
       platformPostId: mediaId,
-      platformUrl: `https://www.instagram.com/p/${mediaId}/`,
+      platformUrl: permalink || `https://www.instagram.com/`,
       publishedAt: new Date(),
     };
   }
@@ -116,15 +163,18 @@ export class InstagramAdapter implements PlatformAdapter {
     mediaUrls: string[],
     igUserId: string,
   ): Promise<PublishResponse> {
+    console.log(`[Instagram] Creating carousel with ${mediaUrls.length} items for IG user ${igUserId}`);
+
     // Create child containers (no caption on children)
     const childIds: string[] = [];
 
     for (const url of mediaUrls) {
-      const isVideo = url.match(/\.(mp4|mov|avi|wmv)$/i);
+      const isVideo = this.isVideoUrl(url);
       const body: Record<string, string> = {
         access_token: accessToken,
         is_carousel_item: 'true',
       };
+
       if (isVideo) {
         body.media_type = 'VIDEO';
         body.video_url = url;
@@ -139,15 +189,18 @@ export class InstagramAdapter implements PlatformAdapter {
       });
 
       if (!res.ok) {
-        throw new Error(`Instagram carousel item creation failed: ${await res.text()}`);
+        const errorText = await res.text();
+        console.error(`[Instagram] Carousel item creation failed:`, errorText);
+        throw new Error(`Instagram carousel item creation failed: ${errorText}`);
       }
 
-      const { id } = await res.json() as { id: string };
+      const { id } = (await res.json()) as { id: string };
+      console.log(`[Instagram] Carousel child ${childIds.length + 1} created: ${id}`);
       await this.waitForContainer(id, accessToken);
       childIds.push(id);
     }
 
-    // Create carousel container
+    // Create carousel container with children as comma-separated string
     const carouselRes = await fetch(`${GRAPH_API}/${igUserId}/media`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -160,10 +213,13 @@ export class InstagramAdapter implements PlatformAdapter {
     });
 
     if (!carouselRes.ok) {
-      throw new Error(`Instagram carousel creation failed: ${await carouselRes.text()}`);
+      const errorText = await carouselRes.text();
+      console.error(`[Instagram] Carousel creation failed:`, errorText);
+      throw new Error(`Instagram carousel creation failed: ${errorText}`);
     }
 
-    const { id: carouselId } = await carouselRes.json() as { id: string };
+    const { id: carouselId } = (await carouselRes.json()) as { id: string };
+    console.log(`[Instagram] Carousel container created: ${carouselId}`);
     await this.waitForContainer(carouselId, accessToken);
 
     // Publish carousel
@@ -177,14 +233,19 @@ export class InstagramAdapter implements PlatformAdapter {
     });
 
     if (!publishRes.ok) {
-      throw new Error(`Instagram carousel publish failed: ${await publishRes.text()}`);
+      const errorText = await publishRes.text();
+      console.error(`[Instagram] Carousel publish failed:`, errorText);
+      throw new Error(`Instagram carousel publish failed: ${errorText}`);
     }
 
-    const { id: mediaId } = await publishRes.json() as { id: string };
+    const { id: mediaId } = (await publishRes.json()) as { id: string };
+    console.log(`[Instagram] Carousel published! Media ID: ${mediaId}`);
+
+    const permalink = await this.getPermalink(mediaId, accessToken);
 
     return {
       platformPostId: mediaId,
-      platformUrl: `https://www.instagram.com/p/${mediaId}/`,
+      platformUrl: permalink || `https://www.instagram.com/`,
       publishedAt: new Date(),
     };
   }
@@ -192,25 +253,55 @@ export class InstagramAdapter implements PlatformAdapter {
   private async waitForContainer(containerId: string, accessToken: string): Promise<void> {
     for (let attempt = 0; attempt < MAX_POLL_ATTEMPTS; attempt++) {
       const res = await fetch(
-        `${GRAPH_API}/${containerId}?fields=status_code&access_token=${accessToken}`,
+        `${GRAPH_API}/${containerId}?fields=status_code,status&access_token=${accessToken}`,
       );
 
       if (!res.ok) {
-        throw new Error(`Instagram container status check failed: ${await res.text()}`);
+        const errorText = await res.text();
+        throw new Error(`Instagram container status check failed: ${errorText}`);
       }
 
-      const data = await res.json() as { status_code: string };
+      const data = (await res.json()) as { status_code?: string; status?: string };
 
       if (data.status_code === 'FINISHED') return;
       if (data.status_code === 'ERROR') {
-        throw new Error('Instagram container processing failed');
+        throw new Error(`Instagram container processing failed. Status: ${data.status || 'unknown'}`);
       }
 
-      // status_code is 'IN_PROGRESS' — wait and retry
+      // IN_PROGRESS — wait and retry
+      if (attempt % 5 === 0) {
+        console.log(`[Instagram] Container ${containerId} still processing (attempt ${attempt + 1}/${MAX_POLL_ATTEMPTS})...`);
+      }
       await new Promise((r) => setTimeout(r, POLL_INTERVAL));
     }
 
-    throw new Error('Instagram container processing timed out');
+    throw new Error('Instagram container processing timed out after 3 minutes');
+  }
+
+  /**
+   * Get the permalink (public URL) for a published Instagram post.
+   */
+  private async getPermalink(mediaId: string, accessToken: string): Promise<string | null> {
+    try {
+      const res = await fetch(
+        `${GRAPH_API}/${mediaId}?fields=permalink&access_token=${accessToken}`,
+      );
+      if (res.ok) {
+        const data = (await res.json()) as { permalink?: string };
+        return data.permalink || null;
+      }
+    } catch {
+      // Non-fatal — we just won't have the permalink
+    }
+    return null;
+  }
+
+  /**
+   * Detect if a URL points to a video based on file extension or content-type hints.
+   */
+  private isVideoUrl(url: string): boolean {
+    const videoExtensions = /\.(mp4|mov|avi|wmv|webm|m4v|3gp)(\?|$)/i;
+    return videoExtensions.test(url);
   }
 
   async getMetrics(platformPostId: string, accessToken: string): Promise<PostMetrics> {
@@ -223,7 +314,7 @@ export class InstagramAdapter implements PlatformAdapter {
       return {};
     }
 
-    const data = await res.json() as {
+    const data = (await res.json()) as {
       like_count?: number;
       comments_count?: number;
       insights?: { data: Array<{ name: string; values: Array<{ value: number }> }> };

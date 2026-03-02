@@ -89,14 +89,20 @@ export const publishWorker = new Worker<PublishJobData>(
       throw new Error(`Content validation failed for ${platform}: ${validation.errors.join(', ')}`);
     }
 
-    // Collect media URLs
-    const mediaUrls = post.mediaAttachments
-      .filter((a) => a.media.status === 'READY')
-      .map((a) => a.media.originalUrl);
+    // Collect media URLs — only READY media with valid URLs
+    const readyMedia = post.mediaAttachments.filter((a) => a.media.status === 'READY' && a.media.originalUrl);
+    const mediaUrls = readyMedia.map((a) => a.media.originalUrl);
 
-    // Publish!
-    // Instagram API needs the IG User ID (platformUserId), not the FB Page ID (platformPageId).
-    // Facebook API needs the FB Page ID (platformPageId).
+    // Detect media type (for Instagram Reels detection)
+    const hasVideo = readyMedia.some((a) => a.media.type === 'VIDEO' || a.media.mimeType?.startsWith('video/'));
+    const mediaType = hasVideo ? 'REELS' : 'IMAGE';
+
+    console.log(`[Publish] ${platform}: ${mediaUrls.length} media URLs (${mediaType}), attachments total: ${post.mediaAttachments.length}`);
+    if (mediaUrls.length > 0) {
+      console.log(`[Publish] Media URLs:`, mediaUrls.map((u) => u.substring(0, 80)).join(', '));
+    }
+
+    // Instagram/Facebook API needs the correct page/user ID
     const pageId = platformEnum === 'INSTAGRAM'
       ? connection.platformUserId || undefined
       : connection.platformPageId || connection.platformUserId || undefined;
@@ -108,6 +114,7 @@ export const publishWorker = new Worker<PublishJobData>(
       pageId,
       platformSpecific: {
         memberUrn: connection.platformUserId,
+        mediaType,
       },
     });
 

@@ -6,20 +6,19 @@ interface UploadResult {
   mediaId: string;
   key: string;
   uploadUrl: string;
+  local?: boolean;
 }
 
 /**
- * Hook for uploading media files through the S3 presigned URL flow.
- * 1. Request presigned URL from API
- * 2. Upload file directly to S3
- * 3. Confirm upload with API to trigger processing
+ * Hook for uploading media files.
+ * Supports both S3 presigned URL flow and local storage fallback.
  */
 export function useMediaUpload() {
   const { updateMediaFile } = useComposeStore();
 
   return useMutation({
     mutationFn: async ({ file, index }: { file: File; index: number }): Promise<string> => {
-      // Step 1: Get presigned upload URL
+      // Step 1: Get upload URL from API
       updateMediaFile(index, { status: 'uploading', progress: 10 });
 
       const urlRes = await api.post<{ data: UploadResult }>('/media/upload-url', {
@@ -28,19 +27,26 @@ export function useMediaUpload() {
         fileSize: file.size,
       });
 
-      const { mediaId, uploadUrl } = urlRes.data.data;
+      const { mediaId, uploadUrl, local } = urlRes.data.data;
       updateMediaFile(index, { id: mediaId, progress: 30 });
 
-      // Step 2: Upload file directly to S3
+      // Step 2: Upload file
       try {
-        await fetch(uploadUrl, {
-          method: 'PUT',
-          body: file,
-          headers: { 'Content-Type': file.type },
-        });
+        if (local) {
+          // Local storage — upload through our API proxy
+          await api.put(uploadUrl, file, {
+            headers: { 'Content-Type': file.type },
+          });
+        } else {
+          // S3 presigned URL — upload directly to S3
+          await fetch(uploadUrl, {
+            method: 'PUT',
+            body: file,
+            headers: { 'Content-Type': file.type },
+          });
+        }
       } catch (uploadError) {
-        // S3 upload may fail if no bucket is configured — mark as ready anyway in dev
-        console.warn('[Media] S3 upload failed (expected in dev mode):', uploadError);
+        console.warn('[Media] Upload failed:', uploadError);
       }
 
       updateMediaFile(index, { progress: 70 });

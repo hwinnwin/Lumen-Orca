@@ -89,3 +89,33 @@ export function useDeletePost() {
     },
   });
 }
+
+export function useUpdatePost() {
+  const queryClient = useQueryClient();
+  const { updatePost } = usePostStore();
+
+  return useMutation({
+    mutationFn: async ({
+      postId,
+      data,
+    }: {
+      postId: string;
+      data: {
+        content?: string;
+        platforms?: string[];
+        platformOverrides?: Record<string, string>;
+        scheduleType?: string;
+        scheduledAt?: string | null;
+        mediaAssetIds?: string[];
+        tags?: string[];
+      };
+    }) => {
+      const res = await api.patch(`/posts/${postId}`, data);
+      return res.data.data;
+    },
+    onSuccess: (post) => {
+      updatePost(post.id, post);
+      queryClient.invalidateQueries({ queryKey: ['posts'] });
+    },
+  });
+}

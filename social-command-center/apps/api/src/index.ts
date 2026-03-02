@@ -6,7 +6,7 @@ import cookieParser from 'cookie-parser';
 import { createServer } from 'http';
 import { createServer as createHttpsServer } from 'https';
 import { readFileSync, existsSync } from 'fs';
-import { resolve, dirname } from 'path';
+import { resolve, dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 import { Server as SocketServer } from 'socket.io';
 import { env } from './config/env.js';
@@ -15,6 +15,8 @@ import { postsRouter } from './routes/posts.js';
 import { mediaRouter } from './routes/media.js';
 import { aiRouter } from './routes/ai.js';
 import { queueRouter } from './routes/queue.js';
+import { settingsRouter } from './routes/settings.js';
+import { generatorRouter } from './routes/generator.js';
 import { authMiddleware } from './middleware/auth.js';
 import { publishWorker } from './queue/workers/publish.js';
 import { schedulerWorker } from './queue/workers/scheduler.js';
@@ -26,14 +28,20 @@ import { initEventEmitter } from './services/event-emitter.js';
 const app = express();
 const httpServer = createServer(app);
 
-// HTTPS for TikTok OAuth (requires https redirect URI)
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
+
+// Trust proxy in production (Railway runs behind a reverse proxy)
+if (env.NODE_ENV === 'production') {
+  app.set('trust proxy', 1);
+}
+
+// HTTPS for local dev (TikTok OAuth requires https redirect URI)
 const certsDir = resolve(__dirname, '../../../certs');
 const certExists = existsSync(resolve(certsDir, 'localhost-cert.pem'));
 
 let httpsServer: ReturnType<typeof createHttpsServer> | null = null;
-if (certExists) {
+if (certExists && env.NODE_ENV !== 'production') {
   httpsServer = createHttpsServer(
     {
       key: readFileSync(resolve(certsDir, 'localhost-key.pem')),
@@ -54,8 +62,14 @@ const io = new SocketServer(httpsServer ?? httpServer, {
 
 // Middleware
 app.use(helmet({ contentSecurityPolicy: false }));
-app.use(cors({ origin: env.APP_URL, credentials: true }));
-app.use(morgan('dev'));
+
+// In production, allow same-origin (frontend served by same Express server)
+// plus the APP_URL for flexibility. In dev, just allow APP_URL.
+const corsOrigin = env.NODE_ENV === 'production'
+  ? [env.APP_URL, 'https://scc.hwinnwin.com'].filter(Boolean)
+  : env.APP_URL;
+app.use(cors({ origin: corsOrigin, credentials: true }));
+app.use(morgan(env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use(cookieParser());
@@ -73,6 +87,25 @@ app.use('/api/posts', authMiddleware, postsRouter);
 app.use('/api/media', authMiddleware, mediaRouter);
 app.use('/api/ai', authMiddleware, aiRouter);
 app.use('/api/queue', authMiddleware, queueRouter);
+app.use('/api/settings', authMiddleware, settingsRouter);
+app.use('/api/generator', authMiddleware, generatorRouter);
+
+// Production: serve the built frontend as static files
+if (env.NODE_ENV === 'production') {
+  const frontendDist = resolve(__dirname, '../../web/dist');
+  if (existsSync(frontendDist)) {
+    app.use(express.static(frontendDist));
+    // SPA fallback — serve index.html for all non-API routes
+    app.get('*', (req, res) => {
+      if (!req.path.startsWith('/api') && !req.path.startsWith('/socket.io')) {
+        res.sendFile(join(frontendDist, 'index.html'));
+      }
+    });
+    console.log(`[Static] Serving frontend from ${frontendDist}`);
+  } else {
+    console.warn(`[Static] Frontend dist not found at ${frontendDist}`);
+  }
+}
 
 // Catch-all: log any unmatched requests (helps debug OAuth redirect issues)
 app.use((req, _res, next) => {
@@ -127,15 +160,16 @@ async function shutdown() {
 process.on('SIGINT', shutdown);
 process.on('SIGTERM', shutdown);
 
-// Start server
+// Start server — Railway sets PORT env var, fallback to API_PORT
+const port = env.PORT ?? env.API_PORT;
 const primaryServer = httpsServer ?? httpServer;
 const protocol = httpsServer ? 'https' : 'http';
 
-primaryServer.listen(env.API_PORT, () => {
+primaryServer.listen(port, () => {
   console.log(`\n  Social Command Center API`);
   console.log(`  HwinNwin Enterprises x Lumen Systems`);
   console.log(`  ────────────────────────────────────`);
-  console.log(`  Server:    ${protocol}://localhost:${env.API_PORT}`);
+  console.log(`  Server:    ${protocol}://0.0.0.0:${port}`);
   console.log(`  Frontend:  ${env.APP_URL}`);
   console.log(`  Env:       ${env.NODE_ENV}`);
   console.log(`  SSL:       ${httpsServer ? 'enabled (self-signed)' : 'disabled'}`);

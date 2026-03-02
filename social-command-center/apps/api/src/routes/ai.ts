@@ -6,6 +6,9 @@ import {
   generateVariants as aiVariants,
   brainstormFromKeywords as aiBrainstorm,
   generateMultiPlatformPosts as aiGeneratePosts,
+  generateContentStrategy as aiStrategy,
+  generateHooks as aiHooks,
+  repurposeContent as aiRepurpose,
 } from '../services/ai.js';
 
 export const aiRouter = Router();
@@ -182,6 +185,81 @@ aiRouter.post('/generate-posts', async (req, res) => {
   } catch (error) {
     console.error('Failed to generate posts:', error);
     res.status(500).json({ error: 'Failed to generate posts' });
+  }
+});
+
+// Generate content strategy
+aiRouter.post('/strategy', async (req, res) => {
+  try {
+    const { brand, niche, audience, goals, platforms } = req.body as {
+      brand: string;
+      niche: string;
+      audience: string;
+      goals: string[];
+      platforms: string[];
+    };
+
+    if (!brand?.trim() || !niche?.trim()) {
+      return res.status(400).json({ error: 'Brand and niche are required' });
+    }
+
+    const result = await aiStrategy(
+      brand,
+      niche,
+      audience || 'general audience',
+      goals || ['grow audience', 'increase engagement'],
+      platforms || ['instagram', 'x'],
+    );
+    res.json({ data: result });
+  } catch (error) {
+    console.error('Failed to generate strategy:', error);
+    res.status(500).json({ error: 'Failed to generate content strategy' });
+  }
+});
+
+// Generate scroll-stopping hooks
+aiRouter.post('/hooks', async (req, res) => {
+  try {
+    const { topic, platform = 'instagram', count = 10 } = req.body as {
+      topic: string;
+      platform?: string;
+      count?: number;
+    };
+
+    if (!topic?.trim()) {
+      return res.status(400).json({ error: 'Topic is required' });
+    }
+
+    const result = await aiHooks(topic, platform, Math.min(count, 15));
+    res.json({ data: result });
+  } catch (error) {
+    console.error('Failed to generate hooks:', error);
+    res.status(500).json({ error: 'Failed to generate hooks' });
+  }
+});
+
+// Repurpose content across platforms
+aiRouter.post('/repurpose', async (req, res) => {
+  try {
+    const { content, originalPlatform, targetPlatforms } = req.body as {
+      content: string;
+      originalPlatform: string;
+      targetPlatforms: string[];
+    };
+
+    if (!content?.trim()) {
+      return res.status(400).json({ error: 'Content is required' });
+    }
+
+    const result = await aiRepurpose(
+      content,
+      originalPlatform || 'instagram',
+      targetPlatforms || ['x', 'linkedin', 'facebook'],
+    );
+    res.json({ data: result });
+  } catch (error) {
+    console.error('Failed to repurpose content:', error);
+    res.status(500).json({ error: 'Failed to repurpose content' });
   }
 });
 

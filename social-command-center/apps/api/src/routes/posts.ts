@@ -150,6 +150,88 @@ postsRouter.get('/:id', async (req, res) => {
   }
 });
 
+// Update a post (only if draft or queued)
+postsRouter.patch('/:id', async (req, res) => {
+  try {
+    const post = await prisma.post.findFirst({
+      where: { id: req.params.id, userId: req.userId },
+    });
+
+    if (!post) {
+      return res.status(404).json({ error: 'Post not found' });
+    }
+
+    if (!['DRAFT', 'QUEUED'].includes(post.status)) {
+      return res.status(400).json({ error: 'Cannot edit a post that has been published or is publishing' });
+    }
+
+    const {
+      content,
+      platforms,
+      platformOverrides,
+      scheduleType,
+      scheduledAt,
+      timezone,
+      tags,
+      mediaAssetIds,
+    } = req.body as {
+      content?: string;
+      platforms?: Platform[];
+      platformOverrides?: Record<string, string>;
+      scheduleType?: ScheduleType;
+      scheduledAt?: string | null;
+      timezone?: string;
+      tags?: string[];
+      mediaAssetIds?: string[];
+    };
+
+    // Build update data — only update fields that are provided
+    const updateData: any = {};
+    if (content !== undefined) updateData.content = content.trim();
+    if (platforms !== undefined) updateData.platforms = platforms;
+    if (platformOverrides !== undefined) updateData.platformOverrides = platformOverrides as Prisma.InputJsonValue;
+    if (scheduleType !== undefined) {
+      updateData.scheduleType = scheduleType;
+      updateData.status = scheduleType === 'IMMEDIATE' ? 'QUEUED' : 'DRAFT';
+    }
+    if (scheduledAt !== undefined) updateData.scheduledAt = scheduledAt ? new Date(scheduledAt) : null;
+    if (timezone !== undefined) updateData.timezone = timezone;
+    if (tags !== undefined) updateData.tags = tags;
+
+    // Update media attachments if provided
+    if (mediaAssetIds !== undefined) {
+      // Remove existing attachments and re-create
+      await prisma.postMedia.deleteMany({ where: { postId: post.id } });
+      if (mediaAssetIds.length > 0) {
+        await prisma.postMedia.createMany({
+          data: mediaAssetIds.map((mediaId, i) => ({
+            postId: post.id,
+            mediaId,
+            position: i,
+          })),
+        });
+      }
+    }
+
+    const updated = await prisma.post.update({
+      where: { id: req.params.id },
+      data: updateData,
+      include: {
+        publishResults: true,
+        mediaAttachments: {
+          include: { media: true },
+          orderBy: { position: 'asc' },
+        },
+      },
+    });
+
+    res.json({ data: updated });
+  } catch (error) {
+    console.error('Failed to update post:', error);
+    res.status(500).json({ error: 'Failed to update post' });
+  }
+});
+
 // Delete a post (only if draft or scheduled)
 postsRouter.delete('/:id', async (req, res) => {
   try {

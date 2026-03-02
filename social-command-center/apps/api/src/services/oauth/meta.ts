@@ -1,7 +1,7 @@
 import { env } from '../../config/env.js';
 import { storeTokens } from '../../utils/token-manager.js';
 
-const GRAPH_API_VERSION = 'v19.0';
+const GRAPH_API_VERSION = 'v21.0';
 const GRAPH_BASE = `https://graph.facebook.com/${GRAPH_API_VERSION}`;
 
 /**

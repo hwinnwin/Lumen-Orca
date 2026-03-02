@@ -13,13 +13,14 @@ dotenv.config({ path: resolve(monorepoRoot, '.env') });
 dotenv.config({ path: resolve(__dirname, '../../.env') });
 
 const envSchema = z.object({
-  // Database
-  DATABASE_URL: z.string().url(),
+  // Database — Railway provides DATABASE_URL with postgresql:// scheme
+  DATABASE_URL: z.string().min(1),
 
   // Redis
   REDIS_URL: z.string().default('redis://localhost:6379'),
 
-  // Server
+  // Server — Railway sets PORT automatically
+  PORT: z.coerce.number().optional(),
   API_PORT: z.coerce.number().default(3001),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   APP_URL: z.string().default('http://localhost:5173'),
@@ -65,6 +66,9 @@ const envSchema = z.object({
 
   // Anthropic
   ANTHROPIC_API_KEY: z.string().default(''),
+
+  // Replicate (AI image generation)
+  REPLICATE_API_TOKEN: z.string().default(''),
 });
 
 function loadEnv() {

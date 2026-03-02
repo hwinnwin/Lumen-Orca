@@ -12,6 +12,8 @@ model User {
   email        String               @unique
   passwordHash String
   name         String?
+  timezone     String               @default("UTC")
+  settings     Json?                // { defaultTone, defaultPlatforms, notificationsEnabled, etc. }
   connections  PlatformConnection[]
   posts        Post[]
   mediaAssets  MediaAsset[]

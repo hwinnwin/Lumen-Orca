@@ -1,6 +1,6 @@
 import type { PlatformAdapter, PublishParams, PublishResponse, MediaUploadParams, MediaUploadResponse, PostMetrics, ValidationResult } from './types.js';
 
-const GRAPH_API = 'https://graph.facebook.com/v19.0';
+const GRAPH_API = 'https://graph.facebook.com/v21.0';
 
 export class FacebookAdapter implements PlatformAdapter {
   platform = 'FACEBOOK' as const;

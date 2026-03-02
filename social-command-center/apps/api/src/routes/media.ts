@@ -1,13 +1,25 @@
 import { Router } from 'express';
 import { prisma } from '../db/client.js';
-import { generateMediaKey, getPresignedUploadUrl, deleteObject } from '../services/s3.js';
+import {
+  generateMediaKey,
+  getPresignedUploadUrl,
+  deleteObject,
+  isS3Configured,
+  saveToLocalStorage,
+  readFromLocalStorage,
+} from '../services/s3.js';
 import { mediaProcessQueue } from '../queue/queues.js';
 import { validateMedia } from '../utils/media-validator.js';
 import type { Platform } from '@prisma/client';
+import multer from 'multer';
+import mime from 'mime-types';
 
 export const mediaRouter = Router();
 
-// Request a presigned upload URL
+// Multer for local file uploads (memory storage)
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 100 * 1024 * 1024 } });
+
+// Request a presigned upload URL (or local upload URL when S3 is not configured)
 mediaRouter.post('/upload-url', async (req, res) => {
   try {
     const { filename, contentType, fileSize, platforms } = req.body as {
@@ -54,7 +66,7 @@ mediaRouter.post('/upload-url', async (req, res) => {
       },
     });
 
-    // Generate presigned S3 upload URL
+    // Generate presigned S3 upload URL (or local upload URL)
     const { url } = await getPresignedUploadUrl(key, contentType, fileSize);
 
     res.status(201).json({
@@ -62,11 +74,69 @@ mediaRouter.post('/upload-url', async (req, res) => {
         mediaId: media.id,
         key,
         uploadUrl: url,
+        local: !isS3Configured,
       },
     });
   } catch (error) {
     console.error('Failed to generate upload URL:', error);
     res.status(500).json({ error: 'Failed to generate upload URL' });
+  }
+});
+
+// Local file upload endpoint (used when S3 is not configured)
+mediaRouter.put('/local-upload/:key', upload.single('file'), async (req, res) => {
+  try {
+    const key = decodeURIComponent(req.params.key as string);
+    let buffer: Buffer;
+
+    if (req.file) {
+      // multipart/form-data upload
+      buffer = req.file.buffer;
+    } else {
+      // Raw binary upload (like S3 presigned URL PUT)
+      const chunks: Buffer[] = [];
+      for await (const chunk of req) {
+        chunks.push(Buffer.from(chunk));
+      }
+      buffer = Buffer.concat(chunks);
+    }
+
+    if (!buffer || buffer.length === 0) {
+      return res.status(400).json({ error: 'No file data received' });
+    }
+
+    const url = await saveToLocalStorage(key, buffer);
+
+    // Update the media record with the URL
+    await prisma.mediaAsset.updateMany({
+      where: { originalKey: key },
+      data: { originalUrl: url },
+    });
+
+    res.json({ data: { url, key } });
+  } catch (error) {
+    console.error('Failed to upload locally:', error);
+    res.status(500).json({ error: 'Failed to upload file' });
+  }
+});
+
+// Serve locally stored media files
+mediaRouter.get('/local/:key', async (req, res) => {
+  try {
+    const key = decodeURIComponent(req.params.key);
+    const buffer = await readFromLocalStorage(key);
+
+    if (!buffer) {
+      return res.status(404).json({ error: 'File not found' });
+    }
+
+    const contentType = mime.lookup(key) || 'application/octet-stream';
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+    res.send(buffer);
+  } catch (error) {
+    console.error('Failed to serve local file:', error);
+    res.status(500).json({ error: 'Failed to serve file' });
   }
 });
 
@@ -129,12 +199,12 @@ mediaRouter.delete('/:id', async (req, res) => {
       return res.status(404).json({ error: 'Media asset not found' });
     }
 
-    // Delete from S3
+    // Delete from storage
     if (media.originalKey) {
       try {
         await deleteObject(media.originalKey);
       } catch (e) {
-        console.warn(`[Media] Failed to delete S3 object ${media.originalKey}:`, e);
+        console.warn(`[Media] Failed to delete object ${media.originalKey}:`, e);
       }
     }
 

@@ -3,7 +3,7 @@ import { bullMQConnection } from '../connection.js';
 import type { MediaProcessJobData } from '../queues.js';
 import { prisma } from '../../db/client.js';
 import type { Prisma } from '@prisma/client';
-import { getObjectUrl, getVariantKey, uploadBuffer, s3Client } from '../../services/s3.js';
+import { getObjectUrl, getVariantKey, uploadBuffer, s3Client, isS3Configured, readFromLocalStorage } from '../../services/s3.js';
 import { GetObjectCommand } from '@aws-sdk/client-s3';
 
 // Aspect ratio dimensions for image variants
@@ -64,20 +64,29 @@ async function processImage(mediaId: string, originalKey: string, mimeType: stri
   // Dynamically import sharp (ESM-only in newer versions)
   const sharp = (await import('sharp')).default;
 
-  // Download original from S3
-  const response = await s3Client.send(
-    new GetObjectCommand({
-      Bucket: process.env.S3_BUCKET || '',
-      Key: originalKey,
-    }),
-  );
+  // Download original from storage (S3 or local filesystem)
+  let originalBuffer: Buffer;
 
-  const chunks: Buffer[] = [];
-  const stream = response.Body as NodeJS.ReadableStream;
-  for await (const chunk of stream) {
-    chunks.push(Buffer.from(chunk));
+  if (isS3Configured) {
+    const response = await s3Client.send(
+      new GetObjectCommand({
+        Bucket: process.env.S3_BUCKET || '',
+        Key: originalKey,
+      }),
+    );
+    const chunks: Buffer[] = [];
+    const stream = response.Body as NodeJS.ReadableStream;
+    for await (const chunk of stream) {
+      chunks.push(Buffer.from(chunk));
+    }
+    originalBuffer = Buffer.concat(chunks);
+  } else {
+    const localBuffer = await readFromLocalStorage(originalKey);
+    if (!localBuffer) {
+      throw new Error(`Local file not found for key: ${originalKey}`);
+    }
+    originalBuffer = localBuffer;
   }
-  const originalBuffer = Buffer.concat(chunks);
 
   // Get original dimensions
   const metadata = await sharp(originalBuffer).metadata();
@@ -110,27 +119,19 @@ async function processImage(mediaId: string, originalKey: string, mimeType: stri
   });
 }
 
-async function processVideo(mediaId: string, originalKey: string, mimeType: string) {
-  // Video processing requires FFmpeg which may not be available
-  // For now, just generate a thumbnail and update metadata
-  console.log(`[Media] Video processing for ${mediaId} — basic metadata extraction`);
+async function processVideo(mediaId: string, originalKey: string, _mimeType: string) {
+  console.log(`[Media] Video processing for ${mediaId} — setting URL`);
 
-  // Update with the original URL
+  const url = getObjectUrl(originalKey);
   await prisma.mediaAsset.update({
     where: { id: mediaId },
     data: {
-      originalUrl: getObjectUrl(originalKey),
+      originalUrl: url,
       variants: {
-        original: { url: getObjectUrl(originalKey) },
+        original: { url },
       },
     },
   });
-
-  // If FFmpeg is available, we could do:
-  // 1. Transcode to H.264+AAC MP4
-  // 2. Generate thumbnail at 1s mark
-  // 3. Create platform-specific variants (different resolutions/aspect ratios)
-  // This would use fluent-ffmpeg with a temporary file approach
 }
 
 mediaProcessWorker.on('failed', (job, error) => {
