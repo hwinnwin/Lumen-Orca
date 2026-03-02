@@ -65,10 +65,10 @@ COPY packages/shared/package.json packages/shared/
 # Install production dependencies only
 RUN pnpm install --frozen-lockfile --prod
 
-# Copy Prisma schema + generated client
-# With pnpm, prisma generate outputs to root node_modules/.prisma (not apps/api/node_modules/.prisma)
+# Copy Prisma schema and generate client
+# Generate Prisma client directly (pnpm symlinks make COPY from builder unreliable)
 COPY apps/api/prisma ./apps/api/prisma
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+RUN npx --yes prisma generate --schema=./apps/api/prisma/schema.prisma
 
 # Copy built API
 COPY --from=builder /app/apps/api/dist ./apps/api/dist
