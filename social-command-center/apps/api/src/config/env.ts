@@ -35,27 +35,27 @@ const envSchema = z.object({
   // Meta (Facebook + Instagram)
   META_APP_ID: z.string().default(''),
   META_APP_SECRET: z.string().default(''),
-  META_REDIRECT_URI: z.string().default('http://localhost:3001/api/auth/meta/callback'),
+  META_REDIRECT_URI: z.string().optional(),
 
   // LinkedIn
   LINKEDIN_CLIENT_ID: z.string().default(''),
   LINKEDIN_CLIENT_SECRET: z.string().default(''),
-  LINKEDIN_REDIRECT_URI: z.string().default('http://localhost:3001/api/auth/linkedin/callback'),
+  LINKEDIN_REDIRECT_URI: z.string().optional(),
 
   // X (Twitter)
   X_CLIENT_ID: z.string().default(''),
   X_CLIENT_SECRET: z.string().default(''),
-  X_REDIRECT_URI: z.string().default('http://localhost:3001/api/auth/x/callback'),
+  X_REDIRECT_URI: z.string().optional(),
 
   // TikTok
   TIKTOK_CLIENT_KEY: z.string().default(''),
   TIKTOK_CLIENT_SECRET: z.string().default(''),
-  TIKTOK_REDIRECT_URI: z.string().default('http://localhost:3001/api/auth/tiktok/callback'),
+  TIKTOK_REDIRECT_URI: z.string().optional(),
 
   // YouTube (Google)
   GOOGLE_CLIENT_ID: z.string().default(''),
   GOOGLE_CLIENT_SECRET: z.string().default(''),
-  GOOGLE_REDIRECT_URI: z.string().default('http://localhost:3001/api/auth/google/callback'),
+  GOOGLE_REDIRECT_URI: z.string().optional(),
 
   // S3
   S3_BUCKET: z.string().default(''),
@@ -81,17 +81,44 @@ function loadEnv() {
     process.exit(1);
   }
 
+  const data = parsed.data;
+
+  // Auto-derive OAuth redirect URIs from APP_URL if not explicitly set.
+  // In production APP_URL = https://scc.hwinnwin.com, so callbacks become
+  // https://scc.hwinnwin.com/api/auth/{provider}/callback automatically.
+  // In dev, fallback to https://localhost:3001 for local SSL.
+  const baseUrl = data.NODE_ENV === 'production'
+    ? data.APP_URL
+    : `https://localhost:${data.API_PORT}`;
+
+  data.META_REDIRECT_URI = data.META_REDIRECT_URI || `${baseUrl}/api/auth/meta/callback`;
+  data.LINKEDIN_REDIRECT_URI = data.LINKEDIN_REDIRECT_URI || `${baseUrl}/api/auth/linkedin/callback`;
+  data.X_REDIRECT_URI = data.X_REDIRECT_URI || `${baseUrl}/api/auth/x/callback`;
+  data.TIKTOK_REDIRECT_URI = data.TIKTOK_REDIRECT_URI || `${baseUrl}/api/auth/tiktok/callback`;
+  data.GOOGLE_REDIRECT_URI = data.GOOGLE_REDIRECT_URI || `${baseUrl}/api/auth/google/callback`;
+
+  console.log(`OAuth redirect base: ${baseUrl}`);
+
   // Log configured OAuth providers on startup
   const configured = [];
-  if (parsed.data.META_APP_ID) configured.push('Meta');
-  if (parsed.data.LINKEDIN_CLIENT_ID) configured.push('LinkedIn');
-  if (parsed.data.X_CLIENT_ID) configured.push('X');
-  if (parsed.data.TIKTOK_CLIENT_KEY) configured.push('TikTok');
-  if (parsed.data.GOOGLE_CLIENT_ID) configured.push('Google/YouTube');
+  if (data.META_APP_ID) configured.push('Meta');
+  if (data.LINKEDIN_CLIENT_ID) configured.push('LinkedIn');
+  if (data.X_CLIENT_ID) configured.push('X');
+  if (data.TIKTOK_CLIENT_KEY) configured.push('TikTok');
+  if (data.GOOGLE_CLIENT_ID) configured.push('Google/YouTube');
   console.log(`OAuth configured: ${configured.length > 0 ? configured.join(', ') : 'none'}`);
 
-  return parsed.data;
+  return data;
 }
 
-export const env = loadEnv();
-export type Env = z.infer<typeof envSchema>;
+// After loadEnv(), all redirect URIs are guaranteed to be strings (auto-derived if not set)
+type LoadedEnv = Omit<z.infer<typeof envSchema>, 'META_REDIRECT_URI' | 'LINKEDIN_REDIRECT_URI' | 'X_REDIRECT_URI' | 'TIKTOK_REDIRECT_URI' | 'GOOGLE_REDIRECT_URI'> & {
+  META_REDIRECT_URI: string;
+  LINKEDIN_REDIRECT_URI: string;
+  X_REDIRECT_URI: string;
+  TIKTOK_REDIRECT_URI: string;
+  GOOGLE_REDIRECT_URI: string;
+};
+
+export const env = loadEnv() as LoadedEnv;
+export type Env = LoadedEnv;
