@@ -31,7 +31,8 @@ COPY --from=deps /app/packages/shared/node_modules ./packages/shared/node_module
 # Copy all source code
 COPY . .
 
-# Generate Prisma client
+# Generate Prisma client (dummy DATABASE_URL needed for generate, not for actual connection)
+ENV DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy"
 RUN cd apps/api && npx prisma generate
 
 # Build shared package (used by both web and api)
@@ -65,8 +66,8 @@ COPY packages/shared/package.json packages/shared/
 RUN pnpm install --frozen-lockfile --prod
 
 # Copy Prisma schema + generated client
+# With pnpm, prisma generate outputs to root node_modules/.prisma (not apps/api/node_modules/.prisma)
 COPY apps/api/prisma ./apps/api/prisma
-COPY --from=builder /app/apps/api/node_modules/.prisma ./apps/api/node_modules/.prisma
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 
 # Copy built API
