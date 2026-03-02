@@ -21,13 +21,16 @@ import {
   DollarSign,
   AlertTriangle,
   Eye,
+  Square,
+  Clock,
+  Ban,
 } from 'lucide-react';
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
-type BuildStatus = 'pending' | 'specifying' | 'generating' | 'deploying' | 'live' | 'failed';
+type BuildStatus = 'queued' | 'pending' | 'specifying' | 'generating' | 'deploying' | 'live' | 'failed' | 'cancelled';
 
 interface BuildStep {
   id: string;
@@ -51,8 +54,9 @@ interface Build {
   preview_url?: string;
   preview_url_expires_at?: string;
   preview_html?: string;
-  error?: { message: string; retryable?: boolean };
+  error?: { message: string; retryable?: boolean; stage?: string };
   llm_cost?: number;
+  position_in_queue?: number;
   created_at: string;
   updated_at: string;
 }
@@ -64,6 +68,7 @@ interface Build {
 const MAX_PROMPT_LENGTH = 5000;
 
 const PIPELINE_STAGES: { key: BuildStatus; label: string }[] = [
+  { key: 'queued', label: 'Queued' },
   { key: 'pending', label: 'Pending' },
   { key: 'specifying', label: 'Specifying' },
   { key: 'generating', label: 'Generating' },
@@ -88,6 +93,7 @@ function mapBuildResponse(data: any): Build {
     preview_html: data.previewHtml ?? data.preview_html,
     error: data.error,
     llm_cost: data.llmCost ?? data.llm_cost,
+    position_in_queue: data.position ?? data.position_in_queue,
     created_at: data.created_at ?? new Date().toISOString(),
     updated_at: data.updated_at ?? new Date().toISOString(),
   };
@@ -115,6 +121,9 @@ const Builder = () => {
   // History
   const [history, setHistory] = useState<Build[]>([]);
   const [historyOpen, setHistoryOpen] = useState(false);
+
+  // Cancel state
+  const [cancelling, setCancelling] = useState(false);
 
   // Ref to track active subscriptions for cleanup
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
@@ -195,10 +204,10 @@ const Builder = () => {
               // Preserve preview_html from the initial build response (not in DB)
               preview_html: prev?.preview_html,
             }));
-            if (updated.status === 'live' || updated.status === 'failed') {
+            if (updated.status === 'live' || updated.status === 'failed' || updated.status === 'cancelled') {
               setBuilding(false);
+              setCancelling(false);
               fetchHistory();
-              // If we don't have preview_html yet (e.g. loaded from history), fetch it
               if (updated.status === 'live') {
                 fetchPreviewHtml(updated.id);
               }
@@ -279,6 +288,33 @@ const Builder = () => {
     const build = mapBuildResponse(data);
     setCurrentBuild(build);
     subscribeToBuild(build.id);
+
+    // If queued, keep building=true so user sees the queue UI
+    if (build.status === 'queued') {
+      toast({ title: 'Build queued', description: data.message || `Position ${build.position_in_queue} in queue.` });
+    }
+  };
+
+  // ------------------------------------------------------------------
+  // Cancel build
+  // ------------------------------------------------------------------
+
+  const handleCancel = async () => {
+    if (!currentBuild) return;
+    setCancelling(true);
+
+    const { error } = await supabase.functions.invoke('cancel-build', {
+      body: { build_id: currentBuild.id },
+    });
+
+    if (error) {
+      toast({ title: 'Cancel failed', description: error.message, variant: 'destructive' });
+      setCancelling(false);
+      return;
+    }
+
+    // Realtime subscription will handle the status update
+    toast({ title: 'Build cancelled' });
   };
 
   // ------------------------------------------------------------------
@@ -331,7 +367,7 @@ const Builder = () => {
   const loadBuild = async (build: Build) => {
     setCurrentBuild(build);
     setPrompt(build.prompt);
-    setBuilding(build.status !== 'live' && build.status !== 'failed');
+    setBuilding(build.status !== 'live' && build.status !== 'failed' && build.status !== 'cancelled');
     setSpecOpen(false);
 
     // Fetch steps for this build
@@ -343,7 +379,7 @@ const Builder = () => {
     if (data) setSteps(data as unknown as BuildStep[]);
 
     // Subscribe if still in progress
-    if (build.status !== 'live' && build.status !== 'failed') {
+    if (build.status !== 'live' && build.status !== 'failed' && build.status !== 'cancelled') {
       subscribeToBuild(build.id);
     }
 
@@ -358,8 +394,8 @@ const Builder = () => {
   // ------------------------------------------------------------------
 
   const progressPercent = currentBuild
-    ? currentBuild.status === 'failed'
-      ? stageIndex(currentBuild.status) * 25
+    ? currentBuild.status === 'failed' || currentBuild.status === 'cancelled'
+      ? (stageIndex(currentBuild.status) / PIPELINE_STAGES.length) * 100
       : ((stageIndex(currentBuild.status) + 1) / PIPELINE_STAGES.length) * 100
     : 0;
 
@@ -405,6 +441,12 @@ const Builder = () => {
               </div>
             </CardContent>
             <CardFooter className="justify-end gap-3">
+              {building && currentBuild && (
+                <Button variant="destructive" size="sm" onClick={handleCancel} disabled={cancelling} className="gap-2">
+                  {cancelling ? <Loader2 className="w-4 h-4 animate-spin" /> : <Square className="w-4 h-4" />}
+                  {cancelling ? 'Cancelling...' : 'Cancel'}
+                </Button>
+              )}
               <Button onClick={handleBuild} disabled={building || !prompt.trim()} className="gap-2">
                 {building ? <Loader2 className="w-4 h-4 animate-spin" /> : <Rocket className="w-4 h-4" />}
                 {building ? 'Building...' : 'Build App'}
@@ -428,24 +470,34 @@ const Builder = () => {
                     const isActive = currentBuild.status === stage.key;
                     const isDone = idx < current || currentBuild.status === 'live';
                     const isError = currentBuild.status === 'failed' && idx === current;
+                    const isCancelled = currentBuild.status === 'cancelled' && idx >= current;
+                    const isQueued = isActive && stage.key === 'queued';
 
                     return (
                       <div key={stage.key} className="flex flex-col items-center gap-1">
                         <div
                           className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium border-2 transition-colors ${
-                            isError
-                              ? 'border-destructive bg-destructive/10 text-destructive'
-                              : isDone
-                                ? 'border-green-500 bg-green-500/10 text-green-600'
-                                : isActive
-                                  ? 'border-primary bg-primary/10 text-primary'
-                                  : 'border-muted bg-muted/30 text-muted-foreground'
+                            isCancelled
+                              ? 'border-muted bg-muted/30 text-muted-foreground'
+                              : isError
+                                ? 'border-destructive bg-destructive/10 text-destructive'
+                                : isDone
+                                  ? 'border-green-500 bg-green-500/10 text-green-600'
+                                  : isQueued
+                                    ? 'border-amber-500 bg-amber-500/10 text-amber-600'
+                                    : isActive
+                                      ? 'border-primary bg-primary/10 text-primary'
+                                      : 'border-muted bg-muted/30 text-muted-foreground'
                           }`}
                         >
-                          {isError ? (
+                          {isCancelled ? (
+                            <Ban className="w-4 h-4" />
+                          ) : isError ? (
                             <X className="w-4 h-4" />
                           ) : isDone ? (
                             <Check className="w-4 h-4" />
+                          ) : isQueued ? (
+                            <Clock className="w-4 h-4 animate-pulse" />
                           ) : isActive ? (
                             <Loader2 className="w-4 h-4 animate-spin" />
                           ) : (
@@ -454,7 +506,11 @@ const Builder = () => {
                         </div>
                         <span
                           className={`text-xs ${
-                            isActive ? 'font-semibold text-primary' : isDone ? 'text-green-600' : 'text-muted-foreground'
+                            isCancelled ? 'text-muted-foreground'
+                              : isQueued ? 'font-semibold text-amber-600'
+                              : isActive ? 'font-semibold text-primary'
+                              : isDone ? 'text-green-600'
+                              : 'text-muted-foreground'
                           }`}
                         >
                           {stage.label}
@@ -462,6 +518,52 @@ const Builder = () => {
                       </div>
                     );
                   })}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Queue Info */}
+          {currentBuild?.status === 'queued' && (
+            <Card className="border-amber-500/50 bg-amber-500/5">
+              <CardContent className="pt-6">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-amber-500/10 flex items-center justify-center">
+                    <Clock className="w-5 h-5 text-amber-600 animate-pulse" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-medium text-amber-700 dark:text-amber-400">
+                      Build Queued — Position #{currentBuild.position_in_queue ?? '?'}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      Your build will start automatically when a slot opens up.
+                    </p>
+                  </div>
+                  <Button variant="destructive" size="sm" onClick={handleCancel} disabled={cancelling} className="gap-2">
+                    {cancelling ? <Loader2 className="w-4 h-4 animate-spin" /> : <Square className="w-4 h-4" />}
+                    Cancel
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Cancelled Display */}
+          {currentBuild?.status === 'cancelled' && (
+            <Card className="border-muted">
+              <CardContent className="pt-6">
+                <div className="flex items-center gap-3">
+                  <Ban className="w-5 h-5 text-muted-foreground" />
+                  <div className="flex-1">
+                    <p className="font-medium text-muted-foreground">Build Cancelled</p>
+                    <p className="text-sm text-muted-foreground">
+                      {currentBuild.error?.message || 'This build was cancelled.'}
+                    </p>
+                  </div>
+                  <Button variant="outline" size="sm" onClick={handleRetry} className="gap-2">
+                    <RefreshCw className="w-4 h-4" />
+                    Retry
+                  </Button>
                 </div>
               </CardContent>
             </Card>
@@ -649,7 +751,9 @@ const Builder = () => {
                                     ? 'default'
                                     : build.status === 'failed'
                                       ? 'destructive'
-                                      : 'secondary'
+                                      : build.status === 'cancelled'
+                                        ? 'outline'
+                                        : 'secondary'
                                 }
                                 className="text-[10px]"
                               >

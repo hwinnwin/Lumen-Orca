@@ -177,6 +177,9 @@ const SIGNED_URL_EXPIRY_SECONDS = 3600; // 1 hour
 
 interface BuildRequest {
   prompt: string;
+  build_id?: string;    // When resuming a queued build
+  user_id?: string;     // When called from process-build-queue with service role
+  from_queue?: boolean; // Skip auth + build creation when processing queued builds
 }
 
 // ─── HTML escaping (Patch 5) ─────────────────────────────────────────────────
@@ -282,45 +285,12 @@ serve(async (req: Request) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // ─── Auth enforcement (Patch 1) ──────────────────────────────────────────
-  const authHeader = req.headers.get("Authorization");
-  if (!authHeader) {
-    return new Response(
-      JSON.stringify({ error: "Missing Authorization header", retryable: false }),
-      {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      },
-    );
-  }
-
-  const token = authHeader.replace("Bearer ", "");
-
-  // Service-role client for DB mutations (bypasses RLS)
-  // Use JWT_SERVICE_ROLE_KEY (legacy JWT format) since SUPABASE_SERVICE_ROLE_KEY
-  // may be the new publishable-key format which isn't compatible with supabase-js
+  // ─── Service-role client (bypasses RLS) ──────────────────────────────────
+  const serviceRoleKey = Deno.env.get("JWT_SERVICE_ROLE_KEY") ?? Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL") ?? "",
-    Deno.env.get("JWT_SERVICE_ROLE_KEY") ?? Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+    serviceRoleKey,
   );
-
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser(token);
-
-  if (authError || !user) {
-    return new Response(
-      JSON.stringify({ error: "Invalid or expired token", retryable: false }),
-      {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      },
-    );
-  }
-
-  // userId is guaranteed non-null from this point forward
-  const userId: string = user.id;
 
   // ─── Parse body ──────────────────────────────────────────────────────────
   let body: BuildRequest;
@@ -336,7 +306,46 @@ serve(async (req: Request) => {
     );
   }
 
-  const { prompt } = body;
+  const { prompt, from_queue, build_id: existingBuildId, user_id: queueUserId } = body;
+
+  // ─── Auth enforcement ──────────────────────────────────────────────────
+  let userId: string;
+
+  if (from_queue && queueUserId) {
+    // Called from process-build-queue with service role — verify the caller is service role
+    const authHeader = req.headers.get("Authorization");
+    const token = authHeader?.replace("Bearer ", "") ?? "";
+    if (token !== serviceRoleKey) {
+      // Not service role — still need user auth
+      const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+      if (authError || !user) {
+        return new Response(
+          JSON.stringify({ error: "Invalid or expired token", retryable: false }),
+          { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+      userId = user.id;
+    } else {
+      userId = queueUserId;
+    }
+  } else {
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: "Missing Authorization header", retryable: false }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+    const token = authHeader.replace("Bearer ", "");
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    if (authError || !user) {
+      return new Response(
+        JSON.stringify({ error: "Invalid or expired token", retryable: false }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+    userId = user.id;
+  }
 
   // ─── Input validation ────────────────────────────────────────────────────
   if (!prompt || !prompt.trim()) {
@@ -362,53 +371,99 @@ serve(async (req: Request) => {
     );
   }
 
-  // ─── Rate limit: max concurrent builds per user ──────────────────────────
+  // ─── Rate limit: max concurrent builds per user (queue instead of reject) ─
   const { count } = await supabase
     .from("builds")
     .select("*", { count: "exact", head: true })
     .eq("user_id", userId)
     .in("status", ["pending", "specifying", "generating", "deploying"]);
 
-  if ((count ?? 0) >= MAX_CONCURRENT_BUILDS) {
+  if ((count ?? 0) >= MAX_CONCURRENT_BUILDS && !from_queue) {
+    // Queue the build instead of rejecting
+    const { count: queuedCount } = await supabase
+      .from("builds")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .eq("status", "queued");
+
+    const position = (queuedCount ?? 0) + 1;
+
+    const { data: queuedBuild, error: queueError } = await supabase
+      .from("builds")
+      .insert({ prompt, user_id: userId, status: "queued", position_in_queue: position })
+      .select()
+      .single();
+
+    if (queueError || !queuedBuild) {
+      return new Response(
+        JSON.stringify({ error: `Failed to queue build: ${queueError?.message ?? "unknown"}`, retryable: true }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    console.log(JSON.stringify({ buildId: queuedBuild.id, step: "queued", position, userId }));
+
     return new Response(
       JSON.stringify({
-        error: `Too many active builds (max ${MAX_CONCURRENT_BUILDS}). Wait for current builds to finish.`,
-        retryable: true,
+        buildId: queuedBuild.id,
+        status: "queued",
+        position,
+        message: `Build queued at position ${position}. It will start automatically when a slot opens up.`,
       }),
-      {
-        status: 429,
-        headers: {
-          ...corsHeaders,
-          "Content-Type": "application/json",
-          "Retry-After": "30",
-        },
-      },
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   }
 
   // ─── Pipeline begins ────────────────────────────────────────────────────
 
-  // 1. Create build record
-  const { data: build, error: buildError } = await supabase
-    .from("builds")
-    .insert({ prompt, user_id: userId, status: "pending" })
-    .select()
-    .single();
+  // 1. Create or reuse build record
+  let buildId: string;
+  let build: Record<string, unknown>;
 
-  if (buildError || !build) {
-    return new Response(
-      JSON.stringify({
-        error: `Failed to create build: ${buildError?.message ?? "unknown"}`,
-        retryable: true,
-      }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      },
-    );
+  if (from_queue && existingBuildId) {
+    // Resuming a queued build — update existing record to pending
+    const { data: existingBuild, error: fetchErr } = await supabase
+      .from("builds")
+      .select("*")
+      .eq("id", existingBuildId)
+      .single();
+
+    if (fetchErr || !existingBuild) {
+      return new Response(
+        JSON.stringify({ error: `Queued build not found: ${fetchErr?.message ?? "unknown"}`, retryable: false }),
+        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    // Check if it was cancelled while queued
+    if (existingBuild.status === "cancelled") {
+      return new Response(
+        JSON.stringify({ buildId: existingBuildId, status: "cancelled" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    await supabase.from("builds").update({ status: "pending", position_in_queue: null }).eq("id", existingBuildId);
+    buildId = existingBuild.id;
+    build = existingBuild;
+  } else {
+    const { data: newBuild, error: buildError } = await supabase
+      .from("builds")
+      .insert({ prompt, user_id: userId, status: "pending" })
+      .select()
+      .single();
+
+    if (buildError || !newBuild) {
+      return new Response(
+        JSON.stringify({ error: `Failed to create build: ${buildError?.message ?? "unknown"}`, retryable: true }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    buildId = newBuild.id;
+    build = newBuild;
   }
 
-  const buildId: string = build.id;
   console.log(JSON.stringify({ buildId, step: "init", status: "started", userId }));
 
   // ─── Pipeline helpers ──────────────────────────────────────────────────
@@ -461,6 +516,37 @@ serve(async (req: Request) => {
         completed_at: new Date().toISOString(),
       })
       .eq("id", stepId);
+  }
+
+  // ─── Cancellation check ──────────────────────────────────────────────────
+
+  async function isCancelled(): Promise<boolean> {
+    const { data } = await supabase
+      .from("builds")
+      .select("status")
+      .eq("id", buildId)
+      .single();
+    return data?.status === "cancelled";
+  }
+
+  // ─── Queue trigger (call after build completes) ─────────────────────────
+
+  async function triggerQueueProcessing() {
+    try {
+      await fetch(
+        `${Deno.env.get("SUPABASE_URL")}/functions/v1/process-build-queue`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${serviceRoleKey}`,
+          },
+          body: JSON.stringify({ user_id: userId }),
+        },
+      );
+    } catch {
+      // Non-critical — queue will process on next event
+    }
   }
 
   // ─── LLM call with AbortController timeout ──────────────────────────────
@@ -593,6 +679,16 @@ serve(async (req: Request) => {
       throw err;
     }
 
+    // ──── Check for cancellation before codegen ──────────────────────────
+    if (await isCancelled()) {
+      console.log(JSON.stringify({ buildId, step: "cancelled", status: "interrupted_before_codegen" }));
+      await triggerQueueProcessing();
+      return new Response(
+        JSON.stringify({ buildId, status: "cancelled" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
     // ──── 3. A3 Codegen ──────────────────────────────────────────────────
     await updateBuild({ status: "generating" });
     const codegenStepId = await createStep("A3_codegen_a");
@@ -651,6 +747,16 @@ serve(async (req: Request) => {
         completed_at: new Date().toISOString(),
       });
       throw err;
+    }
+
+    // ──── Check for cancellation before deploy ────────────────────────────
+    if (await isCancelled()) {
+      console.log(JSON.stringify({ buildId, step: "cancelled", status: "interrupted_before_deploy" }));
+      await triggerQueueProcessing();
+      return new Response(
+        JSON.stringify({ buildId, status: "cancelled" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
     }
 
     // ──── 4. Deploy ──────────────────────────────────────────────────────
@@ -724,6 +830,9 @@ serve(async (req: Request) => {
         }),
       );
 
+      // Trigger queue processing — kick the next queued build
+      await triggerQueueProcessing();
+
       return new Response(
         JSON.stringify({
           buildId,
@@ -766,6 +875,9 @@ serve(async (req: Request) => {
         error: errorMessage,
       }),
     );
+
+    // Trigger queue processing so next queued build can start
+    await triggerQueueProcessing();
 
     return new Response(
       JSON.stringify({
