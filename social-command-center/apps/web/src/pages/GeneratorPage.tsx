@@ -61,7 +61,7 @@ export default function GeneratorPage() {
   // Quote card specific state
   const [quoteText, setQuoteText] = useState('');
   const [quoteAuthor, setQuoteAuthor] = useState('');
-  const [quoteResult, setQuoteResult] = useState<{ imageUrl: string } | null>(null);
+  const [quoteResult, setQuoteResult] = useState<{ imageUrl: string; imageDataUrl: string } | null>(null);
 
   // Editing slide plan
   const [editingSlide, setEditingSlide] = useState<number | null>(null);
@@ -170,9 +170,8 @@ export default function GeneratorPage() {
     if (!store.slides) return;
     store.slides.forEach((slide) => {
       const a = document.createElement('a');
-      a.href = slide.imageUrl;
+      a.href = slide.imageDataUrl;
       a.download = `slide-${slide.slideNumber}.png`;
-      a.target = '_blank';
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -342,15 +341,14 @@ export default function GeneratorPage() {
                 {quoteResult && (
                   <div style={cardStyle}>
                     <img
-                      src={quoteResult.imageUrl}
+                      src={quoteResult.imageDataUrl}
                       alt="Quote card"
                       style={{ width: '100%', maxWidth: '400px', borderRadius: '12px', margin: '0 auto', display: 'block' }}
                     />
                     <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', marginTop: '16px' }}>
                       <a
-                        href={quoteResult.imageUrl}
+                        href={quoteResult.imageDataUrl}
                         download="quote-card.png"
-                        target="_blank"
                         style={secondaryButtonStyle}
                       >
                         <Download size={14} /> Download
@@ -585,7 +583,7 @@ export default function GeneratorPage() {
                   }}
                 >
                   <img
-                    src={store.slides[store.currentSlide]?.imageUrl}
+                    src={store.slides[store.currentSlide]?.imageDataUrl}
                     alt={`Slide ${store.currentSlide + 1}`}
                     style={{ width: '100%', display: 'block', borderRadius: '16px' }}
                   />
@@ -689,7 +687,7 @@ export default function GeneratorPage() {
                     }}
                   >
                     <img
-                      src={slide.imageUrl}
+                      src={slide.imageDataUrl}
                       alt={`Slide ${slide.slideNumber}`}
                       style={{ width: '100%', display: 'block' }}
                     />

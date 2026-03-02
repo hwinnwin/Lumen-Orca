@@ -50,11 +50,13 @@ export interface GeneratedSlide {
   title: string;
   body: string;
   imageUrl: string;
+  imageDataUrl: string;
   storageKey: string;
 }
 
 export interface QuoteCardResult {
   imageUrl: string;
+  imageDataUrl: string;
   storageKey: string;
 }
 
@@ -382,12 +384,14 @@ export async function generateCarousel(
     // Upload to storage
     const key = generateMediaKey(userId, `carousel-slide-${slide.slideNumber}.png`);
     const imageUrl = await uploadBuffer(key, finalImage, 'image/png');
+    const imageDataUrl = `data:image/png;base64,${finalImage.toString('base64')}`;
 
     results.push({
       slideNumber: slide.slideNumber,
       title: slide.title,
       body: slide.body,
       imageUrl,
+      imageDataUrl,
       storageKey: key,
     });
   }
@@ -406,12 +410,14 @@ export async function regenerateSlide(
   const finalImage = await compositeSlide(bgImage, slide, 1080, 1080);
   const key = generateMediaKey(userId, `carousel-slide-${slide.slideNumber}.png`);
   const imageUrl = await uploadBuffer(key, finalImage, 'image/png');
+  const imageDataUrl = `data:image/png;base64,${finalImage.toString('base64')}`;
 
   return {
     slideNumber: slide.slideNumber,
     title: slide.title,
     body: slide.body,
     imageUrl,
+    imageDataUrl,
     storageKey: key,
   };
 }
@@ -458,6 +464,7 @@ export async function generateQuoteCard(
   const buffer = await sharp(Buffer.from(svg)).png().toBuffer();
   const key = generateMediaKey(userId, `quote-card-${randomUUID().slice(0, 8)}.png`);
   const imageUrl = await uploadBuffer(key, buffer, 'image/png');
+  const imageDataUrl = `data:image/png;base64,${buffer.toString('base64')}`;
 
-  return { imageUrl, storageKey: key };
+  return { imageUrl, imageDataUrl, storageKey: key };
 }

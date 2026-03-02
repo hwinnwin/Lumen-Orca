@@ -58,7 +58,7 @@ generatorRouter.post('/plan', async (req, res) => {
 generatorRouter.post('/generate', async (req, res) => {
   try {
     const { plan } = req.body as { plan: CarouselPlan };
-    const userId = (req as any).user?.id;
+    const userId = req.userId;
 
     if (!plan?.slides?.length) {
       return res.status(400).json({ error: 'A valid plan with slides is required' });
@@ -84,7 +84,7 @@ generatorRouter.post('/generate', async (req, res) => {
 generatorRouter.post('/regenerate-slide', async (req, res) => {
   try {
     const { slide } = req.body as { slide: SlidePlan };
-    const userId = (req as any).user?.id;
+    const userId = req.userId;
 
     if (!slide?.title) {
       return res.status(400).json({ error: 'A valid slide plan is required' });
@@ -107,7 +107,7 @@ generatorRouter.post('/quote-card', async (req, res) => {
       author: string;
       style?: { backgroundColor?: string; textColor?: string; accentColor?: string };
     };
-    const userId = (req as any).user?.id;
+    const userId = req.userId;
 
     if (!quote?.trim()) {
       return res.status(400).json({ error: 'Quote text is required' });

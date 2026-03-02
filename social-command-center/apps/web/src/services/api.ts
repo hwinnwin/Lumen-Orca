@@ -231,6 +231,7 @@ export interface GeneratedSlide {
   title: string;
   body: string;
   imageUrl: string;
+  imageDataUrl: string;
   storageKey: string;
 }
 
@@ -265,5 +266,5 @@ export async function generateQuoteCard(data: {
   style?: { backgroundColor?: string; textColor?: string; accentColor?: string };
 }) {
   const res = await api.post('/generator/quote-card', data, { timeout: 60000 });
-  return res.data.data as { imageUrl: string; storageKey: string };
+  return res.data.data as { imageUrl: string; imageDataUrl: string; storageKey: string };
 }
