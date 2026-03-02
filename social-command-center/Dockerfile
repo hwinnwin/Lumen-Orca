@@ -1,5 +1,5 @@
 # ============================================
-# Social Command Center — Production Dockerfile
+# Social Command Center â Production Dockerfile
 # Single container: API + Frontend static files
 # ============================================
 
@@ -34,14 +34,17 @@ COPY . .
 # Generate Prisma client (dummy DATABASE_URL needed for generate, not for actual connection)
 ENV DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy"
 RUN cd apps/api && npx prisma generate
-# Copy generated Prisma client to flat dir (dereference pnpm symlinks so COPY works)
-RUN cp -rL /app/node_modules/.prisma /app/_prisma_generated
+# Find and copy generated Prisma client (pnpm puts it deep in .pnpm store)
+RUN mkdir -p /app/_prisma_generated && \
+  PRISMA_DIR=$(find /app/node_modules -path '*/.prisma/client' -type d | head -1) && \
+  echo "Prisma client found at: $PRISMA_DIR" && \
+  cp -rL "$PRISMA_DIR"/.. /app/_prisma_generated/
 
 # Build shared package (used by both web and api)
-# No build step needed — shared exports raw .ts files consumed directly
+# No build step needed â shared exports raw .ts files consumed directly
 
 # Build the frontend (outputs to apps/web/dist)
-# Skip tsc -b (noEmit: true anyway) — Vite handles the actual build
+# Skip tsc -b (noEmit: true anyway) â Vite handles the actual build
 RUN cd apps/web && npx vite build
 
 # Build the API (outputs to apps/api/dist)
