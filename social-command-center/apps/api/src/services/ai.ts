@@ -133,22 +133,35 @@ export async function enhanceContent(request: EnhanceRequest): Promise<EnhanceRe
 
   const message = await client.messages.create({
     model: 'claude-sonnet-4-20250514',
-    max_tokens: 1024,
+    max_tokens: 2048,
     system: SYSTEM_PROMPT,
     messages: [
       {
         role: 'user',
-        content: `Enhance this social media post with a ${request.tone} tone (${toneDesc}). ${platformContext}
+        content: `You are rewriting this social media post to make it SIGNIFICANTLY better. Don't just add emojis or hashtags — fundamentally transform it using your marketing expertise.
 
-Original content:
-${request.content}
+Tone: ${request.tone} (${toneDesc})
+${platformContext}
+
+Original (the user's rough draft):
+"${request.content}"
+
+YOUR JOB:
+1. Apply the Hook-Value-CTA framework: open with a scroll-stopping hook, deliver real value, end with a clear call-to-action
+2. Restructure for maximum readability: short sentences, line breaks, visual flow
+3. Add a pattern interrupt in the opening line that makes people STOP scrolling
+4. Make every word earn its place — cut filler, sharpen the message
+5. If the original is vague, make it SPECIFIC with concrete details, numbers, or vivid language
+6. The enhanced version should feel like it was written by a top-tier social media strategist, not a template
+
+DO NOT just append hashtags to the original text. REWRITE IT from scratch if needed.
 
 Respond in JSON format:
 {
-  "enhanced": "the enhanced post text",
-  "hashtags": ["relevant", "hashtags"],
+  "enhanced": "the completely transformed post text — ready to copy and paste",
+  "hashtags": ["10-15 strategic hashtags mixing niche, mid-range, and broad"],
   "platformTips": {
-    "platform_name": "specific tip for this platform"
+    "platform_name": "specific actionable tip for maximizing engagement on this platform"
   }
 }`,
       },
@@ -189,26 +202,31 @@ export async function generateThread(content: string, maxTweets: number = 10): P
 
   const message = await client.messages.create({
     model: 'claude-sonnet-4-20250514',
-    max_tokens: 2048,
+    max_tokens: 3000,
     system: SYSTEM_PROMPT,
     messages: [
       {
         role: 'user',
-        content: `Convert this content into an engaging X (Twitter) thread. Max ${maxTweets} tweets, each under 280 characters.
+        content: `Transform this content into a VIRAL X (Twitter) thread that people will bookmark, retweet, and quote. Max ${maxTweets} tweets, each STRICTLY under 280 characters.
+
+Thread Architecture:
+- Tweet 1 (THE HOOK): This is the most important tweet. It's the trailer for the thread. Use a curiosity gap, bold claim, or shocking statement that DEMANDS the reader click "Show this thread". Examples: "I spent $50K learning this. Here's the 2-minute version:", "Everyone's doing [X] wrong. Let me explain:", "This one insight changed everything for me:"
+- Middle tweets: Each one delivers ONE clear point. Use short sentences. Line breaks. Make each tweet quotable on its own.
+- Final tweet: Strong CTA — "Follow @[handle] for more", "Bookmark this thread", "RT tweet #1 to help others"
 
 Rules:
-- First tweet should be a strong hook
-- Each tweet should stand on its own but flow naturally
-- Add thread numbering (1/N format)
-- End with a CTA or key takeaway
-- Use line breaks within tweets for readability
+- Number format: 1/ at the start of each tweet
+- Each tweet MUST be under 280 characters (this is non-negotiable)
+- Don't just chop paragraphs — REWRITE for Twitter's format
+- Use white space and line breaks within tweets
+- Make at least 2-3 tweets individually quotable/retweetable
 
-Content:
+Content to transform:
 ${content}
 
-Respond in JSON format:
+Respond in JSON:
 {
-  "tweets": ["1/N tweet text", "2/N tweet text", ...]
+  "tweets": ["1/ tweet text", "2/ tweet text", ...]
 }`,
       },
     ],
@@ -263,33 +281,43 @@ export async function brainstormFromKeywords(
 
   const message = await client.messages.create({
     model: 'claude-sonnet-4-20250514',
-    max_tokens: 2048,
+    max_tokens: 4096,
     system: SYSTEM_PROMPT,
     messages: [
       {
         role: 'user',
-        content: `You are brainstorming social media posts from keywords. Generate ${count} unique, ready-to-publish post ideas.
+        content: `You are a world-class social media strategist brainstorming VIRAL content ideas. Generate ${count} unique, ready-to-publish posts that are so good the user can copy-paste them immediately.
 
-Keywords/topics: ${keywords.join(', ')}
+Topics/Keywords: ${keywords.join(', ')}
 Target platforms: ${platforms.join(', ')}
 Tone: ${tone} (${toneDesc})
 
-Rules:
-- Each post should be a complete, ready-to-publish caption
-- Vary the angles — don't repeat the same approach
-- Respect platform character limits (X: 280 chars, others: longer OK)
-- Include relevant hashtags
-- Each post needs a short "hook" label (2-4 words) describing the angle
-- Make them engaging, not generic
+CRITICAL REQUIREMENTS:
+- Each post must open with a SCROLL-STOPPING hook — the first line should make someone stop mid-scroll
+- Each post must use a DIFFERENT creative angle (don't just reword the same idea ${count} times)
+- Posts must feel NATIVE to their platform (X posts are punchy and under 280 chars; Instagram uses line breaks and storytelling; LinkedIn opens with a "see more" bait line)
+- Include the full caption ready to publish — not a summary or outline, the ACTUAL post text
+- Use real copywriting techniques: curiosity gaps, power words, pattern interrupts, social proof, emotional triggers
+- Hashtags should be strategic: mix niche (specific), mid-range (100K-1M posts), and broad (trending)
 
-Respond in JSON format:
+ANGLES TO DRAW FROM (use different ones for each post):
+- Hot Take / Contrarian — challenge conventional wisdom
+- Story Time — personal narrative with a lesson
+- Educational / Value Bomb — teach something actionable
+- Behind The Scenes — raw, real, relatable
+- Social Proof — results, numbers, transformation
+- Question / Poll — spark conversation
+- Trend Jack — ride a current cultural moment
+- Listicle — "X things that..." format
+
+Respond in JSON:
 {
   "posts": [
     {
-      "content": "the full post text ready to copy-paste",
-      "platform": "best platform for this post (x, instagram, linkedin, facebook, tiktok, youtube)",
-      "hook": "short angle label like 'Hot Take' or 'Behind The Scenes'",
-      "hashtags": ["relevant", "hashtags"]
+      "content": "THE FULL POST TEXT — complete, engaging, ready to publish. Not a summary. The actual caption.",
+      "platform": "the best platform for this specific post",
+      "hook": "2-4 word angle label",
+      "hashtags": ["strategic", "hashtags", "10-12 per post"]
     }
   ]
 }`,
@@ -361,39 +389,43 @@ export async function generateMultiPlatformPosts(
 
   const message = await client.messages.create({
     model: 'claude-sonnet-4-20250514',
-    max_tokens: 3000,
+    max_tokens: 4096,
     system: SYSTEM_PROMPT,
     messages: [
       {
         role: 'user',
-        content: `Generate a tailored post for EACH of the following platforms from a single topic. Each post should be completely different in structure and approach — not just the same text shortened or lengthened.
+        content: `You are creating platform-native content from ONE topic. Each post should look like it was written by someone who ONLY creates content for that specific platform — not like the same generic text adapted for different channels.
 
 Topic/Idea: ${topic}${contextLine}
 Tone: ${tone} (${toneDesc})
 
-Platform requirements:
+Platform specs:
 ${platformInstructions}
 
-Rules:
-- Each post MUST respect its platform's character limit strictly
-- Each post should feel NATIVE to that platform (not like a copy-paste)
-- X posts should be punchy and tweetable
-- LinkedIn posts should read like thought leadership
-- Instagram captions should use line breaks and visual language
-- Facebook posts should invite community engagement
-- TikTok captions should have energy and trend awareness
-- Include relevant hashtags per platform
-- Include a short actionable tip for each post
+CRITICAL — WHAT MAKES THIS DIFFERENT FROM GENERIC AI:
+- X: Write a TWEET, not a short paragraph. Use the cadence of viral tweets. Short sentences. Bold claims. The kind of tweet people screenshot and repost. Under 280 chars STRICTLY.
+- Instagram: Write a CAPTION that flows. Use line breaks between every 1-2 sentences. Open with a line that makes people tap "more". End with engagement bait ("Save this", "Tag someone", "Drop a 🔥").
+- LinkedIn: Write a THOUGHT LEADERSHIP post. Open with a personal insight or counterintuitive claim (first 2 lines are EVERYTHING on LinkedIn). Write in 1-2 sentence paragraphs. End with a question.
+- Facebook: Write a CONVERSATION STARTER. Be vulnerable, relatable, community-oriented. Ask a question that invites comments.
+- TikTok: Write a CAPTION that complements video content. Short, punchy, trend-aware. Use Gen-Z-native language if it fits. Strong CTA.
+- YouTube: Write a COMMUNITY POST or video description. SEO-aware, include keywords naturally.
 
-Respond in JSON format:
+Each post must:
+1. Open with a scroll-stopping first line
+2. Deliver genuine value or emotion (not filler)
+3. Close with a clear call-to-action appropriate for that platform
+4. Include strategic hashtags (platform-appropriate quantity)
+5. Feel like something a REAL creator with a large following would post
+
+Respond in JSON:
 {
   "posts": [
     {
       "platform": "x",
-      "content": "the full post text ready to publish",
-      "hashtags": ["relevant", "hashtags"],
+      "content": "the COMPLETE post text ready to copy-paste and publish",
+      "hashtags": ["strategic", "hashtags"],
       "charCount": 142,
-      "tip": "one-line tip about why this works on this platform"
+      "tip": "why this specific approach works on this platform"
     }
   ]
 }`,
@@ -433,23 +465,38 @@ export async function generateVariants(
 
   const message = await client.messages.create({
     model: 'claude-sonnet-4-20250514',
-    max_tokens: 2048,
+    max_tokens: 3000,
     system: SYSTEM_PROMPT,
     messages: [
       {
         role: 'user',
-        content: `Generate ${count} alternative versions of this social media post, each taking a different creative angle. Target platforms: ${platforms.join(', ')}.
+        content: `Create ${count} fundamentally DIFFERENT versions of this post. Don't just rephrase — reimagine the content through completely different lenses. Target platforms: ${platforms.join(', ')}.
 
-Original:
-${content}
+Original post:
+"${content}"
 
-Respond in JSON format:
+Each variant must:
+1. Use a DIFFERENT copywriting technique (story, question, listicle, hot take, social proof, vulnerability, etc.)
+2. Have a completely different opening hook
+3. Be a COMPLETE, ready-to-publish post (not a fragment or outline)
+4. Be genuinely better or different from the original — not just the same thing with synonyms
+
+Variant ideas to consider:
+- "Story" angle: Wrap the message in a personal narrative
+- "Data" angle: Lead with a surprising statistic or number
+- "Question" angle: Open with a thought-provoking question
+- "Contrarian" angle: Flip the conventional wisdom
+- "Vulnerability" angle: Share a failure or struggle, then the lesson
+- "Authority" angle: Position as expertise with social proof
+- "Urgency" angle: Create FOMO or time-sensitive framing
+
+Respond in JSON:
 {
   "variants": [
     {
-      "content": "the variant text",
-      "angle": "short label like 'Direct', 'Question', 'Story'",
-      "reasoning": "brief explanation of why this angle works"
+      "content": "the COMPLETE rewritten post — ready to publish",
+      "angle": "2-3 word label for this creative approach",
+      "reasoning": "one sentence on why this angle resonates with audiences"
     }
   ]
 }`,
