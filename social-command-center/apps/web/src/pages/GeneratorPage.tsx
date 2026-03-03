@@ -402,11 +402,35 @@ export default function GeneratorPage() {
                   <label style={labelStyle}>Topic / Prompt</label>
                   <textarea
                     value={store.topic}
-                    onChange={(e) => store.setTopic(e.target.value)}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      store.setTopic(val);
+                      // Auto-detect number of items and adjust slide count
+                      const match = val.match(/\b(\d+)\s+(things?|tips?|facts?|reasons?|ways?|steps?|rules?|habits?|mistakes?|secrets?|lessons?|signs?|hacks?|ideas?|myths?|truths?|principles?|strategies?|techniques?|examples?|benefits?)\b/i);
+                      if (match) {
+                        const num = parseInt(match[1], 10);
+                        if (num >= 1 && num <= 15) {
+                          const recommended = Math.min(num + 2, 10); // +2 for hook + CTA, max 10
+                          store.setSlideCount(recommended);
+                        }
+                      }
+                    }}
                     placeholder="What's your carousel about? e.g. '5 tips for building a personal brand on Instagram'"
                     rows={3}
                     style={inputStyle}
                   />
+                  {(() => {
+                    const match = store.topic.match(/\b(\d+)\s+(things?|tips?|facts?|reasons?|ways?|steps?|rules?|habits?|mistakes?|secrets?|lessons?|signs?|hacks?|ideas?|myths?|truths?|principles?|strategies?|techniques?|examples?|benefits?)\b/i);
+                    if (match) {
+                      const num = parseInt(match[1], 10);
+                      return (
+                        <div style={{ fontSize: '11px', color: '#8b5cf6', marginTop: '4px', fontFamily: "'IBM Plex Mono', monospace" }}>
+                          Detected {num} items — using {num} content slides + hook + CTA = {Math.min(num + 2, 10)} total
+                        </div>
+                      );
+                    }
+                    return null;
+                  })()}
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>

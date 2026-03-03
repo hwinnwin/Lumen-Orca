@@ -9,7 +9,7 @@ import { canPublish, recordPublish } from '../../adapters/rate-limiter.js';
 import type { Platform, Post } from '@prisma/client';
 import { emitPostPublished, emitPostFailed, emitPostStatusChange } from '../../services/event-emitter.js';
 import { scheduleMetricsFetches } from '../../services/publish-service.js';
-import { isS3Configured } from '../../services/s3.js';
+import { isS3Configured, readFromLocalStorage } from '../../services/s3.js';
 import { buildPublicMediaUrl } from '../../utils/signed-media-url.js';
 
 /**
@@ -122,10 +122,60 @@ export const publishWorker = new Worker<PublishJobData>(
       ? connection.platformUserId || undefined
       : connection.platformPageId || connection.platformUserId || undefined;
 
+    // Facebook requires pre-uploading images to get media_fbid IDs.
+    // Instagram uses media URLs directly in the publish call.
+    let platformMediaIds: string[] | undefined;
+
+    if (platformEnum === 'FACEBOOK' && mediaUrls.length > 0 && pageId) {
+      console.log(`[Publish] Facebook: uploading ${mediaUrls.length} images to get media_fbid IDs`);
+      platformMediaIds = [];
+      for (const [idx, url] of mediaUrls.entries()) {
+        try {
+          // Download the image to a buffer
+          const mediaAttachment = readyMedia[idx];
+          const mimeType = mediaAttachment?.media.mimeType || 'image/png';
+
+          let imageBuffer: Buffer;
+          if (!isS3Configured && mediaAttachment?.media.originalKey) {
+            // Local storage — read directly from disk
+            const localBuf = await readFromLocalStorage(mediaAttachment.media.originalKey);
+            if (!localBuf) {
+              console.warn(`[Publish] Facebook: could not read local file for key ${mediaAttachment.media.originalKey}`);
+              continue;
+            }
+            imageBuffer = localBuf;
+          } else {
+            // Remote URL (S3 or signed public URL) — download it
+            const response = await fetch(url);
+            if (!response.ok) {
+              console.warn(`[Publish] Facebook: failed to fetch media from ${url.substring(0, 80)}: ${response.status}`);
+              continue;
+            }
+            imageBuffer = Buffer.from(await response.arrayBuffer());
+          }
+
+          const uploadResult = await adapter.uploadMedia({
+            accessToken,
+            fileBuffer: imageBuffer,
+            mimeType,
+            filename: mediaAttachment?.media.originalKey?.split('/').pop() || `image-${idx}.png`,
+            pageId,
+          });
+
+          platformMediaIds.push(uploadResult.platformMediaId);
+          console.log(`[Publish] Facebook: uploaded image ${idx + 1}/${mediaUrls.length}, fbid: ${uploadResult.platformMediaId}`);
+        } catch (err) {
+          console.error(`[Publish] Facebook: failed to upload image ${idx + 1}:`, err);
+        }
+      }
+      console.log(`[Publish] Facebook: ${platformMediaIds.length}/${mediaUrls.length} images uploaded successfully`);
+    }
+
     const result = await adapter.publish({
       accessToken,
       content,
       mediaUrls,
+      platformMediaIds,
       pageId,
       platformSpecific: {
         memberUrn: connection.platformUserId,

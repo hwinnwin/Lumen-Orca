@@ -126,18 +126,42 @@ export async function planCarousel(
     educational: 'An educational listicle — numbered tips, steps, or facts. Each slide covers one point clearly.',
   };
 
+  // Detect if the topic promises a specific number of items (e.g. "5 tips", "7 things")
+  const numberMatch = topic.match(/\b(\d+)\s+(things?|tips?|facts?|reasons?|ways?|steps?|rules?|habits?|mistakes?|secrets?|lessons?|signs?|hacks?|ideas?|myths?|truths?|principles?|strategies?|techniques?|examples?|benefits?)\b/i);
+  const promisedCount = numberMatch ? parseInt(numberMatch[1], 10) : null;
+
+  // If the topic promises N items, ensure we have enough slides: N content + 1 hook + 1 CTA
+  const effectiveSlideCount = promisedCount
+    ? Math.max(slideCount, promisedCount + 2)
+    : slideCount;
+
+  // Calculate how many content slides we actually have (total - hook - CTA)
+  const contentSlideCount = effectiveSlideCount - 2;
+
+  const contentCountRule = promisedCount
+    ? `\n\nCRITICAL RULE — CONTENT ACCURACY: The topic mentions "${numberMatch![0]}". You MUST include exactly ${promisedCount} content slides (slides 2 through ${promisedCount + 1}), each covering one distinct item. Slide 1 is the hook and slide ${promisedCount + 2} is the CTA. The hook slide's title should promise exactly ${promisedCount} items, and you must deliver all ${promisedCount}. Do NOT skip any. Do NOT combine multiple items into one slide. Every single one of the ${promisedCount} items must get its own dedicated slide.`
+    : `\n\nCRITICAL RULE — NUMBER CONSISTENCY: You have ${contentSlideCount} content slides (slides 2 through ${effectiveSlideCount - 1}). If your hook slide mentions a number (e.g. "5 Tips", "7 Facts"), that number MUST exactly equal ${contentSlideCount} because that's how many content slides follow. Do NOT write "5 tips" in the hook if there are only ${contentSlideCount} content slides. The number in the hook MUST match the actual number of content slides you deliver. If the topic is general (e.g. "love tips"), write "${contentSlideCount} Love Tips" in the hook — not more, not less.`;
+
   const message = await client.messages.create({
     model: 'claude-sonnet-4-20250514',
-    max_tokens: 2048,
+    max_tokens: 4096,
     system: CAROUSEL_SYSTEM_PROMPT,
     messages: [
       {
         role: 'user',
-        content: `Design a ${slideCount}-slide Instagram carousel.
+        content: `Design a ${effectiveSlideCount}-slide Instagram carousel.
 
 Topic: ${topic}
 Type: ${typeInstructions[contentType] || typeInstructions.carousel}
 Tone: ${tone}
+${contentCountRule}
+
+Slide structure (${effectiveSlideCount} slides total):
+- Slide 1: HOOK — attention-grabbing headline. If you mention a number here (e.g. "X Tips"), X MUST equal exactly ${contentSlideCount}.
+- Slides 2 through ${effectiveSlideCount - 1}: CONTENT — exactly ${contentSlideCount} slides, each covering ONE distinct point/tip/fact/item. Number them clearly.
+- Slide ${effectiveSlideCount}: CTA — call-to-action (save, follow, share, comment)
+
+You MUST return exactly ${effectiveSlideCount} slides with exactly ${contentSlideCount} content slides between the hook and CTA.
 
 For each slide provide:
 - title: Bold headline (max 15 words)
