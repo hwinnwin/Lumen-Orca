@@ -96,7 +96,13 @@ const CAROUSEL_SYSTEM_PROMPT = `You are an elite creative director and marketing
 - Clean, modern aesthetic — avoid cluttered designs
 - Text hierarchy: Title is 2x the size of body text
 - Leave breathing room — white space is your friend
-- Image prompts should describe abstract, aesthetic, TEXTLESS backgrounds (moody gradients, architectural details, nature textures, geometric patterns, cinematic lighting)
+- Image prompts should describe abstract, aesthetic, TEXTLESS backgrounds optimized for the Flux AI image model
+- Image prompt structure: "[Style/Medium], [Primary Visual Element], [Color Palette], [Mood/Atmosphere], [Texture/Detail], [Lighting]"
+- Example prompts: "Abstract digital art, smooth flowing gradient, deep navy blue transitioning to warm amber gold, ethereal sophisticated mood, soft bokeh light particles, dramatic volumetric lighting, 4K ultra high detail"
+- Other examples: "Macro photography of dark textured marble surface with gold veining, luxurious moody aesthetic, dramatic low-key lighting", "Minimalist architectural photograph, sweeping curved concrete structure, brutalist aesthetic with warm golden hour lighting"
+- IMPORTANT: Image prompts must NEVER include text, words, letters, or watermarks — the text is composited separately
+- Use rich, descriptive prompts (30-60 words) — Flux responds well to detailed descriptions
+- Prefer dark, moody backgrounds (dark navy, charcoal, deep teal, midnight purple) so white/light text overlays pop
 
 ## Caption Strategy
 - The caption works WITH the carousel, not separate from it
@@ -190,7 +196,14 @@ Respond in JSON:
 // ─── Image Generation ────────────────────────────────────
 
 /**
- * Generate an image using Replicate SDXL, or fall back to a Sharp gradient.
+ * Generate an image using Replicate Flux Schnell (fast, cheap, high quality).
+ * Falls back to Sharp gradient backgrounds when Replicate is not configured.
+ *
+ * Model: black-forest-labs/flux-schnell
+ * - ~$0.003/image (3.7x cheaper than SDXL)
+ * - ~1-2s generation (5-10x faster than SDXL)
+ * - Better default aesthetics for abstract backgrounds
+ * - No negative prompts needed (Flux doesn't support them)
  */
 async function generateImage(
   prompt: string,
@@ -201,37 +214,46 @@ async function generateImage(
 
   if (replicate) {
     try {
+      // Enhance the prompt for Flux — be descriptive, specific, and lead with style
+      const enhancedPrompt = `${prompt}, professional quality, ultra high detail, no text, no words, no letters, no watermark, no logo`;
+
       const output = await replicate.run(
-        'stability-ai/sdxl:7762fd07cf82c948538e41f63f77d685e02b063e37e496e96eefd46c929f9bdc',
+        'black-forest-labs/flux-schnell',
         {
           input: {
-            prompt,
-            negative_prompt: 'text, watermark, logo, words, letters, blurry, low quality',
-            width,
-            height,
+            prompt: enhancedPrompt,
+            aspect_ratio: '1:1',
             num_outputs: 1,
-            guidance_scale: 7.5,
-            num_inference_steps: 25,
+            output_format: 'webp',
+            output_quality: 90,
+            go_fast: true,
+            num_inference_steps: 4, // Schnell is optimized for exactly 4 steps
           },
         },
       );
 
-      // Replicate returns an array of URLs (or ReadableStream)
-      const imageUrl = Array.isArray(output) ? output[0] : output;
+      // Flux returns an array of URLs or FileOutput objects
+      const imageResult = Array.isArray(output) ? output[0] : output;
+      let buffer: Buffer;
 
-      if (typeof imageUrl === 'string') {
-        const response = await fetch(imageUrl);
-        return Buffer.from(await response.arrayBuffer());
-      } else if (imageUrl && typeof imageUrl === 'object' && 'url' in (imageUrl as any)) {
-        const response = await fetch((imageUrl as any).url());
-        return Buffer.from(await response.arrayBuffer());
+      if (typeof imageResult === 'string') {
+        const response = await fetch(imageResult);
+        buffer = Buffer.from(await response.arrayBuffer());
+      } else if (imageResult && typeof imageResult === 'object' && 'url' in (imageResult as any)) {
+        const url = typeof (imageResult as any).url === 'function'
+          ? (imageResult as any).url()
+          : (imageResult as any).url;
+        const response = await fetch(url);
+        buffer = Buffer.from(await response.arrayBuffer());
+      } else {
+        const response = await fetch(imageResult as any);
+        buffer = Buffer.from(await response.arrayBuffer());
       }
 
-      // If it's a ReadableStream or other format, try to consume it
-      const response = await fetch(imageUrl as any);
-      return Buffer.from(await response.arrayBuffer());
+      // Resize to exact dimensions (Flux uses aspect_ratio, not pixel dimensions)
+      return sharp(buffer).resize(width, height, { fit: 'cover' }).png().toBuffer();
     } catch (err) {
-      console.error('[ImageGenerator] Replicate failed, falling back to gradient:', err);
+      console.error('[ImageGenerator] Replicate Flux failed, falling back to gradient:', err);
     }
   }
 
@@ -240,46 +262,84 @@ async function generateImage(
 }
 
 /**
- * Generate a gradient background image as fallback when Replicate is not available.
+ * Generate a professional gradient background with geometric accents.
  */
 async function generateGradientBackground(
   width: number,
   height: number,
   _seed: string,
 ): Promise<Buffer> {
-  // Use a hash of the seed string to pick gradient colors
   let hash = 0;
   for (let i = 0; i < _seed.length; i++) {
     hash = (hash << 5) - hash + _seed.charCodeAt(i);
     hash |= 0;
   }
 
-  const gradients = [
-    { from: '#667eea', to: '#764ba2' },
-    { from: '#f093fb', to: '#f5576c' },
-    { from: '#4facfe', to: '#00f2fe' },
-    { from: '#43e97b', to: '#38f9d7' },
-    { from: '#fa709a', to: '#fee140' },
-    { from: '#a18cd1', to: '#fbc2eb' },
-    { from: '#fccb90', to: '#d57eeb' },
-    { from: '#e0c3fc', to: '#8ec5fc' },
-    { from: '#f5576c', to: '#ff9a9e' },
-    { from: '#667eea', to: '#38f9d7' },
+  // Professional palettes: dark, rich, high-contrast
+  const palettes = [
+    { bg: '#0f0f1a', g1: '#1a1a3e', g2: '#2d1b69', accent: '#8b5cf6' },
+    { bg: '#0a0a0a', g1: '#1a0a2e', g2: '#0a2e1a', accent: '#22d3ee' },
+    { bg: '#1a0505', g1: '#2d0a0a', g2: '#1a0a2e', accent: '#f43f5e' },
+    { bg: '#050a1a', g1: '#0a1a3e', g2: '#0a2e3e', accent: '#3b82f6' },
+    { bg: '#0a1a0a', g1: '#0a2e1a', g2: '#1a3e0a', accent: '#22c55e' },
+    { bg: '#1a1a0a', g1: '#2e2e0a', g2: '#3e2e0a', accent: '#eab308' },
+    { bg: '#1a0a1a', g1: '#2e0a2e', g2: '#3e0a2e', accent: '#ec4899' },
+    { bg: '#0a0a1a', g1: '#0a1a3e', g2: '#2e0a3e', accent: '#a855f7' },
   ];
 
-  const gradient = gradients[Math.abs(hash) % gradients.length];
+  const p = palettes[Math.abs(hash) % palettes.length];
+  const variant = Math.abs(hash >> 4) % 4;
+
+  // Geometric pattern elements based on variant
+  let geometricElements = '';
+  if (variant === 0) {
+    // Diagonal lines
+    for (let i = -width; i < width * 2; i += 120) {
+      geometricElements += `<line x1="${i}" y1="0" x2="${i + width}" y2="${height}" stroke="${p.accent}" stroke-opacity="0.04" stroke-width="1"/>`;
+    }
+  } else if (variant === 1) {
+    // Concentric circles
+    for (let r = 100; r < width; r += 150) {
+      geometricElements += `<circle cx="${width * 0.65}" cy="${height * 0.35}" r="${r}" fill="none" stroke="${p.accent}" stroke-opacity="0.03" stroke-width="1"/>`;
+    }
+  } else if (variant === 2) {
+    // Dot grid
+    for (let x = 40; x < width; x += 60) {
+      for (let y = 40; y < height; y += 60) {
+        geometricElements += `<circle cx="${x}" cy="${y}" r="1.5" fill="${p.accent}" opacity="0.06"/>`;
+      }
+    }
+  } else {
+    // Abstract blobs
+    geometricElements += `
+      <ellipse cx="${width * 0.75}" cy="${height * 0.2}" rx="${width * 0.35}" ry="${height * 0.25}" fill="${p.accent}" opacity="0.04"/>
+      <ellipse cx="${width * 0.2}" cy="${height * 0.75}" rx="${width * 0.3}" ry="${height * 0.2}" fill="${p.accent}" opacity="0.03"/>
+      <ellipse cx="${width * 0.5}" cy="${height * 0.5}" rx="${width * 0.15}" ry="${height * 0.4}" fill="${p.accent}" opacity="0.02" transform="rotate(30 ${width * 0.5} ${height * 0.5})"/>`;
+  }
 
   const svg = `
     <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
       <defs>
-        <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" style="stop-color:${gradient.from};stop-opacity:1" />
-          <stop offset="100%" style="stop-color:${gradient.to};stop-opacity:1" />
+        <radialGradient id="rg1" cx="30%" cy="30%" r="70%">
+          <stop offset="0%" style="stop-color:${p.g1};stop-opacity:1" />
+          <stop offset="100%" style="stop-color:${p.bg};stop-opacity:1" />
+        </radialGradient>
+        <radialGradient id="rg2" cx="70%" cy="70%" r="60%">
+          <stop offset="0%" style="stop-color:${p.g2};stop-opacity:0.6" />
+          <stop offset="100%" style="stop-color:transparent;stop-opacity:0" />
+        </radialGradient>
+        <linearGradient id="shimmer" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" style="stop-color:${p.accent};stop-opacity:0" />
+          <stop offset="50%" style="stop-color:${p.accent};stop-opacity:0.08" />
+          <stop offset="100%" style="stop-color:${p.accent};stop-opacity:0" />
         </linearGradient>
       </defs>
-      <rect width="${width}" height="${height}" fill="url(#g)" />
-      <circle cx="${width * 0.7}" cy="${height * 0.3}" r="${width * 0.25}" fill="rgba(255,255,255,0.05)" />
-      <circle cx="${width * 0.2}" cy="${height * 0.8}" r="${width * 0.2}" fill="rgba(0,0,0,0.05)" />
+      <rect width="${width}" height="${height}" fill="${p.bg}" />
+      <rect width="${width}" height="${height}" fill="url(#rg1)" />
+      <rect width="${width}" height="${height}" fill="url(#rg2)" />
+      <rect width="${width}" height="${height}" fill="url(#shimmer)" />
+      ${geometricElements}
+      <rect width="${width}" height="${height}" fill="url(#rg1)" opacity="0.1"/>
     </svg>`;
 
   return sharp(Buffer.from(svg)).resize(width, height).png().toBuffer();
@@ -287,63 +347,8 @@ async function generateGradientBackground(
 
 // ─── Text Compositing ────────────────────────────────────
 
-/**
- * Overlay title and body text onto a background image.
- */
-async function compositeSlide(
-  imageBuffer: Buffer,
-  slide: SlidePlan,
-  width: number = 1080,
-  height: number = 1080,
-): Promise<Buffer> {
-  const { title, body, backgroundColor, textColor } = slide;
-
-  // Escape XML special characters
-  const escXml = (s: string) =>
-    s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-
-  const titleSize = title.length > 40 ? 48 : title.length > 25 ? 56 : 64;
-  const bodySize = 28;
-  const padding = 80;
-  const titleLines = wrapText(title, Math.floor((width - padding * 2) / (titleSize * 0.55)));
-  const bodyLines = body ? wrapText(body, Math.floor((width - padding * 2) / (bodySize * 0.5))) : [];
-
-  const lineHeight = titleSize * 1.3;
-  const bodyLineHeight = bodySize * 1.4;
-  const totalTextHeight =
-    titleLines.length * lineHeight + (bodyLines.length > 0 ? 24 + bodyLines.length * bodyLineHeight : 0);
-
-  const boxHeight = totalTextHeight + padding * 2;
-  const boxY = height - boxHeight - 60;
-
-  const titleSvgLines = titleLines
-    .map(
-      (line, i) =>
-        `<text x="${width / 2}" y="${boxY + padding + lineHeight * (i + 0.8)}" font-family="Arial, Helvetica, sans-serif" font-size="${titleSize}" font-weight="800" fill="${escXml(textColor)}" text-anchor="middle">${escXml(line)}</text>`,
-    )
-    .join('\n');
-
-  const bodyStartY = boxY + padding + titleLines.length * lineHeight + 24;
-  const bodySvgLines = bodyLines
-    .map(
-      (line, i) =>
-        `<text x="${width / 2}" y="${bodyStartY + bodyLineHeight * (i + 0.8)}" font-family="Arial, Helvetica, sans-serif" font-size="${bodySize}" font-weight="400" fill="${escXml(textColor)}" opacity="0.85" text-anchor="middle">${escXml(line)}</text>`,
-    )
-    .join('\n');
-
-  const overlaySvg = `
-    <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
-      <rect x="0" y="${boxY}" width="${width}" height="${boxHeight + 60}" fill="${escXml(backgroundColor)}" opacity="0.85" rx="0" />
-      ${titleSvgLines}
-      ${bodySvgLines}
-    </svg>`;
-
-  return sharp(imageBuffer)
-    .resize(width, height, { fit: 'cover' })
-    .composite([{ input: Buffer.from(overlaySvg), top: 0, left: 0 }])
-    .png()
-    .toBuffer();
-}
+const escXml = (s: string) =>
+  s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;');
 
 function wrapText(text: string, maxCharsPerLine: number): string[] {
   if (maxCharsPerLine < 1) maxCharsPerLine = 20;
@@ -361,6 +366,100 @@ function wrapText(text: string, maxCharsPerLine: number): string[] {
   }
   if (current) lines.push(current);
   return lines;
+}
+
+/**
+ * Overlay title and body text onto a background image with professional styling.
+ * Uses centered full-bleed layout for clean Instagram carousel look.
+ */
+async function compositeSlide(
+  imageBuffer: Buffer,
+  slide: SlidePlan,
+  width: number = 1080,
+  height: number = 1080,
+): Promise<Buffer> {
+  const { title, body, textColor } = slide;
+  const tc = textColor || '#ffffff';
+
+  // Determine accent color from slide's backgroundColor
+  const accent = slide.backgroundColor || '#8b5cf6';
+
+  // Adaptive font sizing based on text length
+  const titleSize = title.length > 60 ? 44 : title.length > 40 ? 52 : title.length > 20 ? 60 : 72;
+  const bodySize = body && body.length > 80 ? 24 : 28;
+  const padding = 100;
+  const maxTitleChars = Math.floor((width - padding * 2) / (titleSize * 0.52));
+  const maxBodyChars = Math.floor((width - padding * 2) / (bodySize * 0.48));
+
+  const titleLines = wrapText(title, maxTitleChars);
+  const bodyLines = body ? wrapText(body, maxBodyChars) : [];
+
+  const titleLineH = titleSize * 1.25;
+  const bodyLineH = bodySize * 1.5;
+  const titleBlockH = titleLines.length * titleLineH;
+  const bodyBlockH = bodyLines.length * bodyLineH;
+  const gap = bodyLines.length > 0 ? 32 : 0;
+  const totalH = titleBlockH + gap + bodyBlockH;
+
+  // Center everything vertically
+  const startY = (height - totalH) / 2;
+
+  // Accent bar above title
+  const barY = startY - 40;
+
+  // Build title SVG with text shadow for legibility
+  const titleSvg = titleLines
+    .map((line, i) => {
+      const y = startY + titleLineH * (i + 0.85);
+      // Shadow
+      const shadow = `<text x="${width / 2 + 2}" y="${y + 2}" font-family="'Helvetica Neue', Arial, sans-serif" font-size="${titleSize}" font-weight="900" fill="rgba(0,0,0,0.4)" text-anchor="middle" letter-spacing="-1">${escXml(line)}</text>`;
+      // Main text
+      const main = `<text x="${width / 2}" y="${y}" font-family="'Helvetica Neue', Arial, sans-serif" font-size="${titleSize}" font-weight="900" fill="${escXml(tc)}" text-anchor="middle" letter-spacing="-1">${escXml(line)}</text>`;
+      return shadow + '\n' + main;
+    })
+    .join('\n');
+
+  // Build body SVG
+  const bodyStartY = startY + titleBlockH + gap;
+  const bodySvg = bodyLines
+    .map((line, i) => {
+      const y = bodyStartY + bodyLineH * (i + 0.85);
+      const shadow = `<text x="${width / 2 + 1}" y="${y + 1}" font-family="'Helvetica Neue', Arial, sans-serif" font-size="${bodySize}" font-weight="400" fill="rgba(0,0,0,0.3)" text-anchor="middle">${escXml(line)}</text>`;
+      const main = `<text x="${width / 2}" y="${y}" font-family="'Helvetica Neue', Arial, sans-serif" font-size="${bodySize}" font-weight="400" fill="${escXml(tc)}" opacity="0.85" text-anchor="middle">${escXml(line)}</text>`;
+      return shadow + '\n' + main;
+    })
+    .join('\n');
+
+  // Slide number indicator (bottom right)
+  const slideNum = slide.slideNumber;
+  const slideNumSvg = slideNum
+    ? `<text x="${width - 60}" y="${height - 50}" font-family="'Helvetica Neue', Arial, sans-serif" font-size="16" font-weight="700" fill="${escXml(tc)}" opacity="0.3" text-anchor="middle" letter-spacing="2">${String(slideNum).padStart(2, '0')}</text>`
+    : '';
+
+  const overlaySvg = `
+    <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="overlay-grad" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" style="stop-color:rgba(0,0,0,0.2);stop-opacity:1" />
+          <stop offset="40%" style="stop-color:rgba(0,0,0,0.05);stop-opacity:1" />
+          <stop offset="60%" style="stop-color:rgba(0,0,0,0.05);stop-opacity:1" />
+          <stop offset="100%" style="stop-color:rgba(0,0,0,0.2);stop-opacity:1" />
+        </linearGradient>
+      </defs>
+      <!-- Subtle vignette overlay for text readability -->
+      <rect width="${width}" height="${height}" fill="url(#overlay-grad)" />
+      <!-- Accent bar -->
+      <rect x="${width / 2 - 30}" y="${barY}" width="60" height="4" rx="2" fill="${escXml(accent)}" opacity="0.9"/>
+      ${titleSvg}
+      ${bodySvg}
+      ${slideNumSvg}
+    </svg>`;
+
+  return sharp(imageBuffer)
+    .resize(width, height, { fit: 'cover' })
+    .composite([{ input: Buffer.from(overlaySvg), top: 0, left: 0 }])
+    .png()
+    .toBuffer();
 }
 
 // ─── Full Carousel Generation ────────────────────────────
