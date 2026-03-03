@@ -13,10 +13,41 @@ const PLATFORM_MAP_REVERSE: Record<string, PlatformId> = {
   YOUTUBE: 'youtube',
 };
 
+const STATUS_FILTERS = [
+  { value: '', label: 'All' },
+  { value: 'PUBLISHED', label: 'Published' },
+  { value: 'QUEUED', label: 'Queued' },
+  { value: 'DRAFT', label: 'Draft' },
+  { value: 'FAILED', label: 'Failed' },
+  { value: 'PARTIAL_FAILURE', label: 'Partial' },
+];
+
+const STATUS_COLORS: Record<string, string> = {
+  DRAFT: '#888',
+  QUEUED: '#ffaa00',
+  PUBLISHING: '#06b6d4',
+  PUBLISHED: '#22c55e',
+  PARTIAL_FAILURE: '#f97316',
+  FAILED: '#ff4444',
+};
+
 export default function AnalyticsPage() {
   const { data, isLoading } = usePosts({ status: 'PUBLISHED', limit: 50 });
   const allData = usePosts({ limit: 50 });
   const [expandedPost, setExpandedPost] = useState<string | null>(null);
+
+  // Post history state
+  const [historyFilter, setHistoryFilter] = useState('');
+  const [historyPage, setHistoryPage] = useState(1);
+  const HISTORY_LIMIT = 15;
+  const historyQuery = usePosts({
+    status: historyFilter || undefined,
+    page: historyPage,
+    limit: HISTORY_LIMIT,
+  });
+  const historyPosts = historyQuery?.data?.data || [];
+  const historyMeta = historyQuery?.data?.meta || { total: 0, page: 1, limit: HISTORY_LIMIT };
+  const totalPages = Math.ceil((historyMeta.total || 0) / HISTORY_LIMIT);
 
   const posts = data?.data || [];
   const allPosts = allData?.data?.data || [];
@@ -312,6 +343,207 @@ export default function AnalyticsPage() {
             );
           })}
         </div>
+
+        {/* ═══════════ POST HISTORY ═══════════ */}
+        <h2 style={{ fontSize: '16px', fontWeight: 700, marginBottom: '16px', marginTop: '32px', color: 'var(--text-tertiary)' }}>Post History</h2>
+
+        {/* Status filter tabs */}
+        <div style={{ display: 'flex', gap: '6px', marginBottom: '16px', flexWrap: 'wrap' }}>
+          {STATUS_FILTERS.map((f) => (
+            <button
+              key={f.value}
+              onClick={() => { setHistoryFilter(f.value); setHistoryPage(1); }}
+              style={{
+                padding: '6px 14px',
+                borderRadius: '8px',
+                background: historyFilter === f.value ? 'var(--bg-active)' : 'var(--bg-tertiary)',
+                border: `1px solid ${historyFilter === f.value ? '#8b5cf6' : 'var(--border-color)'}`,
+                color: historyFilter === f.value ? '#8b5cf6' : 'var(--text-muted)',
+                fontSize: '11px',
+                fontWeight: 700,
+                cursor: 'pointer',
+                fontFamily: "'IBM Plex Mono', monospace",
+                transition: 'all 0.15s ease',
+              }}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Post list */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '16px' }}>
+          {historyQuery?.isLoading && (
+            <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>Loading posts...</div>
+          )}
+          {!historyQuery?.isLoading && historyPosts.length === 0 && (
+            <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)', background: 'var(--bg-tertiary)', borderRadius: '16px', border: '1px solid var(--border-subtle)' }}>
+              No posts found{historyFilter ? ` with status "${historyFilter}"` : ''}.
+            </div>
+          )}
+          {historyPosts.map((post: any) => {
+            const isOpen = expandedPost === `h-${post.id}`;
+            const results = post.publishResults || [];
+            const statusColor = STATUS_COLORS[post.status] || '#888';
+            return (
+              <div key={post.id} style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border-color)', borderRadius: '14px', overflow: 'hidden' }}>
+                <div
+                  onClick={() => setExpandedPost(isOpen ? null : `h-${post.id}`)}
+                  style={{ padding: '14px 18px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '12px' }}
+                >
+                  {/* Status dot */}
+                  <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: statusColor, flexShrink: 0 }} />
+
+                  {/* Platform icons */}
+                  <div style={{ display: 'flex', gap: '3px', minWidth: '50px', flexShrink: 0 }}>
+                    {post.platforms.map((p: string) => {
+                      const pid = PLATFORM_MAP_REVERSE[p];
+                      const pl = PLATFORMS.find((x) => x.id === pid);
+                      return <span key={p} style={{ fontSize: '13px' }}>{pl?.icon || p}</span>;
+                    })}
+                  </div>
+
+                  {/* Content preview */}
+                  <div style={{ flex: 1, fontSize: '12px', color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>
+                    {post.content || '(no content)'}
+                  </div>
+
+                  {/* Status badge */}
+                  <span style={{
+                    fontSize: '9px',
+                    fontWeight: 700,
+                    padding: '3px 8px',
+                    borderRadius: '6px',
+                    background: `${statusColor}18`,
+                    color: statusColor,
+                    fontFamily: "'IBM Plex Mono', monospace",
+                    letterSpacing: '0.05em',
+                    textTransform: 'uppercase',
+                    flexShrink: 0,
+                  }}>
+                    {post.status.replace('_', ' ')}
+                  </span>
+
+                  {/* Date */}
+                  <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontFamily: "'IBM Plex Mono', monospace", flexShrink: 0, minWidth: '80px', textAlign: 'right' as const }}>
+                    {new Date(post.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                  </span>
+
+                  {/* Expand arrow */}
+                  <span style={{ fontSize: '10px', color: 'var(--text-muted)', transition: 'transform 0.2s ease', transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}>
+                    {'\u25BC'}
+                  </span>
+                </div>
+
+                {isOpen && (
+                  <div style={{ padding: '0 18px 16px', borderTop: '1px solid var(--border-subtle)' }}>
+                    {/* Full content */}
+                    <div style={{ padding: '12px 0', fontSize: '12px', color: 'var(--text-secondary)', lineHeight: 1.6, whiteSpace: 'pre-wrap', maxHeight: '200px', overflow: 'auto' }}>
+                      {post.content}
+                    </div>
+
+                    {/* Schedule info */}
+                    <div style={{ display: 'flex', gap: '16px', fontSize: '10px', fontFamily: "'IBM Plex Mono', monospace", color: 'var(--text-muted)', marginBottom: '10px' }}>
+                      <span>Created: {new Date(post.createdAt).toLocaleString()}</span>
+                      {post.scheduledAt && <span>Scheduled: {new Date(post.scheduledAt).toLocaleString()}</span>}
+                      {post.scheduleType !== 'IMMEDIATE' && <span>Type: {post.scheduleType}</span>}
+                    </div>
+
+                    {/* Publish results */}
+                    {results.length > 0 && (
+                      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                        {results.map((result: any) => {
+                          const pid = PLATFORM_MAP_REVERSE[result.platform];
+                          const pl = PLATFORMS.find((x) => x.id === pid);
+                          const m = result.metrics || {};
+                          return (
+                            <div key={result.id} style={{ flex: '1 1 200px', padding: '12px', borderRadius: '10px', background: 'var(--bg-hover)', border: '1px solid var(--border-subtle)' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                                <span>{pl?.icon}</span>
+                                <span style={{ fontSize: '12px', fontWeight: 700, color: pl?.accent || pl?.color }}>{pl?.name || result.platform}</span>
+                                <span style={{ marginLeft: 'auto', fontSize: '9px', fontWeight: 700, padding: '2px 6px', borderRadius: '4px', background: result.status === 'SUCCESS' ? 'rgba(34,197,94,0.1)' : 'rgba(255,68,68,0.1)', color: result.status === 'SUCCESS' ? '#22c55e' : '#ff4444' }}>
+                                  {result.status}
+                                </span>
+                              </div>
+                              {result.status === 'SUCCESS' && (
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '4px', fontSize: '10px', fontFamily: "'IBM Plex Mono', monospace" }}>
+                                  {[
+                                    { label: 'Likes', val: m.likes || 0 },
+                                    { label: 'Comments', val: m.comments || 0 },
+                                    { label: 'Shares', val: m.shares || 0 },
+                                    { label: 'Impressions', val: m.impressions || 0 },
+                                  ].map((met) => (
+                                    <div key={met.label}>
+                                      <div style={{ color: 'var(--text-muted)', fontSize: '9px' }}>{met.label}</div>
+                                      <div style={{ color: 'var(--text-secondary)', fontWeight: 700 }}>{met.val}</div>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                              {result.status === 'FAILED' && result.error && (
+                                <div style={{ fontSize: '10px', color: '#ff4444', fontFamily: "'IBM Plex Mono', monospace" }}>
+                                  {result.error}
+                                </div>
+                              )}
+                              {result.platformUrl && (
+                                <a href={result.platformUrl} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-block', marginTop: '8px', fontSize: '10px', color: '#06b6d4', textDecoration: 'none' }}>
+                                  View on {pl?.name} {'\u2192'}
+                                </a>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', marginBottom: '32px' }}>
+            <button
+              onClick={() => setHistoryPage((p) => Math.max(1, p - 1))}
+              disabled={historyPage <= 1}
+              style={{
+                padding: '6px 12px',
+                borderRadius: '8px',
+                background: 'var(--bg-tertiary)',
+                border: '1px solid var(--border-color)',
+                color: historyPage <= 1 ? 'var(--text-muted)' : 'var(--text-secondary)',
+                fontSize: '11px',
+                fontWeight: 700,
+                cursor: historyPage <= 1 ? 'default' : 'pointer',
+                opacity: historyPage <= 1 ? 0.5 : 1,
+              }}
+            >
+              {'\u2190'} Prev
+            </button>
+            <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: "'IBM Plex Mono', monospace" }}>
+              {historyPage} / {totalPages}
+            </span>
+            <button
+              onClick={() => setHistoryPage((p) => Math.min(totalPages, p + 1))}
+              disabled={historyPage >= totalPages}
+              style={{
+                padding: '6px 12px',
+                borderRadius: '8px',
+                background: 'var(--bg-tertiary)',
+                border: '1px solid var(--border-color)',
+                color: historyPage >= totalPages ? 'var(--text-muted)' : 'var(--text-secondary)',
+                fontSize: '11px',
+                fontWeight: 700,
+                cursor: historyPage >= totalPages ? 'default' : 'pointer',
+                opacity: historyPage >= totalPages ? 0.5 : 1,
+              }}
+            >
+              Next {'\u2192'}
+            </button>
+          </div>
+        )}
 
         {isLoading && (
           <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>Loading analytics...</div>
