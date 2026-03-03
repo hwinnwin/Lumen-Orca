@@ -410,7 +410,7 @@ export default function GeneratorPage() {
                       if (match) {
                         const num = parseInt(match[1], 10);
                         if (num >= 1 && num <= 15) {
-                          const recommended = Math.min(num + 2, 10); // +2 for hook + CTA, max 10
+                          const recommended = Math.min(num + 2, 20); // +2 for hook + CTA, max 20
                           store.setSlideCount(recommended);
                         }
                       }
@@ -425,7 +425,7 @@ export default function GeneratorPage() {
                       const num = parseInt(match[1], 10);
                       return (
                         <div style={{ fontSize: '11px', color: '#8b5cf6', marginTop: '4px', fontFamily: "'IBM Plex Mono', monospace" }}>
-                          Detected {num} items — using {num} content slides + hook + CTA = {Math.min(num + 2, 10)} total
+                          Detected {num} items — using {num} content slides + hook + CTA = {Math.min(num + 2, 20)} total
                         </div>
                       );
                     }
@@ -449,7 +449,7 @@ export default function GeneratorPage() {
                       </span>
                       <button
                         onClick={() => store.setSlideCount(store.slideCount + 1)}
-                        disabled={store.slideCount >= 10}
+                        disabled={store.slideCount >= 20}
                         style={counterButtonStyle}
                       >
                         +

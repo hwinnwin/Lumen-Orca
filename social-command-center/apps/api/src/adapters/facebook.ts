@@ -127,22 +127,21 @@ export class FacebookAdapter implements PlatformAdapter {
 
     if (!pageId) throw new Error('Facebook requires a pageId (Page ID) for publishing');
 
-    const body: Record<string, unknown> = {
-      message: content,
-      access_token: accessToken,
-    };
+    // Facebook Graph API handles attached_media best via form-encoded params
+    const formParams = new URLSearchParams();
+    formParams.append('message', content);
+    formParams.append('access_token', accessToken);
 
-    // If there are pre-uploaded photo IDs, attach them
+    // Attach pre-uploaded photo IDs
     if (platformMediaIds?.length) {
       platformMediaIds.forEach((id, i) => {
-        body[`attached_media[${i}]`] = `{"media_fbid":"${id}"}`;
+        formParams.append(`attached_media[${i}]`, JSON.stringify({ media_fbid: id }));
       });
     }
 
     const res = await fetch(`${GRAPH_API}/${pageId}/feed`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
+      body: formParams,
     });
 
     if (!res.ok) {

@@ -35,8 +35,8 @@ export class InstagramAdapter implements PlatformAdapter {
     if (mediaCount === 0) {
       errors.push('Instagram posts require at least one image or video');
     }
-    if (mediaCount > 10) {
-      errors.push('Instagram carousel allows a maximum of 10 items');
+    if (mediaCount > 20) {
+      errors.push('Instagram carousel allows a maximum of 20 items');
     }
 
     return { valid: errors.length === 0, errors, warnings };
