@@ -62,7 +62,7 @@ export async function getPresignedUploadUrl(
 ): Promise<{ url: string; key: string }> {
   if (!isS3Configured) {
     // Return a local upload URL — the media router handles the actual upload
-    return { url: `/api/media/local-upload/${encodeURIComponent(key)}`, key };
+    return { url: `/media/local-upload/${encodeURIComponent(key)}`, key };
   }
 
   const command = new PutObjectCommand({
