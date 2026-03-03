@@ -140,12 +140,47 @@ export default function GeneratorPage() {
     }
   };
 
-  const handleLoadIntoComposer = () => {
+  const handleLoadIntoComposer = async () => {
+    // Set caption text + hashtags
     const caption = store.caption || quoteText;
     composeStore.setContent(caption + (store.hashtags.length ? '\n\n' + store.hashtags.map((h) => `#${h}`).join(' ') : ''));
     composeStore.setAllPlatforms(['instagram']);
+
+    // Convert generated slides (base64) to File objects and load into composer media
+    const slides = store.slides;
+    const quoteImg = quoteResult;
+
+    if (slides?.length) {
+      const mediaFiles = await Promise.all(
+        slides.map(async (slide) => {
+          const res = await fetch(slide.imageDataUrl);
+          const blob = await res.blob();
+          const file = new File([blob], `slide-${slide.slideNumber}.png`, { type: 'image/png' });
+          return {
+            name: file.name,
+            type: 'image' as const,
+            file,
+            progress: 100,
+            status: 'ready' as const,
+          };
+        }),
+      );
+      composeStore.addMediaFiles(mediaFiles);
+    } else if (quoteImg) {
+      const res = await fetch(quoteImg.imageDataUrl);
+      const blob = await res.blob();
+      const file = new File([blob], 'quote-card.png', { type: 'image/png' });
+      composeStore.addMediaFiles([{
+        name: file.name,
+        type: 'image',
+        file,
+        progress: 100,
+        status: 'ready',
+      }]);
+    }
+
     navigate('/');
-    toast.success('Loaded into composer');
+    toast.success('Loaded into composer with images');
   };
 
   const startEditSlide = (slide: SlidePlan) => {
