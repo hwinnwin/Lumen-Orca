@@ -5,6 +5,7 @@ import { useCreatePost } from '../hooks/usePosts';
 import { useMediaUpload } from '../hooks/useMediaUpload';
 import { useEnhanceContent, useBrainstorm, useGeneratePlatformPosts } from '../hooks/useAI';
 import { useConnections } from '../hooks/useConnections';
+import { useComposeStore } from '../store/compose-store';
 import { toast } from 'sonner';
 import Header from '../components/layout/Header';
 
@@ -1296,6 +1297,27 @@ export default function SocialCommandCenter() {
   >({});
 
   const { data: connections } = useConnections();
+  const composeStore = useComposeStore();
+
+  // Consume data from compose-store (e.g. from Generator "Load into Composer")
+  useEffect(() => {
+    const hasContent = !!composeStore.content;
+    const hasMedia = composeStore.mediaFiles.length > 0;
+    if (!hasContent && !hasMedia) return;
+
+    if (hasContent) {
+      setContent(composeStore.content);
+    }
+    if (hasMedia) {
+      setMediaFiles((prev) => [...prev, ...composeStore.mediaFiles]);
+    }
+    if (composeStore.activePlatforms.length > 0) {
+      setActivePlatforms(composeStore.activePlatforms);
+    }
+    // Clear compose-store after consuming to prevent re-applying on next visit
+    composeStore.reset();
+    composeStore.clearPlatforms();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Build a set of connected platform IDs for quick lookup
   const connectedPlatforms = useMemo<Set<PlatformId>>(() => {
