@@ -9,6 +9,8 @@ import { canPublish, recordPublish } from '../../adapters/rate-limiter.js';
 import type { Platform, Post } from '@prisma/client';
 import { emitPostPublished, emitPostFailed, emitPostStatusChange } from '../../services/event-emitter.js';
 import { scheduleMetricsFetches } from '../../services/publish-service.js';
+import { isS3Configured } from '../../services/s3.js';
+import { buildPublicMediaUrl } from '../../utils/signed-media-url.js';
 
 /**
  * Publish worker — processes individual platform publish jobs.
@@ -91,7 +93,20 @@ export const publishWorker = new Worker<PublishJobData>(
 
     // Collect media URLs — only READY media with valid URLs
     const readyMedia = post.mediaAttachments.filter((a) => a.media.status === 'READY' && a.media.originalUrl);
-    const mediaUrls = readyMedia.map((a) => a.media.originalUrl);
+
+    // For platforms that need publicly accessible URLs (Instagram, Facebook),
+    // generate signed public URLs when using local storage.
+    // S3 URLs are already public; local URLs like /api/media/local/... are not.
+    const needsPublicUrls = ['INSTAGRAM', 'FACEBOOK'].includes(platform);
+    const mediaUrls = readyMedia.map((a) => {
+      const url = a.media.originalUrl;
+      if (needsPublicUrls && !isS3Configured && url.startsWith('/')) {
+        // Local relative URL — convert to a signed public URL using the media key
+        console.log(`[Publish] Converting local URL to signed public URL for ${platform}: ${a.media.originalKey}`);
+        return buildPublicMediaUrl(a.media.originalKey);
+      }
+      return url;
+    });
 
     // Detect media type (for Instagram Reels detection)
     const hasVideo = readyMedia.some((a) => a.media.type === 'VIDEO' || a.media.mimeType?.startsWith('video/'));

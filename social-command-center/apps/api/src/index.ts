@@ -12,7 +12,7 @@ import { Server as SocketServer } from 'socket.io';
 import { env } from './config/env.js';
 import { authRouter } from './routes/auth.js';
 import { postsRouter } from './routes/posts.js';
-import { mediaRouter } from './routes/media.js';
+import { mediaRouter, publicMediaRouter } from './routes/media.js';
 import { aiRouter } from './routes/ai.js';
 import { queueRouter } from './routes/queue.js';
 import { settingsRouter } from './routes/settings.js';
@@ -81,6 +81,9 @@ app.get('/api/health', (_req, res) => {
 
 // Public auth routes (register, login) — no JWT required
 app.use('/api/auth', authRouter);
+
+// Public media routes — signed token auth for external platform access (Instagram, etc.)
+app.use('/api/media', publicMediaRouter);
 
 // Protected routes — JWT required
 app.use('/api/posts', authMiddleware, postsRouter);

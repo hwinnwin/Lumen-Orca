@@ -8,6 +8,7 @@ import {
   saveToLocalStorage,
   readFromLocalStorage,
 } from '../services/s3.js';
+import { verifySignedMediaToken } from '../utils/signed-media-url.js';
 import { mediaProcessQueue } from '../queue/queues.js';
 import { validateMedia } from '../utils/media-validator.js';
 import type { Platform } from '@prisma/client';
@@ -15,6 +16,38 @@ import multer from 'multer';
 import mime from 'mime-types';
 
 export const mediaRouter = Router();
+
+/**
+ * Public media router — NOT behind authMiddleware.
+ * Serves media via time-limited signed tokens so external platforms
+ * (Instagram, Facebook, etc.) can fetch images without auth headers.
+ */
+export const publicMediaRouter = Router();
+
+publicMediaRouter.get('/public/:token', async (req, res) => {
+  try {
+    const { token } = req.params;
+    const mediaKey = verifySignedMediaToken(token);
+
+    if (!mediaKey) {
+      return res.status(403).json({ error: 'Invalid or expired media token' });
+    }
+
+    // Try local storage first (production without S3)
+    const buffer = await readFromLocalStorage(mediaKey);
+    if (!buffer) {
+      return res.status(404).json({ error: 'File not found' });
+    }
+
+    const contentType = mime.lookup(mediaKey) || 'application/octet-stream';
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Cache-Control', 'public, max-age=300'); // Short cache — token will expire
+    res.send(buffer);
+  } catch (error) {
+    console.error('[PublicMedia] Failed to serve file:', error);
+    res.status(500).json({ error: 'Failed to serve file' });
+  }
+});
 
 // Multer for local file uploads (memory storage)
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 100 * 1024 * 1024 } });
