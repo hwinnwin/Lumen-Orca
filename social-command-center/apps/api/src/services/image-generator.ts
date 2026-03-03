@@ -412,9 +412,9 @@ async function compositeSlide(
     .map((line, i) => {
       const y = startY + titleLineH * (i + 0.85);
       // Shadow
-      const shadow = `<text x="${width / 2 + 2}" y="${y + 2}" font-family="'Helvetica Neue', Arial, sans-serif" font-size="${titleSize}" font-weight="900" fill="rgba(0,0,0,0.4)" text-anchor="middle" letter-spacing="-1">${escXml(line)}</text>`;
+      const shadow = `<text x="${width / 2 + 2}" y="${y + 2}" font-family="'Liberation Sans', 'DejaVu Sans', 'Noto Sans', sans-serif" font-size="${titleSize}" font-weight="900" fill="rgba(0,0,0,0.4)" text-anchor="middle" letter-spacing="-1">${escXml(line)}</text>`;
       // Main text
-      const main = `<text x="${width / 2}" y="${y}" font-family="'Helvetica Neue', Arial, sans-serif" font-size="${titleSize}" font-weight="900" fill="${escXml(tc)}" text-anchor="middle" letter-spacing="-1">${escXml(line)}</text>`;
+      const main = `<text x="${width / 2}" y="${y}" font-family="'Liberation Sans', 'DejaVu Sans', 'Noto Sans', sans-serif" font-size="${titleSize}" font-weight="900" fill="${escXml(tc)}" text-anchor="middle" letter-spacing="-1">${escXml(line)}</text>`;
       return shadow + '\n' + main;
     })
     .join('\n');
@@ -424,8 +424,8 @@ async function compositeSlide(
   const bodySvg = bodyLines
     .map((line, i) => {
       const y = bodyStartY + bodyLineH * (i + 0.85);
-      const shadow = `<text x="${width / 2 + 1}" y="${y + 1}" font-family="'Helvetica Neue', Arial, sans-serif" font-size="${bodySize}" font-weight="400" fill="rgba(0,0,0,0.3)" text-anchor="middle">${escXml(line)}</text>`;
-      const main = `<text x="${width / 2}" y="${y}" font-family="'Helvetica Neue', Arial, sans-serif" font-size="${bodySize}" font-weight="400" fill="${escXml(tc)}" opacity="0.85" text-anchor="middle">${escXml(line)}</text>`;
+      const shadow = `<text x="${width / 2 + 1}" y="${y + 1}" font-family="'Liberation Sans', 'DejaVu Sans', 'Noto Sans', sans-serif" font-size="${bodySize}" font-weight="400" fill="rgba(0,0,0,0.3)" text-anchor="middle">${escXml(line)}</text>`;
+      const main = `<text x="${width / 2}" y="${y}" font-family="'Liberation Sans', 'DejaVu Sans', 'Noto Sans', sans-serif" font-size="${bodySize}" font-weight="400" fill="${escXml(tc)}" opacity="0.85" text-anchor="middle">${escXml(line)}</text>`;
       return shadow + '\n' + main;
     })
     .join('\n');
@@ -433,7 +433,7 @@ async function compositeSlide(
   // Slide number indicator (bottom right)
   const slideNum = slide.slideNumber;
   const slideNumSvg = slideNum
-    ? `<text x="${width - 60}" y="${height - 50}" font-family="'Helvetica Neue', Arial, sans-serif" font-size="16" font-weight="700" fill="${escXml(tc)}" opacity="0.3" text-anchor="middle" letter-spacing="2">${String(slideNum).padStart(2, '0')}</text>`
+    ? `<text x="${width - 60}" y="${height - 50}" font-family="'Liberation Sans', 'DejaVu Sans', 'Noto Sans', sans-serif" font-size="16" font-weight="700" fill="${escXml(tc)}" opacity="0.3" text-anchor="middle" letter-spacing="2">${String(slideNum).padStart(2, '0')}</text>`
     : '';
 
   const overlaySvg = `
@@ -547,17 +547,17 @@ export async function generateQuoteCard(
   const quoteSvgLines = quoteLines
     .map(
       (line, i) =>
-        `<text x="${width / 2}" y="${startY + lineHeight * (i + 1)}" font-family="Georgia, 'Times New Roman', serif" font-size="${quoteSize}" font-weight="400" font-style="italic" fill="${escXml(text)}" text-anchor="middle">${escXml(line)}</text>`,
+        `<text x="${width / 2}" y="${startY + lineHeight * (i + 1)}" font-family="'Liberation Serif', 'DejaVu Serif', 'Noto Serif', serif" font-size="${quoteSize}" font-weight="400" font-style="italic" fill="${escXml(text)}" text-anchor="middle">${escXml(line)}</text>`,
     )
     .join('\n');
 
   const svg = `
     <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
       <rect width="${width}" height="${height}" fill="${escXml(bg)}" />
-      <text x="${width / 2}" y="${startY - 20}" font-family="Georgia, serif" font-size="120" fill="${escXml(accent)}" opacity="0.3" text-anchor="middle">\u201C</text>
+      <text x="${width / 2}" y="${startY - 20}" font-family="'Liberation Serif', 'DejaVu Serif', 'Noto Serif', serif" font-size="120" fill="${escXml(accent)}" opacity="0.3" text-anchor="middle">\u201C</text>
       ${quoteSvgLines}
       <line x1="${width / 2 - 40}" y1="${startY + totalQuoteH + 30}" x2="${width / 2 + 40}" y2="${startY + totalQuoteH + 30}" stroke="${escXml(accent)}" stroke-width="3" />
-      <text x="${width / 2}" y="${startY + totalQuoteH + 70}" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="700" fill="${escXml(text)}" opacity="0.7" text-anchor="middle" letter-spacing="3">${escXml(author.toUpperCase())}</text>
+      <text x="${width / 2}" y="${startY + totalQuoteH + 70}" font-family="'Liberation Sans', 'DejaVu Sans', 'Noto Sans', sans-serif" font-size="24" font-weight="700" fill="${escXml(text)}" opacity="0.7" text-anchor="middle" letter-spacing="3">${escXml(author.toUpperCase())}</text>
     </svg>`;
 
   const buffer = await sharp(Buffer.from(svg)).png().toBuffer();

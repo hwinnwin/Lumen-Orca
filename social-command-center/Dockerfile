@@ -54,8 +54,8 @@ RUN cd apps/api && npx tsc
 FROM node:20-alpine AS runner
 RUN corepack enable && corepack prepare pnpm@9.15.0 --activate
 
-# Install dumb-init for proper signal handling
-RUN apk add --no-cache dumb-init
+# Install dumb-init for proper signal handling + fonts for Sharp SVG text rendering
+RUN apk add --no-cache dumb-init fontconfig font-noto font-noto-cjk ttf-dejavu ttf-liberation ttf-freefont && fc-cache -f
 
 WORKDIR /app
 
