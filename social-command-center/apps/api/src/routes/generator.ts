@@ -12,6 +12,13 @@ import type { SlidePlan, CarouselPlan } from '../services/image-generator.js';
 import { planVideo } from '../services/video-generator.js';
 import type { VideoPlatform, AudioOptions } from '../services/video-generator.js';
 import { videoGenerateQueue } from '../queue/queues.js';
+import {
+  checkCredits,
+  deductCredits,
+  calculateVideoCost,
+  calculateCarouselCost,
+  CREDIT_COSTS,
+} from '../services/credits.js';
 
 export const generatorRouter = Router();
 
@@ -69,7 +76,25 @@ generatorRouter.post('/generate', async (req, res) => {
       return res.status(400).json({ error: 'A valid plan with slides is required' });
     }
 
+    // Credit check
+    const cost = calculateCarouselCost(plan.slides.length);
+    const creditCheck = await checkCredits(userId, cost);
+    if (!creditCheck.allowed) {
+      return res.status(402).json({
+        error: `Insufficient credits. Need ${cost} credits, have ${creditCheck.balance}. Please top up to continue.`,
+        code: 'INSUFFICIENT_CREDITS',
+        required: cost,
+        balance: creditCheck.balance,
+      });
+    }
+
     const slides = await generateCarousel(plan, userId);
+
+    // Deduct credits on success
+    await deductCredits(userId, cost, 'carousel', `Carousel: ${plan.slides.length} slides — "${plan.topic}"`, {
+      slideCount: plan.slides.length,
+      topic: plan.topic,
+    });
 
     res.json({
       data: {
@@ -95,7 +120,23 @@ generatorRouter.post('/regenerate-slide', async (req, res) => {
       return res.status(400).json({ error: 'A valid slide plan is required' });
     }
 
+    // Credit check
+    const cost = CREDIT_COSTS.SLIDE_REGENERATE;
+    const creditCheck = await checkCredits(userId, cost);
+    if (!creditCheck.allowed) {
+      return res.status(402).json({
+        error: `Insufficient credits. Need ${cost} credits, have ${creditCheck.balance}.`,
+        code: 'INSUFFICIENT_CREDITS',
+        required: cost,
+        balance: creditCheck.balance,
+      });
+    }
+
     const result = await regenerateSlideService(slide, userId);
+
+    // Deduct on success
+    await deductCredits(userId, cost, 'slide-regenerate', `Regenerate slide #${slide.slideNumber}: "${slide.title}"`);
+
     res.json({ data: result });
   } catch (error) {
     const errMsg = error instanceof Error ? error.message : String(error);
@@ -118,7 +159,23 @@ generatorRouter.post('/quote-card', async (req, res) => {
       return res.status(400).json({ error: 'Quote text is required' });
     }
 
+    // Credit check
+    const cost = CREDIT_COSTS.QUOTE_CARD;
+    const creditCheck = await checkCredits(userId, cost);
+    if (!creditCheck.allowed) {
+      return res.status(402).json({
+        error: `Insufficient credits. Need ${cost} credits, have ${creditCheck.balance}.`,
+        code: 'INSUFFICIENT_CREDITS',
+        required: cost,
+        balance: creditCheck.balance,
+      });
+    }
+
     const result = await generateQuoteCardService(quote, author || 'Unknown', style, userId);
+
+    // Deduct on success
+    await deductCredits(userId, cost, 'quote-card', `Quote card: "${quote.slice(0, 50)}..."`);
+
     res.json({ data: result });
   } catch (error) {
     const errMsg = error instanceof Error ? error.message : String(error);
@@ -178,7 +235,34 @@ generatorRouter.post('/video/generate', async (req, res) => {
       return res.status(400).json({ error: 'A video prompt is required' });
     }
 
+    // Credit check — deduct upfront for async jobs (refund on failure in worker)
+    const effectiveDuration = totalDuration ?? duration;
+    const cost = calculateVideoCost({
+      totalDuration: effectiveDuration,
+      hasMusic: !!musicStyle,
+      hasVoiceover: !!voiceoverScript,
+    });
+    const creditCheck = await checkCredits(userId, cost);
+    if (!creditCheck.allowed) {
+      return res.status(402).json({
+        error: `Insufficient credits. Need ${cost} credits, have ${creditCheck.balance}.`,
+        code: 'INSUFFICIENT_CREDITS',
+        required: cost,
+        balance: creditCheck.balance,
+      });
+    }
+
     const jobId = randomUUID();
+
+    // Deduct credits upfront (worker will refund on failure)
+    const segmentCount = segments && segments.length > 1 ? segments.length : Math.ceil(effectiveDuration / 10);
+    await deductCredits(userId, cost, 'video', `Video: ${effectiveDuration}s (${segmentCount} segment${segmentCount > 1 ? 's' : ''})${musicStyle ? ' + music' : ''}${voiceoverScript ? ' + voiceover' : ''}`, {
+      jobId,
+      segments: segmentCount,
+      duration: effectiveDuration,
+      hasMusic: !!musicStyle,
+      hasVoiceover: !!voiceoverScript,
+    });
 
     await videoGenerateQueue.add(
       `video-${jobId}`,
@@ -192,8 +276,8 @@ generatorRouter.post('/video/generate', async (req, res) => {
 
     const segmentInfo = segments && segments.length > 1 ? ` (${segments.length} segments)` : '';
     const audioInfo = [voiceoverScript && 'voiceover', musicStyle && 'music'].filter(Boolean).join('+');
-    console.log(`[Generator] Enqueued video job ${jobId}${segmentInfo}${audioInfo ? ` with ${audioInfo}` : ''}`);
-    res.status(202).json({ data: { jobId } });
+    console.log(`[Generator] Enqueued video job ${jobId}${segmentInfo}${audioInfo ? ` with ${audioInfo}` : ''} (${cost} credits deducted)`);
+    res.status(202).json({ data: { jobId, creditsDeducted: cost } });
   } catch (error) {
     const errMsg = error instanceof Error ? error.message : String(error);
     console.error('[Generator] Video enqueue failed:', errMsg);
@@ -215,8 +299,23 @@ generatorRouter.post('/video/animate-slide', async (req, res) => {
       return res.status(400).json({ error: 'A slide image URL is required' });
     }
 
+    // Credit check — single segment video (deduct upfront)
+    const cost = CREDIT_COSTS.VIDEO_SEGMENT;
+    const creditCheck = await checkCredits(userId, cost);
+    if (!creditCheck.allowed) {
+      return res.status(402).json({
+        error: `Insufficient credits. Need ${cost} credits, have ${creditCheck.balance}.`,
+        code: 'INSUFFICIENT_CREDITS',
+        required: cost,
+        balance: creditCheck.balance,
+      });
+    }
+
     const jobId = randomUUID();
     const prompt = motionPrompt || 'Subtle cinematic motion, gentle zoom in with soft parallax depth effect, dreamy atmosphere';
+
+    // Deduct upfront
+    await deductCredits(userId, cost, 'video', `Animate slide: ${duration}s clip`, { jobId, type: 'animate-slide' });
 
     await videoGenerateQueue.add(
       `animate-${jobId}`,
@@ -228,8 +327,8 @@ generatorRouter.post('/video/animate-slide', async (req, res) => {
       },
     );
 
-    console.log(`[Generator] Enqueued slide animation job ${jobId}`);
-    res.status(202).json({ data: { jobId } });
+    console.log(`[Generator] Enqueued slide animation job ${jobId} (${cost} credits deducted)`);
+    res.status(202).json({ data: { jobId, creditsDeducted: cost } });
   } catch (error) {
     const errMsg = error instanceof Error ? error.message : String(error);
     console.error('[Generator] Slide animation enqueue failed:', errMsg);

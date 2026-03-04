@@ -303,20 +303,22 @@ export async function generateMusic(
   const replicate = getReplicate();
   if (!replicate) throw new Error('Music generation requires REPLICATE_API_TOKEN.');
 
-  console.log(`[VideoGenerator] Generating ${durationSeconds}s music: "${stylePrompt}"`);
+  const dur = Math.min(Math.max(durationSeconds, 1), 30);
+  console.log(`[VideoGenerator] Generating ${dur}s music: "${stylePrompt}"`);
 
   const output = await replicate.run(
-    'meta/musicgen' as `${string}/${string}`,
+    'meta/musicgen:b05b1dff1d8c6dc63d14b0cdb42135378dcb87f6373b0d3d341ede46e59e2b38',
     {
       input: {
         prompt: stylePrompt,
-        duration: Math.min(durationSeconds, 30),
-        model_version: 'large',
+        duration: dur,
+        model_version: 'stereo-large',
         output_format: 'wav',
       },
     },
   );
 
+  console.log(`[VideoGenerator] MusicGen output type: ${typeof output}, isArray: ${Array.isArray(output)}, value: ${JSON.stringify(output).slice(0, 200)}`);
   return fetchReplicateOutput(output, 'music');
 }
 
@@ -347,29 +349,66 @@ export async function generateVoiceover(
 
 /**
  * Helper to download a Replicate output into a Buffer.
- * Handles string URLs, FileOutput objects, and blob-based outputs.
+ * Handles string URLs, FileOutput objects, ReadableStreams, and blob-based outputs.
  */
 async function fetchReplicateOutput(output: unknown, label: string): Promise<Buffer> {
+  // Unwrap arrays (some models return [url] instead of url)
   const result = Array.isArray(output) ? output[0] : output;
 
+  // Case 1: Direct URL string
   if (typeof result === 'string') {
+    console.log(`[fetchReplicateOutput] ${label}: downloading from URL string`);
     const response = await fetch(result);
-    if (!response.ok) throw new Error(`Failed to download ${label}: ${response.status}`);
-    return Buffer.from(await response.arrayBuffer());
-  } else if (result && typeof result === 'object' && 'url' in (result as Record<string, unknown>)) {
-    const u = (result as Record<string, unknown>).url;
-    const fileUrl = typeof u === 'function' ? u() : u;
-    const response = await fetch(fileUrl as string);
-    if (!response.ok) throw new Error(`Failed to download ${label}: ${response.status}`);
-    return Buffer.from(await response.arrayBuffer());
-  } else if (result && typeof result === 'object' && typeof (result as Record<string, unknown>).blob === 'function') {
-    const blob = await ((result as Record<string, (() => Promise<Blob>)>).blob)();
-    return Buffer.from(await blob.arrayBuffer());
-  } else {
-    const response = await fetch(result as string);
-    if (!response.ok) throw new Error(`Failed to download ${label}: ${response.status}`);
+    if (!response.ok) throw new Error(`Failed to download ${label}: ${response.status} ${response.statusText}`);
     return Buffer.from(await response.arrayBuffer());
   }
+
+  if (result && typeof result === 'object') {
+    const obj = result as Record<string, unknown>;
+
+    // Case 2: FileOutput with .url() method or .url property
+    if ('url' in obj) {
+      const u = obj.url;
+      const fileUrl = typeof u === 'function' ? u() : u;
+      console.log(`[fetchReplicateOutput] ${label}: downloading from FileOutput url`);
+      const response = await fetch(fileUrl as string);
+      if (!response.ok) throw new Error(`Failed to download ${label}: ${response.status}`);
+      return Buffer.from(await response.arrayBuffer());
+    }
+
+    // Case 3: ReadableStream (newer Replicate SDK)
+    if (typeof obj.getReader === 'function') {
+      console.log(`[fetchReplicateOutput] ${label}: reading from ReadableStream`);
+      const reader = (obj as ReadableStream<Uint8Array>).getReader();
+      const chunks: Uint8Array[] = [];
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        chunks.push(value);
+      }
+      return Buffer.concat(chunks);
+    }
+
+    // Case 4: Blob-like object
+    if (typeof obj.blob === 'function') {
+      console.log(`[fetchReplicateOutput] ${label}: reading from blob`);
+      const blob = await (obj.blob as () => Promise<Blob>)();
+      return Buffer.from(await blob.arrayBuffer());
+    }
+
+    // Case 5: arrayBuffer directly
+    if (typeof obj.arrayBuffer === 'function') {
+      console.log(`[fetchReplicateOutput] ${label}: reading from arrayBuffer`);
+      const ab = await (obj.arrayBuffer as () => Promise<ArrayBuffer>)();
+      return Buffer.from(ab);
+    }
+  }
+
+  // Fallback: try treating as URL string
+  console.log(`[fetchReplicateOutput] ${label}: fallback — treating as URL: ${String(result).slice(0, 200)}`);
+  const response = await fetch(result as string);
+  if (!response.ok) throw new Error(`Failed to download ${label}: ${response.status}`);
+  return Buffer.from(await response.arrayBuffer());
 }
 
 // ─── FFmpeg Stitching ────────────────────────────────────

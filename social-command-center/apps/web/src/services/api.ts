@@ -339,3 +339,64 @@ export async function animateSlide(data: {
   const res = await api.post('/generator/video/animate-slide', data, { timeout: 30000 });
   return res.data.data as { jobId: string };
 }
+
+// ─── Credits ─────────────────────────────────────────────
+
+export interface CreditBalance {
+  balance: number;
+  lifetimeUsed: number;
+}
+
+export interface CreditTransaction {
+  id: string;
+  amount: number;
+  type: 'TOPUP' | 'GENERATION' | 'REFUND' | 'BONUS';
+  description: string;
+  generationType: string | null;
+  metadata: Record<string, unknown> | null;
+  createdAt: string;
+}
+
+export interface CreditCosts {
+  VIDEO_SEGMENT: number;
+  VIDEO_MUSIC: number;
+  VIDEO_VOICEOVER: number;
+  CAROUSEL_FULL: number;
+  SLIDE_REGENERATE: number;
+  QUOTE_CARD: number;
+  AI_ENHANCE: number;
+  AI_BRAINSTORM: number;
+  AI_VARIANTS: number;
+  AI_THREAD: number;
+  AI_HOOKS: number;
+  AI_REPURPOSE: number;
+  AI_STRATEGY: number;
+  AI_GENERATE_POSTS: number;
+  VIDEO_PLAN: number;
+  CAROUSEL_PLAN: number;
+}
+
+export async function fetchCreditBalance() {
+  const res = await api.get('/credits/balance');
+  return res.data.data as CreditBalance;
+}
+
+export async function fetchCreditHistory(opts?: { limit?: number; offset?: number }) {
+  const res = await api.get('/credits/history', { params: opts });
+  return res.data.data as {
+    transactions: CreditTransaction[];
+    total: number;
+    balance: number;
+    lifetimeUsed: number;
+  };
+}
+
+export async function fetchCreditCosts() {
+  const res = await api.get('/credits/costs');
+  return res.data.data as { costs: CreditCosts; descriptions: Record<string, string> };
+}
+
+export async function topUpCredits(amount: number, description?: string) {
+  const res = await api.post('/credits/topup', { amount, description });
+  return res.data.data as { balance: number; added: number };
+}

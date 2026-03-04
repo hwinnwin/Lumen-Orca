@@ -4,6 +4,7 @@ import bcrypt from 'bcryptjs';
 import { prisma } from '../db/client.js';
 import { env } from '../config/env.js';
 import { authMiddleware, generateToken } from '../middleware/auth.js';
+import { getOrCreateBalance } from '../services/credits.js';
 import { getMetaAuthUrl, handleMetaCallback } from '../services/oauth/meta.js';
 import { getLinkedInAuthUrl, handleLinkedInCallback } from '../services/oauth/linkedin.js';
 import { getXAuthUrl, handleXCallback } from '../services/oauth/x.js';
@@ -34,6 +35,9 @@ authRouter.post('/register', async (req, res) => {
     const user = await prisma.user.create({
       data: { email, passwordHash, name: name || undefined },
     });
+
+    // Initialize credit balance with signup bonus
+    await getOrCreateBalance(user.id);
 
     const token = generateToken(user.id, user.email);
 

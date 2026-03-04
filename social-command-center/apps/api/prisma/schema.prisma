@@ -8,17 +8,18 @@ datasource db {
 }
 
 model User {
-  id           String               @id @default(cuid())
-  email        String               @unique
-  passwordHash String
-  name         String?
-  timezone     String               @default("UTC")
-  settings     Json?                // { defaultTone, defaultPlatforms, notificationsEnabled, etc. }
-  connections  PlatformConnection[]
-  posts        Post[]
-  mediaAssets  MediaAsset[]
-  createdAt    DateTime             @default(now())
-  updatedAt    DateTime             @updatedAt
+  id            String               @id @default(cuid())
+  email         String               @unique
+  passwordHash  String
+  name          String?
+  timezone      String               @default("UTC")
+  settings      Json?                // { defaultTone, defaultPlatforms, notificationsEnabled, etc. }
+  connections   PlatformConnection[]
+  posts         Post[]
+  mediaAssets   MediaAsset[]
+  creditBalance CreditBalance?
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
 }
 
 model PlatformConnection {
@@ -128,6 +129,38 @@ model AiEnhancement {
   promptTokens     Int      @default(0)
   completionTokens Int      @default(0)
   createdAt        DateTime @default(now())
+}
+
+model CreditBalance {
+  id           String              @id @default(cuid())
+  userId       String              @unique
+  user         User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  balance      Int                 @default(0) // Credits in cents (100 = $1.00)
+  lifetimeUsed Int                 @default(0) // Total credits ever consumed
+  updatedAt    DateTime            @updatedAt
+  createdAt    DateTime            @default(now())
+  transactions CreditTransaction[]
+}
+
+model CreditTransaction {
+  id              String         @id @default(cuid())
+  creditBalanceId String
+  creditBalance   CreditBalance  @relation(fields: [creditBalanceId], references: [id], onDelete: Cascade)
+  amount          Int            // Positive = credit added, negative = credit used
+  type            CreditTxType
+  description     String         // e.g. "Video generation (30s, 3 segments + music)"
+  generationType  String?        // e.g. "video", "carousel", "quote-card", "ai-enhance"
+  metadata        Json?          // Extra details: { segments: 3, duration: 30, hasMusic: true, ... }
+  createdAt       DateTime       @default(now())
+
+  @@index([creditBalanceId, createdAt])
+}
+
+enum CreditTxType {
+  TOPUP        // Manual or purchased credits
+  GENERATION   // Credits consumed by content generation
+  REFUND       // Refund for failed generation
+  BONUS        // Free credits (signup bonus, promo, etc.)
 }
 
 enum Platform {

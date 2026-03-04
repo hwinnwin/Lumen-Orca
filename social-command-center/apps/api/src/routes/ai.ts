@@ -10,6 +10,7 @@ import {
   generateHooks as aiHooks,
   repurposeContent as aiRepurpose,
 } from '../services/ai.js';
+import { checkCredits, deductCredits, CREDIT_COSTS } from '../services/credits.js';
 
 export const aiRouter = Router();
 
@@ -42,7 +43,14 @@ aiRouter.post('/enhance', async (req, res) => {
       return res.status(400).json({ error: 'Content is required' });
     }
 
+    const cost = CREDIT_COSTS.AI_ENHANCE;
+    const creditCheck = await checkCredits(req.userId, cost);
+    if (!creditCheck.allowed) {
+      return res.status(402).json({ error: `Insufficient credits. Need ${cost}, have ${creditCheck.balance}.`, code: 'INSUFFICIENT_CREDITS', required: cost, balance: creditCheck.balance });
+    }
+
     const result = await aiEnhance({ content, tone, platforms });
+    await deductCredits(req.userId, cost, 'ai-enhance', 'AI content enhancement');
     res.json({ data: result });
   } catch (error) {
     console.error('[AI] Enhancement failed:', error);
@@ -64,7 +72,12 @@ aiRouter.post('/thread', async (req, res) => {
       return res.status(400).json({ error: 'Content is required' });
     }
 
+    const cost = CREDIT_COSTS.AI_THREAD;
+    const cc = await checkCredits(req.userId, cost);
+    if (!cc.allowed) return res.status(402).json({ error: `Insufficient credits. Need ${cost}, have ${cc.balance}.`, code: 'INSUFFICIENT_CREDITS', required: cost, balance: cc.balance });
+
     const result = await aiThread(content, maxTweets);
+    await deductCredits(req.userId, cost, 'ai-thread', 'Thread generation');
     res.json({ data: result });
   } catch (error) {
     console.error('[AI] Thread generation failed:', error);
@@ -87,7 +100,12 @@ aiRouter.post('/variants', async (req, res) => {
       return res.status(400).json({ error: 'Content is required' });
     }
 
+    const cost = CREDIT_COSTS.AI_VARIANTS;
+    const cc = await checkCredits(req.userId, cost);
+    if (!cc.allowed) return res.status(402).json({ error: `Insufficient credits. Need ${cost}, have ${cc.balance}.`, code: 'INSUFFICIENT_CREDITS', required: cost, balance: cc.balance });
+
     const result = await aiVariants(content, platforms, count);
+    await deductCredits(req.userId, cost, 'ai-variants', 'Content variants');
     res.json({ data: { variants: result } });
   } catch (error) {
     console.error('[AI] Variant generation failed:', error);
@@ -111,7 +129,12 @@ aiRouter.post('/brainstorm', async (req, res) => {
       return res.status(400).json({ error: 'At least one keyword is required' });
     }
 
+    const cost = CREDIT_COSTS.AI_BRAINSTORM;
+    const cc = await checkCredits(req.userId, cost);
+    if (!cc.allowed) return res.status(402).json({ error: `Insufficient credits. Need ${cost}, have ${cc.balance}.`, code: 'INSUFFICIENT_CREDITS', required: cost, balance: cc.balance });
+
     const result = await aiBrainstorm(keywords, platforms || [], tone, count);
+    await deductCredits(req.userId, cost, 'ai-brainstorm', 'Content brainstorm');
     res.json({ data: result });
   } catch (error) {
     console.error('[AI] Brainstorm failed:', error);
@@ -138,7 +161,12 @@ aiRouter.post('/generate-posts', async (req, res) => {
       return res.status(400).json({ error: 'At least one platform is required' });
     }
 
+    const cost = CREDIT_COSTS.AI_GENERATE_POSTS;
+    const cc = await checkCredits(req.userId, cost);
+    if (!cc.allowed) return res.status(402).json({ error: `Insufficient credits. Need ${cost}, have ${cc.balance}.`, code: 'INSUFFICIENT_CREDITS', required: cost, balance: cc.balance });
+
     const result = await aiGeneratePosts(topic, platforms, tone, context);
+    await deductCredits(req.userId, cost, 'ai-generate-posts', 'Platform-specific post generation');
     res.json({ data: result });
   } catch (error) {
     console.error('[AI] Post generation failed:', error);
@@ -163,6 +191,10 @@ aiRouter.post('/strategy', async (req, res) => {
       return res.status(400).json({ error: 'Brand and niche are required' });
     }
 
+    const cost = CREDIT_COSTS.AI_STRATEGY;
+    const cc = await checkCredits(req.userId, cost);
+    if (!cc.allowed) return res.status(402).json({ error: `Insufficient credits. Need ${cost}, have ${cc.balance}.`, code: 'INSUFFICIENT_CREDITS', required: cost, balance: cc.balance });
+
     const result = await aiStrategy(
       brand,
       niche,
@@ -170,6 +202,7 @@ aiRouter.post('/strategy', async (req, res) => {
       goals || ['grow audience', 'increase engagement'],
       platforms || ['instagram', 'x'],
     );
+    await deductCredits(req.userId, cost, 'ai-strategy', 'Content strategy generation');
     res.json({ data: result });
   } catch (error) {
     console.error('[AI] Strategy generation failed:', error);
@@ -192,7 +225,12 @@ aiRouter.post('/hooks', async (req, res) => {
       return res.status(400).json({ error: 'Topic is required' });
     }
 
+    const cost = CREDIT_COSTS.AI_HOOKS;
+    const cc = await checkCredits(req.userId, cost);
+    if (!cc.allowed) return res.status(402).json({ error: `Insufficient credits. Need ${cost}, have ${cc.balance}.`, code: 'INSUFFICIENT_CREDITS', required: cost, balance: cc.balance });
+
     const result = await aiHooks(topic, platform, Math.min(count, 15));
+    await deductCredits(req.userId, cost, 'ai-hooks', 'Hook generation');
     res.json({ data: result });
   } catch (error) {
     console.error('[AI] Hook generation failed:', error);
@@ -215,11 +253,16 @@ aiRouter.post('/repurpose', async (req, res) => {
       return res.status(400).json({ error: 'Content is required' });
     }
 
+    const cost = CREDIT_COSTS.AI_REPURPOSE;
+    const cc = await checkCredits(req.userId, cost);
+    if (!cc.allowed) return res.status(402).json({ error: `Insufficient credits. Need ${cost}, have ${cc.balance}.`, code: 'INSUFFICIENT_CREDITS', required: cost, balance: cc.balance });
+
     const result = await aiRepurpose(
       content,
       originalPlatform || 'instagram',
       targetPlatforms || ['x', 'linkedin', 'facebook'],
     );
+    await deductCredits(req.userId, cost, 'ai-repurpose', 'Content repurposing');
     res.json({ data: result });
   } catch (error) {
     console.error('[AI] Repurpose failed:', error);

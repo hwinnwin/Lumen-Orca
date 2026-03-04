@@ -34,6 +34,7 @@ import {
   useGenerateVideo,
   useAnimateSlide,
 } from '../hooks/useGenerator';
+import { useCreditBalance, useInvalidateCredits } from '../hooks/useCredits';
 import { useComposeStore } from '../store/compose-store';
 import type { SlidePlan, VideoPlatform } from '../services/api';
 
@@ -60,6 +61,18 @@ const VIDEO_PLATFORMS: { id: VideoPlatform; label: string }[] = [
   { id: 'shorts', label: 'YouTube Shorts' },
 ];
 
+const MUSIC_PRESETS = [
+  { id: 'upbeat-electronic', label: 'Upbeat Electronic', prompt: 'Upbeat electronic dance music, energetic synths, driving beat, modern EDM' },
+  { id: 'calm-ambient', label: 'Calm Ambient', prompt: 'Calm ambient piano, soft pads, peaceful atmosphere, gentle and soothing' },
+  { id: 'cinematic-epic', label: 'Cinematic Epic', prompt: 'Cinematic orchestral music, epic strings, dramatic drums, inspiring and powerful' },
+  { id: 'lo-fi-chill', label: 'Lo-Fi Chill', prompt: 'Lo-fi hip hop beats, chill jazzy piano, vinyl crackle, relaxing study music' },
+  { id: 'corporate-uplifting', label: 'Corporate Uplifting', prompt: 'Corporate motivational music, uplifting acoustic guitar, light percussion, positive energy' },
+  { id: 'funky-groove', label: 'Funky Groove', prompt: 'Funky groove with slap bass, wah guitar, tight drums, retro disco vibe' },
+  { id: 'dramatic-tension', label: 'Dramatic Tension', prompt: 'Dark dramatic tension music, suspenseful strings, deep bass pulses, intense atmosphere' },
+  { id: 'tropical-vibes', label: 'Tropical Vibes', prompt: 'Tropical house music, steel drums, marimba, sunny beach vibes, upbeat and happy' },
+  { id: 'custom', label: 'Custom Style...', prompt: '' },
+];
+
 export default function GeneratorPage() {
   const navigate = useNavigate();
   const store = useGeneratorStore();
@@ -72,6 +85,8 @@ export default function GeneratorPage() {
   const videoGenMutation = useGenerateVideo();
   const animateSlideMutation = useAnimateSlide();
   const composeStore = useComposeStore();
+  const { data: creditData } = useCreditBalance();
+  const invalidateCredits = useInvalidateCredits();
 
   // Quote card specific state
   const [quoteText, setQuoteText] = useState('');
@@ -147,9 +162,15 @@ export default function GeneratorPage() {
     try {
       const result = await slidesMutation.mutateAsync({ plan: store.plan });
       store.setSlides(result.slides, result.caption, result.hashtags);
+      invalidateCredits();
       toast.success('Carousel generated!');
-    } catch {
-      toast.error('Failed to generate images');
+    } catch (err: unknown) {
+      const axErr = err as { response?: { status?: number; data?: { error?: string } } };
+      if (axErr?.response?.status === 402) {
+        toast.error(axErr.response.data?.error || 'Insufficient credits');
+      } else {
+        toast.error('Failed to generate images');
+      }
     } finally {
       store.setIsGenerating(false);
     }
@@ -162,9 +183,15 @@ export default function GeneratorPage() {
     try {
       const result = await regenerateMutation.mutateAsync({ slide: slidePlan });
       store.replaceSlide(slideNum, result);
+      invalidateCredits();
       toast.success(`Slide ${slideNum} regenerated`);
-    } catch {
-      toast.error('Failed to regenerate slide');
+    } catch (err: unknown) {
+      const axErr = err as { response?: { status?: number; data?: { error?: string } } };
+      if (axErr?.response?.status === 402) {
+        toast.error(axErr.response.data?.error || 'Insufficient credits');
+      } else {
+        toast.error('Failed to regenerate slide');
+      }
     } finally {
       store.setRegeneratingSlide(null);
     }
@@ -182,9 +209,15 @@ export default function GeneratorPage() {
         author: quoteAuthor || 'Unknown',
       });
       setQuoteResult(result);
+      invalidateCredits();
       toast.success('Quote card generated!');
-    } catch {
-      toast.error('Failed to generate quote card');
+    } catch (err: unknown) {
+      const axErr = err as { response?: { status?: number; data?: { error?: string } } };
+      if (axErr?.response?.status === 402) {
+        toast.error(axErr.response.data?.error || 'Insufficient credits');
+      } else {
+        toast.error('Failed to generate quote card');
+      }
     } finally {
       store.setIsGenerating(false);
     }
@@ -238,12 +271,18 @@ export default function GeneratorPage() {
         musicStyle: plan.musicStyle,
       });
       store.setVideoJobId(jobId);
+      invalidateCredits();
       const segmentInfo = plan.segments && plan.segments.length > 1 ? ` (${plan.segments.length} segments)` : '';
       const audioInfo = [plan.musicStyle && 'music', plan.voiceoverScript && 'voiceover'].filter(Boolean).join(' + ');
       toast.info(`Video generation started${segmentInfo}${audioInfo ? ` with ${audioInfo}` : ''}`);
       // Result will arrive via Socket.io (video:generated event)
-    } catch {
-      toast.error('Failed to start video generation');
+    } catch (err: unknown) {
+      const axErr = err as { response?: { status?: number; data?: { error?: string } } };
+      if (axErr?.response?.status === 402) {
+        toast.error(axErr.response.data?.error || 'Insufficient credits');
+      } else {
+        toast.error('Failed to start video generation');
+      }
       store.setIsGeneratingVideo(false);
       stopElapsedTimer();
     }
@@ -259,10 +298,16 @@ export default function GeneratorPage() {
         duration: 6,
       });
       store.setVideoJobId(jobId);
+      invalidateCredits();
       toast.info('Slide animation started — this takes 30–90 seconds');
       // Result will arrive via Socket.io (video:generated event)
-    } catch {
-      toast.error('Failed to start slide animation');
+    } catch (err: unknown) {
+      const axErr = err as { response?: { status?: number; data?: { error?: string } } };
+      if (axErr?.response?.status === 402) {
+        toast.error(axErr.response.data?.error || 'Insufficient credits');
+      } else {
+        toast.error('Failed to start slide animation');
+      }
       store.setIsGeneratingVideo(false);
       stopElapsedTimer();
     }
@@ -424,6 +469,27 @@ export default function GeneratorPage() {
           >
             Content Generator
           </h1>
+          {creditData && (
+            <div
+              style={{
+                marginLeft: 'auto',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '6px 14px',
+                background: creditData.balance > 0 ? 'rgba(139,92,246,0.1)' : 'rgba(239,68,68,0.1)',
+                border: `1px solid ${creditData.balance > 0 ? 'rgba(139,92,246,0.25)' : 'rgba(239,68,68,0.25)'}`,
+                borderRadius: '20px',
+                fontSize: '13px',
+                fontWeight: 600,
+                color: creditData.balance > 0 ? 'var(--accent-purple)' : '#ef4444',
+                fontFamily: "'IBM Plex Mono', monospace",
+              }}
+            >
+              <Sparkles size={14} />
+              {creditData.balance} credits
+            </div>
+          )}
         </div>
 
         {/* Capabilities banner */}
@@ -584,13 +650,33 @@ export default function GeneratorPage() {
                       <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>AI-generated via MusicGen</span>
                     </label>
                     {store.videoAudioMusic && (
-                      <input
-                        type="text"
-                        value={store.videoMusicStyle}
-                        onChange={(e) => store.setVideoMusicStyle(e.target.value)}
-                        placeholder="Music style, e.g. 'upbeat electronic' or 'calm ambient piano'"
-                        style={{ ...inputStyle, marginLeft: '26px' }}
-                      />
+                      <div style={{ marginLeft: '26px', display: 'grid', gap: '8px' }}>
+                        <select
+                          value={MUSIC_PRESETS.find((p) => p.prompt === store.videoMusicStyle)?.id || 'custom'}
+                          onChange={(e) => {
+                            const preset = MUSIC_PRESETS.find((p) => p.id === e.target.value);
+                            if (preset && preset.id !== 'custom') {
+                              store.setVideoMusicStyle(preset.prompt);
+                            } else {
+                              store.setVideoMusicStyle('');
+                            }
+                          }}
+                          style={inputStyle}
+                        >
+                          {MUSIC_PRESETS.map((p) => (
+                            <option key={p.id} value={p.id}>{p.label}</option>
+                          ))}
+                        </select>
+                        {!MUSIC_PRESETS.some((p) => p.id !== 'custom' && p.prompt === store.videoMusicStyle) && (
+                          <input
+                            type="text"
+                            value={store.videoMusicStyle}
+                            onChange={(e) => store.setVideoMusicStyle(e.target.value)}
+                            placeholder="Describe the music style you want..."
+                            style={inputStyle}
+                          />
+                        )}
+                      </div>
                     )}
                     <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', fontSize: '13px', color: 'var(--text-secondary)' }}>
                       <input
@@ -619,12 +705,12 @@ export default function GeneratorPage() {
                 >
                   {(() => {
                     const segments = Math.ceil(store.videoTotalDuration / 10);
-                    const videoCost = segments * 0.35; // ~$0.35 avg per clip
-                    const musicCost = store.videoAudioMusic ? 0.05 : 0;
-                    const voiceCost = store.videoAudioVoiceover ? 0.05 : 0;
+                    const videoCost = segments * 100; // 100 credits per segment
+                    const musicCost = store.videoAudioMusic ? 20 : 0;
+                    const voiceCost = store.videoAudioVoiceover ? 20 : 0;
                     const total = videoCost + musicCost + voiceCost;
                     const genTime = segments <= 1 ? '30-90s' : `~${segments * 1.5} min`;
-                    return `Est. ~$${total.toFixed(2)} (${segments} clip${segments > 1 ? 's' : ''} @ ~$0.35${store.videoAudioMusic ? ' + music $0.05' : ''}${store.videoAudioVoiceover ? ' + voiceover $0.05' : ''}). Generation: ${genTime}.`;
+                    return `Cost: ${total} credits (${segments} clip${segments > 1 ? 's' : ''} @ 100${store.videoAudioMusic ? ' + music 20' : ''}${store.videoAudioVoiceover ? ' + voiceover 20' : ''}). Generation: ${genTime}.`;
                   })()}
                   {' '}Output is vertical (9:16) for {VIDEO_PLATFORMS.find((p) => p.id === store.videoPlatform)?.label}.
                 </div>
