@@ -1,7 +1,7 @@
 import type { PlatformAdapter, PublishParams, PublishResponse, MediaUploadParams, MediaUploadResponse, PostMetrics, ValidationResult } from './types.js';
 
 const API_BASE = 'https://api.linkedin.com';
-const API_VERSION = '202401';
+const API_VERSION = '202602';
 
 /**
  * LinkedIn adapter — uses the LinkedIn Posts API (v2).
