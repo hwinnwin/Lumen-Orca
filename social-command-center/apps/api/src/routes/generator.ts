@@ -9,7 +9,7 @@ import {
   isReplicateConfigured,
 } from '../services/image-generator.js';
 import type { SlidePlan, CarouselPlan } from '../services/image-generator.js';
-import { planVideo } from '../services/video-generator.js';
+import { planVideo, generateVoiceover } from '../services/video-generator.js';
 import type { VideoPlatform, AudioOptions } from '../services/video-generator.js';
 import { videoGenerateQueue } from '../queue/queues.js';
 import {
@@ -334,5 +334,26 @@ generatorRouter.post('/video/animate-slide', async (req, res) => {
     const errMsg = error instanceof Error ? error.message : String(error);
     console.error('[Generator] Slide animation enqueue failed:', errMsg);
     res.status(500).json({ error: `Slide animation failed: ${errMsg}` });
+  }
+});
+
+// Test a voiceover voice — generates a short sample and returns base64 audio
+generatorRouter.post('/video/voice-test', async (req, res) => {
+  try {
+    const { voiceId } = req.body as { voiceId: string };
+
+    if (!voiceId?.trim()) {
+      return res.status(400).json({ error: 'voiceId is required' });
+    }
+
+    const sampleText = 'Hi there, this is a preview of how I sound. Pretty cool, right?';
+    const audioBuffer = await generateVoiceover(sampleText, voiceId);
+    const base64 = audioBuffer.toString('base64');
+
+    res.json({ data: { audioDataUrl: `data:audio/mpeg;base64,${base64}` } });
+  } catch (error) {
+    const errMsg = error instanceof Error ? error.message : String(error);
+    console.error('[Generator] Voice test failed:', errMsg);
+    res.status(500).json({ error: `Voice test failed: ${errMsg}` });
   }
 });

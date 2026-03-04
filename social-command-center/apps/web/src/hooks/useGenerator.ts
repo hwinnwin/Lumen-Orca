@@ -8,6 +8,7 @@ import {
   generateVideoPlan,
   generateVideoFromPrompt,
   animateSlide,
+  testVoice,
 } from '../services/api';
 
 export function useGeneratorCapabilities() {
@@ -45,4 +46,8 @@ export function useGenerateVideo() {
 
 export function useAnimateSlide() {
   return useMutation({ mutationFn: animateSlide });
+}
+
+export function useTestVoice() {
+  return useMutation({ mutationFn: testVoice });
 }

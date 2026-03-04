@@ -341,6 +341,11 @@ export async function animateSlide(data: {
   return res.data.data as { jobId: string };
 }
 
+export async function testVoice(voiceId: string) {
+  const res = await api.post('/generator/video/voice-test', { voiceId }, { timeout: 30000 });
+  return res.data.data as { audioDataUrl: string };
+}
+
 // ─── Credits ─────────────────────────────────────────────
 
 export interface CreditBalance {
