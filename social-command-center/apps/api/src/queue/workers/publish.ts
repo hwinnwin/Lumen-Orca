@@ -122,53 +122,60 @@ export const publishWorker = new Worker<PublishJobData>(
       ? connection.platformUserId || undefined
       : connection.platformPageId || connection.platformUserId || undefined;
 
-    // Facebook requires pre-uploading images to get media_fbid IDs.
+    // Facebook requires pre-uploading media to get IDs.
+    // For videos: upload publishes directly (description included in finish phase).
+    // For images: upload as unpublished, then attach via feed post.
     // Instagram uses media URLs directly in the publish call.
     let platformMediaIds: string[] | undefined;
 
     if (platformEnum === 'FACEBOOK' && mediaUrls.length > 0 && pageId) {
-      console.log(`[Publish] Facebook: uploading ${mediaUrls.length} images to get media_fbid IDs`);
+      console.log(`[Publish] Facebook: uploading ${mediaUrls.length} media item(s) (${mediaType})`);
       platformMediaIds = [];
       for (const [idx, url] of mediaUrls.entries()) {
         try {
-          // Download the image to a buffer
           const mediaAttachment = readyMedia[idx];
           const mimeType = mediaAttachment?.media.mimeType || 'image/png';
+          const isVideoFile = mimeType.startsWith('video/');
 
-          let imageBuffer: Buffer;
+          let fileBuffer: Buffer;
           if (!isS3Configured && mediaAttachment?.media.originalKey) {
-            // Local storage — read directly from disk
             const localBuf = await readFromLocalStorage(mediaAttachment.media.originalKey);
             if (!localBuf) {
               console.warn(`[Publish] Facebook: could not read local file for key ${mediaAttachment.media.originalKey}`);
               continue;
             }
-            imageBuffer = localBuf;
+            fileBuffer = localBuf;
           } else {
-            // Remote URL (S3 or signed public URL) — download it
             const response = await fetch(url);
             if (!response.ok) {
               console.warn(`[Publish] Facebook: failed to fetch media from ${url.substring(0, 80)}: ${response.status}`);
               continue;
             }
-            imageBuffer = Buffer.from(await response.arrayBuffer());
+            fileBuffer = Buffer.from(await response.arrayBuffer());
           }
 
-          const uploadResult = await adapter.uploadMedia({
+          // For videos, pass the post content as description (published during upload).
+          // For images, upload as unpublished (will attach via feed post).
+          const uploadParams: Record<string, unknown> = {
             accessToken,
-            fileBuffer: imageBuffer,
+            fileBuffer,
             mimeType,
-            filename: mediaAttachment?.media.originalKey?.split('/').pop() || `image-${idx}.png`,
+            filename: mediaAttachment?.media.originalKey?.split('/').pop() || `media-${idx}.${isVideoFile ? 'mp4' : 'png'}`,
             pageId,
-          });
+          };
+          if (isVideoFile) {
+            (uploadParams as Record<string, unknown>).description = content;
+          }
+
+          const uploadResult = await adapter.uploadMedia(uploadParams as Parameters<typeof adapter.uploadMedia>[0]);
 
           platformMediaIds.push(uploadResult.platformMediaId);
-          console.log(`[Publish] Facebook: uploaded image ${idx + 1}/${mediaUrls.length}, fbid: ${uploadResult.platformMediaId}`);
+          console.log(`[Publish] Facebook: uploaded ${isVideoFile ? 'video' : 'image'} ${idx + 1}/${mediaUrls.length}, id: ${uploadResult.platformMediaId}`);
         } catch (err) {
-          console.error(`[Publish] Facebook: failed to upload image ${idx + 1}:`, err);
+          console.error(`[Publish] Facebook: failed to upload media ${idx + 1}:`, err);
         }
       }
-      console.log(`[Publish] Facebook: ${platformMediaIds.length}/${mediaUrls.length} images uploaded successfully`);
+      console.log(`[Publish] Facebook: ${platformMediaIds.length}/${mediaUrls.length} media items uploaded`);
     }
 
     const result = await adapter.publish({

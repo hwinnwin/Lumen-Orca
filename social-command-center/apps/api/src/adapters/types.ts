@@ -28,6 +28,7 @@ export interface MediaUploadParams {
 export interface MediaUploadResponse {
   platformMediaId: string;
   url?: string;
+  isVideo?: boolean; // Facebook: video was published during upload (no separate feed post needed)
 }
 
 export interface PostMetrics {

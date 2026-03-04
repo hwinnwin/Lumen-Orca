@@ -22,13 +22,13 @@ export class FacebookAdapter implements PlatformAdapter {
     return { valid: errors.length === 0, errors, warnings };
   }
 
-  async uploadMedia(params: MediaUploadParams): Promise<MediaUploadResponse> {
-    const { accessToken, fileBuffer, mimeType, pageId } = params;
+  async uploadMedia(params: MediaUploadParams & { description?: string }): Promise<MediaUploadResponse> {
+    const { accessToken, fileBuffer, mimeType, pageId, description } = params;
 
     if (!pageId) throw new Error('Facebook requires a pageId for media upload');
 
     if (mimeType.startsWith('video/')) {
-      return this.uploadVideo(accessToken, fileBuffer, pageId);
+      return this.uploadVideo(accessToken, fileBuffer, pageId, description);
     }
 
     // Image upload — upload as unpublished photo
@@ -50,8 +50,13 @@ export class FacebookAdapter implements PlatformAdapter {
     return { platformMediaId: data.id };
   }
 
-  private async uploadVideo(accessToken: string, fileBuffer: Buffer, pageId: string): Promise<MediaUploadResponse> {
-    // Resumable upload for video
+  /**
+   * Upload and publish a video via Facebook's resumable upload API.
+   * Unlike photos, videos are published directly via /{pageId}/videos
+   * (the finish phase includes the description/message).
+   * Returns the video_id which doubles as the post ID.
+   */
+  private async uploadVideo(accessToken: string, fileBuffer: Buffer, pageId: string, description?: string): Promise<MediaUploadResponse> {
     // Step 1: Start upload
     const startRes = await fetch(`${GRAPH_API}/${pageId}/videos`, {
       method: 'POST',
@@ -104,30 +109,49 @@ export class FacebookAdapter implements PlatformAdapter {
       endOffset = parseInt(chunkData.end_offset);
     }
 
-    // Step 3: Finish upload
+    // Step 3: Finish upload — include description to publish the video
+    const finishBody: Record<string, string> = {
+      upload_phase: 'finish',
+      upload_session_id: startData.upload_session_id,
+      access_token: accessToken,
+    };
+    if (description) {
+      finishBody.description = description;
+    }
+
     const finishRes = await fetch(`${GRAPH_API}/${pageId}/videos`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        upload_phase: 'finish',
-        upload_session_id: startData.upload_session_id,
-        access_token: accessToken,
-      }),
+      body: JSON.stringify(finishBody),
     });
 
     if (!finishRes.ok) {
       throw new Error(`Facebook video upload finish failed: ${await finishRes.text()}`);
     }
 
-    return { platformMediaId: startData.video_id };
+    return { platformMediaId: startData.video_id, isVideo: true };
   }
 
   async publish(params: PublishParams): Promise<PublishResponse> {
-    const { accessToken, content, platformMediaIds, pageId } = params;
+    const { accessToken, content, platformMediaIds, pageId, platformSpecific } = params;
 
     if (!pageId) throw new Error('Facebook requires a pageId (Page ID) for publishing');
 
-    // Facebook Graph API handles attached_media best via form-encoded params
+    const isVideo = platformSpecific?.mediaType === 'REELS';
+
+    // Videos are already published during the upload phase (description included in finish step).
+    // We just need to return the video ID. No separate feed post needed.
+    if (isVideo && platformMediaIds?.length) {
+      const videoId = platformMediaIds[0];
+      console.log(`[Facebook] Video already published during upload: ${videoId}`);
+      return {
+        platformPostId: videoId,
+        platformUrl: `https://www.facebook.com/${pageId}/videos/${videoId}`,
+        publishedAt: new Date(),
+      };
+    }
+
+    // Photo/text posts — publish via feed endpoint
     const formParams = new URLSearchParams();
     formParams.append('message', content);
     formParams.append('access_token', accessToken);
