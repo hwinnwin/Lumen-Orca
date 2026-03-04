@@ -1,5 +1,6 @@
 import { getAI, getReplicate, isReplicateConfigured } from './ai-clients.js';
 import { uploadBuffer, generateMediaKey } from './s3.js';
+import { buildPublicMediaUrl } from '../utils/signed-media-url.js';
 
 export { isReplicateConfigured };
 
@@ -200,10 +201,13 @@ export async function generateVideo(
 
   // Upload to storage
   const key = generateMediaKey(userId, `generated-video-${Date.now()}.mp4`);
-  const storedUrl = await uploadBuffer(key, videoBuffer, 'video/mp4');
+  await uploadBuffer(key, videoBuffer, 'video/mp4');
+
+  // Return a signed public URL so <video> elements can access it without auth headers
+  const publicUrl = buildPublicMediaUrl(key, 3600); // 1 hour TTL
 
   return {
-    videoUrl: storedUrl,
+    videoUrl: publicUrl,
     storageKey: key,
     duration,
   };
