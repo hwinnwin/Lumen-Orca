@@ -157,27 +157,44 @@ export async function generateVideo(
     { input },
   );
 
-  // Hailuo returns a URL to the generated .mp4
-  let videoUrl: string;
-  if (typeof output === 'string') {
-    videoUrl = output;
-  } else if (Array.isArray(output)) {
-    videoUrl = typeof output[0] === 'string' ? output[0] : (output[0] as any)?.url?.() || (output[0] as any)?.url || String(output[0]);
-  } else if (output && typeof output === 'object' && 'url' in (output as any)) {
-    const u = (output as any).url;
-    videoUrl = typeof u === 'function' ? u() : u;
+  console.log(`[VideoGenerator] Replicate output type: ${typeof output}, isArray: ${Array.isArray(output)}`);
+
+  // Hailuo may return a FileOutput object, a URL string, or an array
+  const videoResult = Array.isArray(output) ? output[0] : output;
+  let videoBuffer: Buffer;
+
+  if (typeof videoResult === 'string') {
+    // Plain URL string
+    console.log(`[VideoGenerator] Fetching video from URL: ${videoResult.substring(0, 80)}...`);
+    const response = await fetch(videoResult);
+    if (!response.ok) {
+      throw new Error(`Failed to download generated video: ${response.status}`);
+    }
+    videoBuffer = Buffer.from(await response.arrayBuffer());
+  } else if (videoResult && typeof videoResult === 'object' && 'url' in (videoResult as any)) {
+    // FileOutput object — get URL then fetch
+    const u = (videoResult as any).url;
+    const fileUrl = typeof u === 'function' ? u() : u;
+    console.log(`[VideoGenerator] Fetching video from FileOutput URL: ${String(fileUrl).substring(0, 80)}...`);
+    const response = await fetch(fileUrl);
+    if (!response.ok) {
+      throw new Error(`Failed to download generated video: ${response.status}`);
+    }
+    videoBuffer = Buffer.from(await response.arrayBuffer());
+  } else if (videoResult && typeof videoResult === 'object' && typeof (videoResult as any).blob === 'function') {
+    // FileOutput as ReadableStream — use blob()
+    console.log(`[VideoGenerator] Reading video from FileOutput blob...`);
+    const blob = await (videoResult as any).blob();
+    videoBuffer = Buffer.from(await blob.arrayBuffer());
   } else {
-    videoUrl = String(output);
+    // Last resort — try to fetch as URL
+    console.log(`[VideoGenerator] Fallback: treating output as URL: ${String(videoResult).substring(0, 80)}...`);
+    const response = await fetch(videoResult as any);
+    if (!response.ok) {
+      throw new Error(`Failed to download generated video: ${response.status}`);
+    }
+    videoBuffer = Buffer.from(await response.arrayBuffer());
   }
-
-  console.log(`[VideoGenerator] Replicate returned video URL: ${videoUrl.substring(0, 80)}...`);
-
-  // Download the video
-  const response = await fetch(videoUrl);
-  if (!response.ok) {
-    throw new Error(`Failed to download generated video: ${response.status}`);
-  }
-  const videoBuffer = Buffer.from(await response.arrayBuffer());
 
   console.log(`[VideoGenerator] Downloaded video: ${(videoBuffer.length / 1024 / 1024).toFixed(1)}MB`);
 

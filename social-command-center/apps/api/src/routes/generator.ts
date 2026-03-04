@@ -183,6 +183,9 @@ generatorRouter.post('/video/generate', async (req, res) => {
   } catch (error) {
     const errMsg = error instanceof Error ? error.message : String(error);
     console.error('[Generator] Video generation failed:', errMsg);
+    if (error instanceof Error && error.stack) {
+      console.error('[Generator] Stack:', error.stack);
+    }
     res.status(500).json({ error: `Video generation failed: ${errMsg}` });
   }
 });
