@@ -648,7 +648,7 @@ export async function stitchVideo(
         '-y',
         '-stream_loop', '-1', '-i', musicPath,
         '-i', voiceoverPath,
-        '-filter_complex', '[0:a]volume=0.3[music];[1:a]volume=1.0[voice];[music][voice]amix=inputs=2:duration=longest[out]',
+        '-filter_complex', '[0:a]volume=0.2[music];[1:a]volume=1.0[voice];[music][voice]amix=inputs=2:duration=longest[out]',
         '-map', '[out]',
         '-c:a', 'aac', '-b:a', '192k',
         '-t', '300', // max 5 min safety cap
