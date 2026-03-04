@@ -13,7 +13,7 @@ import { addCredits, calculateVideoCost, CREDIT_COSTS } from '../../services/cre
 export const videoGenerateWorker = new Worker<VideoGenerateJobData>(
   'video-generate',
   async (job: Job<VideoGenerateJobData>) => {
-    const { prompt, sourceImageUrl, duration, aspectRatio, userId, jobId, segments, voiceoverScript, voiceoverVoice, musicStyle } = job.data;
+    const { prompt, sourceImageUrl, duration, aspectRatio, userId, jobId, segments, voiceoverScript, voiceoverVoice, musicStyle, enableCaptions } = job.data;
 
     const isMultiSegment = segments && segments.length > 1;
     const hasAudio = !!voiceoverScript || !!musicStyle;
@@ -30,7 +30,7 @@ export const videoGenerateWorker = new Worker<VideoGenerateJobData>(
           : [{ segmentNumber: 1, prompt, duration }];
 
         result = await generateMultiSegmentVideo(
-          { segments: effectiveSegments, aspectRatio, voiceoverScript, voiceoverVoice, musicStyle },
+          { segments: effectiveSegments, aspectRatio, voiceoverScript, voiceoverVoice, musicStyle, captionText: enableCaptions && voiceoverScript ? voiceoverScript : undefined },
           userId,
         );
       } else {

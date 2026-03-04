@@ -1,7 +1,7 @@
 import { create } from 'zustand';
-import type { SlidePlan, CarouselPlan, GeneratedSlide, VideoPlan, GeneratedVideo, VideoPlatform } from '../services/api';
+import type { SlidePlan, CarouselPlan, GeneratedSlide, VideoPlan, GeneratedVideo, VideoPlatform, GeneratedSpeech } from '../services/api';
 
-export type ContentType = 'carousel' | 'quote-card' | 'mixed-media' | 'educational' | 'video-clip';
+export type ContentType = 'carousel' | 'quote-card' | 'mixed-media' | 'educational' | 'video-clip' | 'script-to-speech';
 export type GeneratorStep = 'configure' | 'review' | 'preview';
 
 interface GeneratorState {
@@ -40,10 +40,19 @@ interface GeneratorState {
   videoAudioVoiceover: boolean;
   videoVoiceId: string;
   videoMusicStyle: string;
+  videoEnableCaptions: boolean;
+  videoCustomScriptMode: boolean;
+  videoCustomScript: string;
   videoPlan: VideoPlan | null;
   generatedVideo: GeneratedVideo | null;
   isGeneratingVideo: boolean;
   videoJobId: string | null;
+
+  // ─── Script-to-Speech state ─────────────────────────
+  speechScript: string;
+  speechVoiceId: string;
+  generatedSpeech: GeneratedSpeech | null;
+  isGeneratingSpeech: boolean;
 
   // Actions
   setStep: (step: GeneratorStep) => void;
@@ -70,10 +79,19 @@ interface GeneratorState {
   setVideoAudioVoiceover: (v: boolean) => void;
   setVideoVoiceId: (voiceId: string) => void;
   setVideoMusicStyle: (style: string) => void;
+  setVideoEnableCaptions: (v: boolean) => void;
+  setVideoCustomScriptMode: (v: boolean) => void;
+  setVideoCustomScript: (script: string) => void;
   setVideoPlan: (plan: VideoPlan) => void;
   setGeneratedVideo: (video: GeneratedVideo) => void;
   setIsGeneratingVideo: (v: boolean) => void;
   setVideoJobId: (jobId: string | null) => void;
+
+  // Speech actions
+  setSpeechScript: (script: string) => void;
+  setSpeechVoiceId: (voiceId: string) => void;
+  setGeneratedSpeech: (speech: GeneratedSpeech) => void;
+  setIsGeneratingSpeech: (v: boolean) => void;
 
   reset: () => void;
 }
@@ -103,10 +121,19 @@ const initialState = {
   videoAudioVoiceover: false,
   videoVoiceId: 'Deep_Voice_Man',
   videoMusicStyle: '',
+  videoEnableCaptions: false,
+  videoCustomScriptMode: false,
+  videoCustomScript: '',
   videoPlan: null as VideoPlan | null,
   generatedVideo: null as GeneratedVideo | null,
   isGeneratingVideo: false,
   videoJobId: null as string | null,
+
+  // Speech
+  speechScript: '',
+  speechVoiceId: 'Deep_Voice_Man',
+  generatedSpeech: null as GeneratedSpeech | null,
+  isGeneratingSpeech: false,
 };
 
 export const useGeneratorStore = create<GeneratorState>((set) => ({
@@ -156,10 +183,19 @@ export const useGeneratorStore = create<GeneratorState>((set) => ({
   setVideoAudioVoiceover: (videoAudioVoiceover) => set({ videoAudioVoiceover }),
   setVideoVoiceId: (videoVoiceId) => set({ videoVoiceId }),
   setVideoMusicStyle: (videoMusicStyle) => set({ videoMusicStyle }),
+  setVideoEnableCaptions: (videoEnableCaptions) => set({ videoEnableCaptions }),
+  setVideoCustomScriptMode: (videoCustomScriptMode) => set({ videoCustomScriptMode }),
+  setVideoCustomScript: (videoCustomScript) => set({ videoCustomScript }),
   setVideoPlan: (plan) => set({ videoPlan: plan, step: 'review' }),
   setGeneratedVideo: (video) => set({ generatedVideo: video, step: 'preview', isGeneratingVideo: false }),
   setIsGeneratingVideo: (isGeneratingVideo) => set({ isGeneratingVideo }),
   setVideoJobId: (videoJobId) => set({ videoJobId }),
+
+  // Speech actions
+  setSpeechScript: (speechScript) => set({ speechScript }),
+  setSpeechVoiceId: (speechVoiceId) => set({ speechVoiceId }),
+  setGeneratedSpeech: (speech) => set({ generatedSpeech: speech, step: 'preview' }),
+  setIsGeneratingSpeech: (isGeneratingSpeech) => set({ isGeneratingSpeech }),
 
   reset: () => set(initialState),
 }));

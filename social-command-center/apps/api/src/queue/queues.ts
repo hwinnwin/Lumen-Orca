@@ -39,4 +39,5 @@ export interface VideoGenerateJobData {
   voiceoverScript?: string;
   voiceoverVoice?: string;
   musicStyle?: string;
+  enableCaptions?: boolean;
 }

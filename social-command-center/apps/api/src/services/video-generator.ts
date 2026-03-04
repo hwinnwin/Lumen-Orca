@@ -104,7 +104,7 @@ export async function planVideo(
 
   const audioInstructions = [];
   if (audioOptions?.voiceover) {
-    audioInstructions.push(`4. A voiceover narration script that fits ~${totalDuration} seconds when read at a natural pace. Write it as a continuous script, not per-segment. Make it conversational and engaging.`);
+    audioInstructions.push(`4. A voiceover narration script that fits within ${Math.floor(totalDuration * 0.85)} seconds when spoken aloud (~${Math.floor(totalDuration * 0.85 * 2.5)} words). Keep it concise — it's better to finish slightly early than to get cut off. Write it as a continuous script, not per-segment. Make it conversational and engaging.`);
   }
   if (audioOptions?.music) {
     audioInstructions.push(`${audioOptions.voiceover ? '5' : '4'}. A brief music style description (3-8 words) for background music, e.g. "upbeat electronic with soft beats" or "calm ambient piano"${audioOptions.musicStyle ? `. User preference: "${audioOptions.musicStyle}"` : ''}`);
@@ -429,21 +429,126 @@ async function fetchReplicateOutput(output: unknown, label: string): Promise<Buf
   return Buffer.from(await response.arrayBuffer());
 }
 
+// ─── Caption Generation ─────────────────────────────────
+
+/**
+ * Generate SRT subtitle content from a voiceover script.
+ * Splits script into ~3-4 word chunks timed evenly across the video duration.
+ */
+function generateSrtFromScript(script: string, totalDuration: number): string {
+  const words = script.split(/\s+/).filter(Boolean);
+  const wordsPerChunk = 4;
+  const chunks: string[] = [];
+
+  for (let i = 0; i < words.length; i += wordsPerChunk) {
+    chunks.push(words.slice(i, i + wordsPerChunk).join(' '));
+  }
+
+  if (chunks.length === 0) return '';
+
+  const chunkDuration = totalDuration / chunks.length;
+  const lines: string[] = [];
+
+  for (let i = 0; i < chunks.length; i++) {
+    const start = i * chunkDuration;
+    const end = Math.min((i + 1) * chunkDuration, totalDuration);
+    lines.push(`${i + 1}`);
+    lines.push(`${formatSrtTime(start)} --> ${formatSrtTime(end)}`);
+    lines.push(chunks[i]);
+    lines.push('');
+  }
+
+  return lines.join('\n');
+}
+
+function formatSrtTime(seconds: number): string {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = Math.floor(seconds % 60);
+  const ms = Math.round((seconds % 1) * 1000);
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')},${String(ms).padStart(3, '0')}`;
+}
+
+// ─── Voiceover Tempo Adjustment ─────────────────────────
+
+/**
+ * Speed-adjust a voiceover audio file to fit within a target video duration.
+ * Uses ffmpeg's atempo filter (valid range: 0.5–2.0, chained for larger adjustments).
+ * If voiceover is longer than video, speeds it up. If shorter, leaves it alone.
+ * Copies the raw file if no adjustment is needed.
+ */
+async function adjustVoiceoverTempo(
+  inputPath: string,
+  outputPath: string,
+  targetDuration: number,
+  _tmpDir: string,
+): Promise<void> {
+  if (targetDuration <= 0) {
+    // No video duration available — copy as-is
+    await execFileAsync('cp', [inputPath, outputPath]);
+    return;
+  }
+
+  // Probe voiceover duration
+  let voiceoverDuration = 0;
+  try {
+    const { stdout } = await execFileAsync('ffprobe', [
+      '-v', 'error', '-show_entries', 'format=duration',
+      '-of', 'default=noprint_wrappers=1:nokey=1', inputPath,
+    ], { timeout: 10000 });
+    const parsed = parseFloat(stdout.trim());
+    if (!isNaN(parsed) && parsed > 0) voiceoverDuration = parsed;
+  } catch { /* skip adjustment */ }
+
+  if (voiceoverDuration <= 0 || voiceoverDuration <= targetDuration * 1.05) {
+    // Voiceover fits within video (or within 5% tolerance) — no adjustment needed
+    await execFileAsync('cp', [inputPath, outputPath]);
+    console.log(`[VideoGenerator] Voiceover ${voiceoverDuration.toFixed(1)}s fits in ${targetDuration.toFixed(1)}s video — no tempo change`);
+    return;
+  }
+
+  // Calculate speed ratio: how much faster to play
+  const ratio = voiceoverDuration / targetDuration;
+  // Clamp to reasonable range: max 1.8x speedup (don't make it sound too chipmunky)
+  const clampedRatio = Math.min(ratio, 1.8);
+
+  // Build atempo filter chain (each atempo node: 0.5–2.0)
+  const atempoFilters: string[] = [];
+  let remaining = clampedRatio;
+  while (remaining > 1.001) {
+    const step = Math.min(remaining, 2.0);
+    atempoFilters.push(`atempo=${step.toFixed(4)}`);
+    remaining /= step;
+  }
+
+  const filterChain = atempoFilters.join(',');
+  console.log(`[VideoGenerator] Adjusting voiceover tempo: ${voiceoverDuration.toFixed(1)}s → ${(voiceoverDuration / clampedRatio).toFixed(1)}s (${clampedRatio.toFixed(2)}x speed, filter: ${filterChain})`);
+
+  await execFileAsync('ffmpeg', [
+    '-y', '-i', inputPath,
+    '-af', filterChain,
+    '-c:a', 'libmp3lame', '-b:a', '192k',
+    outputPath,
+  ], { timeout: 60000 });
+}
+
 // ─── FFmpeg Stitching ────────────────────────────────────
 
 /**
- * Stitch multiple video segments together, optionally adding music and voiceover.
+ * Stitch multiple video segments together, optionally adding music, voiceover, and captions.
  * Uses ffmpeg CLI via child_process.
  *
  * Pipeline:
  * 1. Concatenate video segments into one MP4
  * 2. If music + voiceover: mix them (music at 30% volume when voiceover present)
  * 3. Merge audio onto the concatenated video
+ * 4. If captionText provided: burn SRT subtitles into video
  */
 export async function stitchVideo(
   videoBuffers: Buffer[],
   musicBuffer?: Buffer,
   voiceoverBuffer?: Buffer,
+  captionText?: string,
 ): Promise<Buffer> {
   const tmpDir = await mkdtemp(join(tmpdir(), 'scc-video-'));
 
@@ -478,21 +583,65 @@ export async function stitchVideo(
       console.log(`[VideoGenerator] Concatenated ${segmentPaths.length} segments`);
     }
 
-    // If no audio, return the concatenated video
-    if (!musicBuffer && !voiceoverBuffer) {
+    // If no audio and no captions, return the concatenated video
+    if (!musicBuffer && !voiceoverBuffer && !captionText) {
       return await readFile(currentVideoPath);
     }
+
+    // If no audio but captions requested, burn captions directly
+    if (!musicBuffer && !voiceoverBuffer && captionText) {
+      let videoDuration = 30;
+      try {
+        const { stdout } = await execFileAsync('ffprobe', [
+          '-v', 'error', '-show_entries', 'format=duration',
+          '-of', 'default=noprint_wrappers=1:nokey=1', currentVideoPath,
+        ], { timeout: 10000 });
+        const parsed = parseFloat(stdout.trim());
+        if (!isNaN(parsed) && parsed > 0) videoDuration = parsed;
+      } catch { /* use fallback */ }
+
+      const srtContent = generateSrtFromScript(captionText, videoDuration);
+      const srtPath = join(tmpDir, 'captions.srt');
+      await writeFile(srtPath, srtContent);
+
+      const captionedPath = join(tmpDir, 'captioned.mp4');
+      const escapedSrtPath = srtPath.replace(/\\/g, '\\\\').replace(/:/g, '\\:');
+      await execFileAsync('ffmpeg', [
+        '-y', '-i', currentVideoPath,
+        '-vf', `subtitles=${escapedSrtPath}:force_style='FontName=DejaVu Sans,FontSize=22,PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,Outline=2,Bold=1,Alignment=2'`,
+        '-c:a', 'copy',
+        captionedPath,
+      ], { timeout: 180000 });
+
+      console.log(`[VideoGenerator] Burned captions into video (no audio)`);
+      return await readFile(captionedPath);
+    }
+
+    // Probe video duration for voiceover timing
+    let videoDuration = 0;
+    try {
+      const { stdout } = await execFileAsync('ffprobe', [
+        '-v', 'error', '-show_entries', 'format=duration',
+        '-of', 'default=noprint_wrappers=1:nokey=1', currentVideoPath,
+      ], { timeout: 10000 });
+      const parsed = parseFloat(stdout.trim());
+      if (!isNaN(parsed) && parsed > 0) videoDuration = parsed;
+    } catch { /* will use 0 = skip tempo adjustment */ }
 
     // Write audio files
     let audioPath: string | undefined;
 
     if (musicBuffer && voiceoverBuffer) {
       const musicPath = join(tmpDir, 'music.wav');
+      const voiceoverRawPath = join(tmpDir, 'voiceover_raw.mp3');
       const voiceoverPath = join(tmpDir, 'voiceover.mp3');
       audioPath = join(tmpDir, 'mixed_audio.aac');
 
       await writeFile(musicPath, musicBuffer);
-      await writeFile(voiceoverPath, voiceoverBuffer);
+      await writeFile(voiceoverRawPath, voiceoverBuffer);
+
+      // Speed-adjust voiceover to fit video duration (atempo 0.5-2.0)
+      await adjustVoiceoverTempo(voiceoverRawPath, voiceoverPath, videoDuration, tmpDir);
 
       // Mix music (at 30% volume) + voiceover into one audio track
       await execFileAsync('ffmpeg', [
@@ -523,9 +672,13 @@ export async function stitchVideo(
 
       console.log(`[VideoGenerator] Prepared music audio`);
     } else if (voiceoverBuffer) {
+      const voiceoverRawPath = join(tmpDir, 'voiceover_raw.mp3');
       const voiceoverPath = join(tmpDir, 'voiceover.mp3');
       audioPath = join(tmpDir, 'audio.aac');
-      await writeFile(voiceoverPath, voiceoverBuffer);
+      await writeFile(voiceoverRawPath, voiceoverBuffer);
+
+      // Speed-adjust voiceover to fit video duration
+      await adjustVoiceoverTempo(voiceoverRawPath, voiceoverPath, videoDuration, tmpDir);
 
       await execFileAsync('ffmpeg', [
         '-y', '-i', voiceoverPath,
@@ -549,6 +702,38 @@ export async function stitchVideo(
     ], { timeout: 120000 });
 
     console.log(`[VideoGenerator] Final video with audio ready`);
+
+    // Burn captions if provided
+    if (captionText) {
+      // Probe video duration for accurate SRT timing
+      let videoDuration = 30; // fallback
+      try {
+        const { stdout } = await execFileAsync('ffprobe', [
+          '-v', 'error', '-show_entries', 'format=duration',
+          '-of', 'default=noprint_wrappers=1:nokey=1', finalPath,
+        ], { timeout: 10000 });
+        const parsed = parseFloat(stdout.trim());
+        if (!isNaN(parsed) && parsed > 0) videoDuration = parsed;
+      } catch { /* use fallback */ }
+
+      const srtContent = generateSrtFromScript(captionText, videoDuration);
+      const srtPath = join(tmpDir, 'captions.srt');
+      await writeFile(srtPath, srtContent);
+
+      const captionedPath = join(tmpDir, 'final_captioned.mp4');
+      // Escape path for ffmpeg subtitles filter (colons and backslashes)
+      const escapedSrtPath = srtPath.replace(/\\/g, '\\\\').replace(/:/g, '\\:');
+      await execFileAsync('ffmpeg', [
+        '-y', '-i', finalPath,
+        '-vf', `subtitles=${escapedSrtPath}:force_style='FontName=DejaVu Sans,FontSize=22,PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,Outline=2,Bold=1,Alignment=2'`,
+        '-c:a', 'copy',
+        captionedPath,
+      ], { timeout: 180000 });
+
+      console.log(`[VideoGenerator] Burned captions into video (${srtContent.split('\n\n').length} entries)`);
+      return await readFile(captionedPath);
+    }
+
     return await readFile(finalPath);
   } finally {
     // Clean up temp directory
@@ -569,10 +754,11 @@ export async function generateMultiSegmentVideo(
     voiceoverScript?: string;
     voiceoverVoice?: string;
     musicStyle?: string;
+    captionText?: string;
   },
   userId: string,
 ): Promise<GeneratedVideo> {
-  const { segments, aspectRatio = '9:16', voiceoverScript, voiceoverVoice, musicStyle } = params;
+  const { segments, aspectRatio = '9:16', voiceoverScript, voiceoverVoice, musicStyle, captionText } = params;
 
   console.log(`[VideoGenerator] Generating ${segments.length}-segment video with${musicStyle ? ' music' : ''}${voiceoverScript ? ' voiceover' : ''}`);
 
@@ -607,8 +793,8 @@ export async function generateMultiSegmentVideo(
     }) : undefined,
   ]);
 
-  // Stitch everything together
-  const finalBuffer = await stitchVideo(videoBuffers, musicBuffer, voiceoverBuffer);
+  // Stitch everything together (with optional captions)
+  const finalBuffer = await stitchVideo(videoBuffers, musicBuffer, voiceoverBuffer, captionText);
   const totalDuration = segments.reduce((sum, s) => sum + s.duration, 0);
 
   console.log(`[VideoGenerator] Final video: ${(finalBuffer.length / 1024 / 1024).toFixed(1)}MB, ~${totalDuration}s`);
