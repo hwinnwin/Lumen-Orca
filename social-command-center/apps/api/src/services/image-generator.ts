@@ -1,31 +1,9 @@
-import Anthropic from '@anthropic-ai/sdk';
-import Replicate from 'replicate';
 import sharp from 'sharp';
-import { env } from '../config/env.js';
 import { uploadBuffer, generateMediaKey } from './s3.js';
 import { randomUUID } from 'crypto';
+import { getAI, getReplicate, isReplicateConfigured } from './ai-clients.js';
 
-// ─── Clients ─────────────────────────────────────────────
-
-let anthropicClient: Anthropic | null = null;
-function getAI(): Anthropic {
-  if (!anthropicClient) {
-    if (!env.ANTHROPIC_API_KEY) throw new Error('ANTHROPIC_API_KEY is not configured');
-    anthropicClient = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
-  }
-  return anthropicClient;
-}
-
-let replicateClient: Replicate | null = null;
-function getReplicate(): Replicate | null {
-  if (!env.REPLICATE_API_TOKEN) return null;
-  if (!replicateClient) {
-    replicateClient = new Replicate({ auth: env.REPLICATE_API_TOKEN });
-  }
-  return replicateClient;
-}
-
-export const isReplicateConfigured = Boolean(env.REPLICATE_API_TOKEN);
+export { isReplicateConfigured };
 
 // ─── Types ───────────────────────────────────────────────
 

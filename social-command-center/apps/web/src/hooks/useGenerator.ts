@@ -5,6 +5,9 @@ import {
   generateCarouselSlides,
   regenerateSlide,
   generateQuoteCard,
+  generateVideoPlan,
+  generateVideoFromPrompt,
+  animateSlide,
 } from '../services/api';
 
 export function useGeneratorCapabilities() {
@@ -28,4 +31,18 @@ export function useRegenerateSlide() {
 
 export function useGenerateQuoteCard() {
   return useMutation({ mutationFn: generateQuoteCard });
+}
+
+// ─── Video Hooks ─────────────────────────────────────────
+
+export function useGenerateVideoPlan() {
+  return useMutation({ mutationFn: generateVideoPlan });
+}
+
+export function useGenerateVideo() {
+  return useMutation({ mutationFn: generateVideoFromPrompt });
+}
+
+export function useAnimateSlide() {
+  return useMutation({ mutationFn: animateSlide });
 }

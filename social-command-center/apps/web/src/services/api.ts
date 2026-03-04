@@ -235,9 +235,28 @@ export interface GeneratedSlide {
   storageKey: string;
 }
 
+// ─── Video Types ──────────────────────────────────────────
+
+export type VideoPlatform = 'reels' | 'tiktok' | 'shorts';
+
+export interface VideoPlan {
+  prompt: string;
+  caption: string;
+  hashtags: string[];
+  duration: number;
+  aspectRatio: string;
+  platform: string;
+}
+
+export interface GeneratedVideo {
+  videoUrl: string;
+  storageKey: string;
+  duration: number;
+}
+
 export async function fetchGeneratorCapabilities() {
   const res = await api.get('/generator/capabilities');
-  return res.data.data as { aiImages: boolean; message: string };
+  return res.data.data as { aiImages: boolean; aiVideo: boolean; message: string };
 }
 
 export async function generateCarouselPlan(data: {
@@ -267,4 +286,34 @@ export async function generateQuoteCard(data: {
 }) {
   const res = await api.post('/generator/quote-card', data, { timeout: 60000 });
   return res.data.data as { imageUrl: string; imageDataUrl: string; storageKey: string };
+}
+
+// ─── Video API Functions ─────────────────────────────────
+
+export async function generateVideoPlan(data: {
+  topic: string;
+  platform?: VideoPlatform;
+  tone?: string;
+}) {
+  const res = await api.post('/generator/video/plan', data, { timeout: 60000 });
+  return res.data.data as VideoPlan;
+}
+
+export async function generateVideoFromPrompt(data: {
+  prompt: string;
+  sourceImageUrl?: string;
+  duration?: 6 | 10;
+  aspectRatio?: '9:16' | '1:1' | '16:9';
+}) {
+  const res = await api.post('/generator/video/generate', data, { timeout: 300000 });
+  return res.data.data as GeneratedVideo;
+}
+
+export async function animateSlide(data: {
+  slideImageUrl: string;
+  motionPrompt?: string;
+  duration?: 6 | 10;
+}) {
+  const res = await api.post('/generator/video/animate-slide', data, { timeout: 300000 });
+  return res.data.data as GeneratedVideo;
 }

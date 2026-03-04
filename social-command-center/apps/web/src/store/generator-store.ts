@@ -1,7 +1,7 @@
 import { create } from 'zustand';
-import type { SlidePlan, CarouselPlan, GeneratedSlide } from '../services/api';
+import type { SlidePlan, CarouselPlan, GeneratedSlide, VideoPlan, GeneratedVideo, VideoPlatform } from '../services/api';
 
-export type ContentType = 'carousel' | 'quote-card' | 'mixed-media' | 'educational';
+export type ContentType = 'carousel' | 'quote-card' | 'mixed-media' | 'educational' | 'video-clip';
 export type GeneratorStep = 'configure' | 'review' | 'preview';
 
 interface GeneratorState {
@@ -30,6 +30,15 @@ interface GeneratorState {
   isGenerating: boolean;
   regeneratingSlide: number | null;
 
+  // ─── Video-specific state ───────────────────────────
+  videoPlatform: VideoPlatform;
+  videoDuration: 6 | 10;
+  videoSourceMode: 'text' | 'image';
+  videoSourceImageUrl: string | null;
+  videoPlan: VideoPlan | null;
+  generatedVideo: GeneratedVideo | null;
+  isGeneratingVideo: boolean;
+
   // Actions
   setStep: (step: GeneratorStep) => void;
   setContentType: (type: ContentType) => void;
@@ -44,6 +53,16 @@ interface GeneratorState {
   setIsPlanning: (v: boolean) => void;
   setIsGenerating: (v: boolean) => void;
   setRegeneratingSlide: (n: number | null) => void;
+
+  // Video actions
+  setVideoPlatform: (platform: VideoPlatform) => void;
+  setVideoDuration: (duration: 6 | 10) => void;
+  setVideoSourceMode: (mode: 'text' | 'image') => void;
+  setVideoSourceImageUrl: (url: string | null) => void;
+  setVideoPlan: (plan: VideoPlan) => void;
+  setGeneratedVideo: (video: GeneratedVideo) => void;
+  setIsGeneratingVideo: (v: boolean) => void;
+
   reset: () => void;
 }
 
@@ -61,6 +80,15 @@ const initialState = {
   isPlanning: false,
   isGenerating: false,
   regeneratingSlide: null as number | null,
+
+  // Video
+  videoPlatform: 'reels' as VideoPlatform,
+  videoDuration: 6 as 6 | 10,
+  videoSourceMode: 'text' as 'text' | 'image',
+  videoSourceImageUrl: null as string | null,
+  videoPlan: null as VideoPlan | null,
+  generatedVideo: null as GeneratedVideo | null,
+  isGeneratingVideo: false,
 };
 
 export const useGeneratorStore = create<GeneratorState>((set) => ({
@@ -99,6 +127,15 @@ export const useGeneratorStore = create<GeneratorState>((set) => ({
   setIsPlanning: (isPlanning) => set({ isPlanning }),
   setIsGenerating: (isGenerating) => set({ isGenerating }),
   setRegeneratingSlide: (regeneratingSlide) => set({ regeneratingSlide }),
+
+  // Video actions
+  setVideoPlatform: (videoPlatform) => set({ videoPlatform }),
+  setVideoDuration: (videoDuration) => set({ videoDuration }),
+  setVideoSourceMode: (videoSourceMode) => set({ videoSourceMode }),
+  setVideoSourceImageUrl: (videoSourceImageUrl) => set({ videoSourceImageUrl }),
+  setVideoPlan: (plan) => set({ videoPlan: plan, step: 'review' }),
+  setGeneratedVideo: (video) => set({ generatedVideo: video, step: 'preview' }),
+  setIsGeneratingVideo: (isGeneratingVideo) => set({ isGeneratingVideo }),
 
   reset: () => set(initialState),
 }));

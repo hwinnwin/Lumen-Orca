@@ -8,6 +8,12 @@ import {
   isReplicateConfigured,
 } from '../services/image-generator.js';
 import type { SlidePlan, CarouselPlan } from '../services/image-generator.js';
+import {
+  planVideo,
+  generateVideo,
+  generateVideoFromSlide,
+} from '../services/video-generator.js';
+import type { VideoPlatform } from '../services/video-generator.js';
 
 export const generatorRouter = Router();
 
@@ -16,9 +22,10 @@ generatorRouter.get('/capabilities', (_req, res) => {
   res.json({
     data: {
       aiImages: isReplicateConfigured,
+      aiVideo: isReplicateConfigured,
       message: isReplicateConfigured
-        ? 'AI image generation is available via Replicate'
-        : 'Using gradient fallback — add REPLICATE_API_TOKEN for AI-generated images',
+        ? 'AI image and video generation is available via Replicate'
+        : 'Using gradient fallback — add REPLICATE_API_TOKEN for AI-generated images and video',
     },
   });
 });
@@ -119,5 +126,86 @@ generatorRouter.post('/quote-card', async (req, res) => {
     const errMsg = error instanceof Error ? error.message : String(error);
     console.error('[Generator] Quote card failed:', errMsg);
     res.status(500).json({ error: `Quote card generation failed: ${errMsg}` });
+  }
+});
+
+// ─── Video Endpoints ────────────────────────────────────
+
+// Plan a video (Claude only — fast)
+generatorRouter.post('/video/plan', async (req, res) => {
+  if (!env.ANTHROPIC_API_KEY) {
+    return res.status(503).json({
+      error: 'AI is not configured. Add your ANTHROPIC_API_KEY to enable video planning.',
+    });
+  }
+
+  try {
+    const { topic, platform = 'reels', tone = 'professional' } = req.body as {
+      topic: string;
+      platform?: VideoPlatform;
+      tone?: string;
+    };
+
+    if (!topic?.trim()) {
+      return res.status(400).json({ error: 'Topic is required' });
+    }
+
+    const plan = await planVideo(topic, platform, tone);
+    res.json({ data: plan });
+  } catch (error) {
+    const errMsg = error instanceof Error ? error.message : String(error);
+    console.error('[Generator] Video plan failed:', errMsg);
+    res.status(500).json({ error: `Video plan generation failed: ${errMsg}` });
+  }
+});
+
+// Generate a video from a prompt (Replicate — slow, 30-120s)
+generatorRouter.post('/video/generate', async (req, res) => {
+  try {
+    const { prompt, sourceImageUrl, duration = 6, aspectRatio = '9:16' } = req.body as {
+      prompt: string;
+      sourceImageUrl?: string;
+      duration?: 6 | 10;
+      aspectRatio?: '9:16' | '1:1' | '16:9';
+    };
+    const userId = req.userId;
+
+    if (!prompt?.trim()) {
+      return res.status(400).json({ error: 'A video prompt is required' });
+    }
+
+    const result = await generateVideo(
+      { prompt, sourceImageUrl, duration, aspectRatio },
+      userId,
+    );
+
+    res.json({ data: result });
+  } catch (error) {
+    const errMsg = error instanceof Error ? error.message : String(error);
+    console.error('[Generator] Video generation failed:', errMsg);
+    res.status(500).json({ error: `Video generation failed: ${errMsg}` });
+  }
+});
+
+// Animate an existing carousel slide into a video
+generatorRouter.post('/video/animate-slide', async (req, res) => {
+  try {
+    const { slideImageUrl, motionPrompt, duration = 6 } = req.body as {
+      slideImageUrl: string;
+      motionPrompt?: string;
+      duration?: 6 | 10;
+    };
+    const userId = req.userId;
+
+    if (!slideImageUrl?.trim()) {
+      return res.status(400).json({ error: 'A slide image URL is required' });
+    }
+
+    const result = await generateVideoFromSlide(slideImageUrl, motionPrompt || '', userId, duration);
+    res.json({ data: result });
+  } catch (error) {
+    const errMsg = error instanceof Error ? error.message : String(error);
+    console.error('[Generator] Slide animation failed:', errMsg);
+    res.status(500).json({ error: `Slide animation failed: ${errMsg}` });
   }
 });

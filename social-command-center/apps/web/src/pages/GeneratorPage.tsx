@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
@@ -18,6 +18,8 @@ import {
   Pencil,
   Check,
   X,
+  Video,
+  Play,
 } from 'lucide-react';
 import Header from '../components/layout/Header';
 import { useGeneratorStore } from '../store/generator-store';
@@ -28,15 +30,19 @@ import {
   useGenerateSlides,
   useRegenerateSlide,
   useGenerateQuoteCard,
+  useGenerateVideoPlan,
+  useGenerateVideo,
+  useAnimateSlide,
 } from '../hooks/useGenerator';
 import { useComposeStore } from '../store/compose-store';
-import type { SlidePlan } from '../services/api';
+import type { SlidePlan, VideoPlatform } from '../services/api';
 
 const CONTENT_TYPES: { id: ContentType; label: string; desc: string; icon: typeof Layout }[] = [
   { id: 'carousel', label: 'Carousel', desc: 'Text overlay slides with styled backgrounds', icon: Layout },
   { id: 'quote-card', label: 'Quote Cards', desc: 'Beautiful quote images with author attribution', icon: Quote },
   { id: 'mixed-media', label: 'Mixed Media', desc: 'Photos + text slides for visual variety', icon: Image },
   { id: 'educational', label: 'Educational', desc: 'Numbered tips, steps, or facts', icon: BookOpen },
+  { id: 'video-clip', label: 'Video Clip', desc: 'AI-generated short video for Reels, TikTok, Shorts', icon: Video },
 ];
 
 const TONES = [
@@ -48,6 +54,12 @@ const TONES = [
   'emperor-mode',
 ];
 
+const VIDEO_PLATFORMS: { id: VideoPlatform; label: string }[] = [
+  { id: 'reels', label: 'Instagram Reels' },
+  { id: 'tiktok', label: 'TikTok' },
+  { id: 'shorts', label: 'YouTube Shorts' },
+];
+
 export default function GeneratorPage() {
   const navigate = useNavigate();
   const store = useGeneratorStore();
@@ -56,6 +68,9 @@ export default function GeneratorPage() {
   const slidesMutation = useGenerateSlides();
   const regenerateMutation = useRegenerateSlide();
   const quoteCardMutation = useGenerateQuoteCard();
+  const videoPlanMutation = useGenerateVideoPlan();
+  const videoGenMutation = useGenerateVideo();
+  const animateSlideMutation = useAnimateSlide();
   const composeStore = useComposeStore();
 
   // Quote card specific state
@@ -68,6 +83,34 @@ export default function GeneratorPage() {
   const [editTitle, setEditTitle] = useState('');
   const [editBody, setEditBody] = useState('');
   const [editPrompt, setEditPrompt] = useState('');
+
+  // Video prompt editing (in review step)
+  const [editingVideoPrompt, setEditingVideoPrompt] = useState(false);
+  const [videoPromptDraft, setVideoPromptDraft] = useState('');
+
+  // Elapsed time counter for video generation
+  const [elapsed, setElapsed] = useState(0);
+  const elapsedRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (elapsedRef.current) clearInterval(elapsedRef.current);
+    };
+  }, []);
+
+  const startElapsedTimer = () => {
+    setElapsed(0);
+    elapsedRef.current = setInterval(() => setElapsed((e) => e + 1), 1000);
+  };
+
+  const stopElapsedTimer = () => {
+    if (elapsedRef.current) {
+      clearInterval(elapsedRef.current);
+      elapsedRef.current = null;
+    }
+  };
+
+  // ─── Carousel Handlers ───────────────────────────────
 
   const handleGeneratePlan = async () => {
     if (!store.topic.trim()) {
@@ -140,13 +183,115 @@ export default function GeneratorPage() {
     }
   };
 
+  // ─── Video Handlers ──────────────────────────────────
+
+  const handleGenerateVideoPlan = async () => {
+    if (!store.topic.trim()) {
+      toast.error('Enter a topic first');
+      return;
+    }
+    store.setIsPlanning(true);
+    try {
+      const plan = await videoPlanMutation.mutateAsync({
+        topic: store.topic,
+        platform: store.videoPlatform,
+        tone: store.tone,
+      });
+      store.setVideoPlan(plan);
+      setVideoPromptDraft(plan.prompt);
+      toast.success('Video concept planned!');
+    } catch {
+      toast.error('Failed to generate video plan');
+    } finally {
+      store.setIsPlanning(false);
+    }
+  };
+
+  const handleGenerateVideo = async () => {
+    const plan = store.videoPlan;
+    if (!plan) return;
+
+    store.setIsGeneratingVideo(true);
+    startElapsedTimer();
+    try {
+      const result = await videoGenMutation.mutateAsync({
+        prompt: plan.prompt,
+        sourceImageUrl: store.videoSourceMode === 'image' && store.videoSourceImageUrl ? store.videoSourceImageUrl : undefined,
+        duration: store.videoDuration,
+        aspectRatio: plan.aspectRatio as '9:16' | '1:1' | '16:9',
+      });
+      store.setGeneratedVideo(result);
+      toast.success('Video generated!');
+    } catch {
+      toast.error('Video generation failed');
+    } finally {
+      store.setIsGeneratingVideo(false);
+      stopElapsedTimer();
+    }
+  };
+
+  const handleAnimateSlide = async (slideImageUrl: string) => {
+    store.setIsGeneratingVideo(true);
+    startElapsedTimer();
+    try {
+      const result = await animateSlideMutation.mutateAsync({
+        slideImageUrl,
+        motionPrompt: 'Subtle cinematic motion, gentle zoom with soft parallax depth effect',
+        duration: 6,
+      });
+      store.setGeneratedVideo(result);
+      toast.success('Slide animated into video!');
+    } catch {
+      toast.error('Failed to animate slide');
+    } finally {
+      store.setIsGeneratingVideo(false);
+      stopElapsedTimer();
+    }
+  };
+
+  // ─── Shared Handlers ─────────────────────────────────
+
   const handleLoadIntoComposer = async () => {
-    // Set caption text + hashtags
+    // Video content
+    if (store.generatedVideo) {
+      const videoPlan = store.videoPlan;
+      const caption = videoPlan?.caption || store.caption || '';
+      const hashtags = videoPlan?.hashtags || store.hashtags;
+      composeStore.setContent(caption + (hashtags.length ? '\n\n' + hashtags.map((h) => `#${h}`).join(' ') : ''));
+
+      const platformMap: Record<VideoPlatform, string> = {
+        reels: 'instagram',
+        tiktok: 'tiktok',
+        shorts: 'youtube',
+      };
+      composeStore.setAllPlatforms([platformMap[store.videoPlatform]] as any[]);
+
+      try {
+        const res = await fetch(store.generatedVideo.videoUrl);
+        const blob = await res.blob();
+        const file = new File([blob], 'generated-video.mp4', { type: 'video/mp4' });
+        composeStore.addMediaFiles([{
+          name: file.name,
+          type: 'video',
+          file,
+          progress: 100,
+          status: 'ready',
+        }]);
+      } catch {
+        toast.error('Failed to load video into composer');
+        return;
+      }
+
+      navigate('/');
+      toast.success('Video loaded into composer');
+      return;
+    }
+
+    // Image carousel / quote card content
     const caption = store.caption || quoteText;
     composeStore.setContent(caption + (store.hashtags.length ? '\n\n' + store.hashtags.map((h) => `#${h}`).join(' ') : ''));
-    composeStore.setAllPlatforms(['instagram']);
+    composeStore.setAllPlatforms(['instagram'] as any[]);
 
-    // Convert generated slides (base64) to File objects and load into composer media
     const slides = store.slides;
     const quoteImg = quoteResult;
 
@@ -212,6 +357,8 @@ export default function GeneratorPage() {
       document.body.removeChild(a);
     });
   };
+
+  const isVideoMode = store.contentType === 'video-clip';
 
   return (
     <div
@@ -335,8 +482,107 @@ export default function GeneratorPage() {
               </div>
             </div>
 
-            {/* Quote Card mode */}
-            {store.contentType === 'quote-card' ? (
+            {/* ─── Video Clip config ─── */}
+            {isVideoMode ? (
+              <div style={{ display: 'grid', gap: '16px' }}>
+                <div>
+                  <label style={labelStyle}>Topic / Prompt</label>
+                  <textarea
+                    value={store.topic}
+                    onChange={(e) => store.setTopic(e.target.value)}
+                    placeholder="What's your video about? e.g. 'Cinematic sunrise over a mountain lake, drone shot'"
+                    rows={3}
+                    style={inputStyle}
+                  />
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
+                  <div>
+                    <label style={labelStyle}>Platform</label>
+                    <select
+                      value={store.videoPlatform}
+                      onChange={(e) => store.setVideoPlatform(e.target.value as VideoPlatform)}
+                      style={{ ...inputStyle, cursor: 'pointer' }}
+                    >
+                      {VIDEO_PLATFORMS.map(({ id, label }) => (
+                        <option key={id} value={id}>{label}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label style={labelStyle}>Duration</label>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      {([6, 10] as const).map((d) => (
+                        <button
+                          key={d}
+                          onClick={() => store.setVideoDuration(d)}
+                          style={{
+                            flex: 1,
+                            padding: '10px',
+                            borderRadius: '10px',
+                            background: store.videoDuration === d ? 'var(--bg-active)' : 'var(--bg-tertiary)',
+                            border: `1px solid ${store.videoDuration === d ? '#8b5cf6' : 'var(--border-color)'}`,
+                            color: store.videoDuration === d ? '#8b5cf6' : 'var(--text-secondary)',
+                            fontSize: '13px',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                          }}
+                        >
+                          {d}s
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label style={labelStyle}>Tone</label>
+                    <select
+                      value={store.tone}
+                      onChange={(e) => store.setTone(e.target.value)}
+                      style={{ ...inputStyle, cursor: 'pointer' }}
+                    >
+                      {TONES.map((t) => (
+                        <option key={t} value={t}>
+                          {t.charAt(0).toUpperCase() + t.slice(1).replace('-', ' ')}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    padding: '10px 16px',
+                    background: 'rgba(139,92,246,0.08)',
+                    border: '1px solid rgba(139,92,246,0.2)',
+                    borderRadius: '10px',
+                    fontSize: '11px',
+                    color: 'var(--text-muted)',
+                    fontFamily: "'IBM Plex Mono', monospace",
+                    lineHeight: 1.6,
+                  }}
+                >
+                  Video generation costs ~$0.50 per 6s clip and takes 30-90 seconds. Output is vertical (9:16) optimized for {VIDEO_PLATFORMS.find((p) => p.id === store.videoPlatform)?.label}.
+                </div>
+
+                <button
+                  onClick={handleGenerateVideoPlan}
+                  disabled={store.isPlanning || !store.topic.trim()}
+                  style={{
+                    ...primaryButtonStyle,
+                    opacity: store.isPlanning || !store.topic.trim() ? 0.5 : 1,
+                  }}
+                >
+                  {store.isPlanning ? (
+                    <><Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> Planning video...</>
+                  ) : (
+                    <><Wand2 size={16} /> Generate Video Plan</>
+                  )}
+                </button>
+              </div>
+            ) : store.contentType === 'quote-card' ? (
+              /* Quote Card mode */
               <div style={{ display: 'grid', gap: '16px' }}>
                 <div>
                   <label style={labelStyle}>Quote</label>
@@ -405,12 +651,11 @@ export default function GeneratorPage() {
                     onChange={(e) => {
                       const val = e.target.value;
                       store.setTopic(val);
-                      // Auto-detect number of items and adjust slide count
                       const match = val.match(/\b(\d+)\s+(things?|tips?|facts?|reasons?|ways?|steps?|rules?|habits?|mistakes?|secrets?|lessons?|signs?|hacks?|ideas?|myths?|truths?|principles?|strategies?|techniques?|examples?|benefits?)\b/i);
                       if (match) {
                         const num = parseInt(match[1], 10);
                         if (num >= 1 && num <= 15) {
-                          const recommended = Math.min(num + 2, 20); // +2 for hook + CTA, max 20
+                          const recommended = Math.min(num + 2, 20);
                           store.setSlideCount(recommended);
                         }
                       }
@@ -492,8 +737,125 @@ export default function GeneratorPage() {
           </div>
         )}
 
-        {/* ═══════════ STEP 2: REVIEW PLAN ═══════════ */}
-        {store.step === 'review' && store.plan && (
+        {/* ═══════════ STEP 2: REVIEW — VIDEO ═══════════ */}
+        {store.step === 'review' && isVideoMode && store.videoPlan && (
+          <div style={{ display: 'grid', gap: '20px' }}>
+            <p style={{ fontSize: '12px', color: 'var(--text-muted)', fontFamily: "'IBM Plex Mono', monospace" }}>
+              Review the video concept. Edit the prompt before generating.
+            </p>
+
+            {/* Video prompt */}
+            <div style={cardStyle}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                <label style={{ ...labelStyle, marginBottom: 0 }}>Video Prompt</label>
+                {editingVideoPrompt ? (
+                  <div style={{ display: 'flex', gap: '4px' }}>
+                    <button
+                      onClick={() => {
+                        store.setVideoPlan({ ...store.videoPlan!, prompt: videoPromptDraft });
+                        setEditingVideoPrompt(false);
+                      }}
+                      style={iconBtnStyle}
+                      title="Save"
+                    >
+                      <Check size={14} style={{ color: '#22c55e' }} />
+                    </button>
+                    <button
+                      onClick={() => {
+                        setVideoPromptDraft(store.videoPlan!.prompt);
+                        setEditingVideoPrompt(false);
+                      }}
+                      style={iconBtnStyle}
+                      title="Cancel"
+                    >
+                      <X size={14} style={{ color: '#ff4444' }} />
+                    </button>
+                  </div>
+                ) : (
+                  <button onClick={() => setEditingVideoPrompt(true)} style={iconBtnStyle} title="Edit">
+                    <Pencil size={12} />
+                  </button>
+                )}
+              </div>
+              {editingVideoPrompt ? (
+                <textarea
+                  value={videoPromptDraft}
+                  onChange={(e) => setVideoPromptDraft(e.target.value)}
+                  rows={4}
+                  style={{ ...inputStyle, fontFamily: "'IBM Plex Mono', monospace", fontSize: '12px' }}
+                />
+              ) : (
+                <div style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.6, fontFamily: "'IBM Plex Mono', monospace" }}>
+                  {store.videoPlan.prompt}
+                </div>
+              )}
+            </div>
+
+            {/* Caption + hashtags */}
+            <div style={cardStyle}>
+              <label style={labelStyle}>Caption</label>
+              <div style={{ fontSize: '13px', color: 'var(--text-secondary)', whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>
+                {store.videoPlan.caption}
+              </div>
+              {store.videoPlan.hashtags.length > 0 && (
+                <div style={{ marginTop: '8px', fontSize: '12px', color: '#8b5cf6' }}>
+                  {store.videoPlan.hashtags.map((h) => `#${h}`).join(' ')}
+                </div>
+              )}
+            </div>
+
+            {/* Video details */}
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <div style={{ ...cardStyle, flex: 1, textAlign: 'center' }}>
+                <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontFamily: "'IBM Plex Mono', monospace", marginBottom: '4px' }}>DURATION</div>
+                <div style={{ fontSize: '20px', fontWeight: 700 }}>{store.videoPlan.duration}s</div>
+              </div>
+              <div style={{ ...cardStyle, flex: 1, textAlign: 'center' }}>
+                <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontFamily: "'IBM Plex Mono', monospace", marginBottom: '4px' }}>ASPECT RATIO</div>
+                <div style={{ fontSize: '20px', fontWeight: 700 }}>{store.videoPlan.aspectRatio}</div>
+              </div>
+              <div style={{ ...cardStyle, flex: 1, textAlign: 'center' }}>
+                <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontFamily: "'IBM Plex Mono', monospace", marginBottom: '4px' }}>PLATFORM</div>
+                <div style={{ fontSize: '14px', fontWeight: 700 }}>{VIDEO_PLATFORMS.find((p) => p.id === store.videoPlatform)?.label}</div>
+              </div>
+            </div>
+
+            <button
+              onClick={handleGenerateVideo}
+              disabled={store.isGeneratingVideo}
+              style={{
+                ...primaryButtonStyle,
+                opacity: store.isGeneratingVideo ? 0.5 : 1,
+                padding: '14px 28px',
+                fontSize: '14px',
+              }}
+            >
+              {store.isGeneratingVideo ? (
+                <><Loader2 size={18} style={{ animation: 'spin 1s linear infinite' }} /> Generating video... {elapsed}s</>
+              ) : (
+                <><Video size={18} /> Generate Video</>
+              )}
+            </button>
+
+            {store.isGeneratingVideo && (
+              <div style={{
+                padding: '12px 16px',
+                background: 'rgba(139,92,246,0.08)',
+                border: '1px solid rgba(139,92,246,0.15)',
+                borderRadius: '10px',
+                fontSize: '11px',
+                color: 'var(--text-muted)',
+                fontFamily: "'IBM Plex Mono', monospace",
+                textAlign: 'center',
+              }}>
+                This usually takes 30-90 seconds. Please don't close this page.
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ═══════════ STEP 2: REVIEW — CAROUSEL ═══════════ */}
+        {store.step === 'review' && !isVideoMode && store.plan && (
           <div style={{ display: 'grid', gap: '20px' }}>
             <p style={{ fontSize: '12px', color: 'var(--text-muted)', fontFamily: "'IBM Plex Mono', monospace" }}>
               Review and edit the slide plan. Click a slide to modify text or image prompts.
@@ -524,14 +886,7 @@ export default function GeneratorPage() {
                   }}
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                    <span
-                      style={{
-                        fontSize: '10px',
-                        fontWeight: 700,
-                        color: '#8b5cf6',
-                        fontFamily: "'IBM Plex Mono', monospace",
-                      }}
-                    >
+                    <span style={{ fontSize: '10px', fontWeight: 700, color: '#8b5cf6', fontFamily: "'IBM Plex Mono', monospace" }}>
                       SLIDE {slide.slideNumber}
                     </span>
                     {editingSlide === slide.slideNumber ? (
@@ -552,53 +907,18 @@ export default function GeneratorPage() {
 
                   {editingSlide === slide.slideNumber ? (
                     <div style={{ display: 'grid', gap: '8px' }}>
-                      <input
-                        value={editTitle}
-                        onChange={(e) => setEditTitle(e.target.value)}
-                        style={{ ...inputStyle, fontSize: '13px', fontWeight: 700 }}
-                        placeholder="Title"
-                      />
-                      <textarea
-                        value={editBody}
-                        onChange={(e) => setEditBody(e.target.value)}
-                        rows={2}
-                        style={{ ...inputStyle, fontSize: '12px' }}
-                        placeholder="Body text"
-                      />
-                      <textarea
-                        value={editPrompt}
-                        onChange={(e) => setEditPrompt(e.target.value)}
-                        rows={2}
-                        style={{ ...inputStyle, fontSize: '11px', fontFamily: "'IBM Plex Mono', monospace" }}
-                        placeholder="Image prompt"
-                      />
+                      <input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} style={{ ...inputStyle, fontSize: '13px', fontWeight: 700 }} placeholder="Title" />
+                      <textarea value={editBody} onChange={(e) => setEditBody(e.target.value)} rows={2} style={{ ...inputStyle, fontSize: '12px' }} placeholder="Body text" />
+                      <textarea value={editPrompt} onChange={(e) => setEditPrompt(e.target.value)} rows={2} style={{ ...inputStyle, fontSize: '11px', fontFamily: "'IBM Plex Mono', monospace" }} placeholder="Image prompt" />
                     </div>
                   ) : (
                     <>
-                      <div
-                        style={{
-                          padding: '12px',
-                          borderRadius: '8px',
-                          background: slide.backgroundColor,
-                          color: slide.textColor,
-                          marginBottom: '8px',
-                          minHeight: '60px',
-                        }}
-                      >
+                      <div style={{ padding: '12px', borderRadius: '8px', background: slide.backgroundColor, color: slide.textColor, marginBottom: '8px', minHeight: '60px' }}>
                         <div style={{ fontSize: '14px', fontWeight: 700, marginBottom: '4px' }}>{slide.title}</div>
                         {slide.body && <div style={{ fontSize: '11px', opacity: 0.85 }}>{slide.body}</div>}
                       </div>
-                      <div
-                        style={{
-                          fontSize: '10px',
-                          color: 'var(--text-muted)',
-                          fontFamily: "'IBM Plex Mono', monospace",
-                          lineHeight: 1.4,
-                        }}
-                      >
-                        {slide.imagePrompt.length > 80
-                          ? slide.imagePrompt.slice(0, 80) + '...'
-                          : slide.imagePrompt}
+                      <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontFamily: "'IBM Plex Mono', monospace", lineHeight: 1.4 }}>
+                        {slide.imagePrompt.length > 80 ? slide.imagePrompt.slice(0, 80) + '...' : slide.imagePrompt}
                       </div>
                     </>
                   )}
@@ -609,12 +929,7 @@ export default function GeneratorPage() {
             <button
               onClick={handleGenerateSlides}
               disabled={store.isGenerating}
-              style={{
-                ...primaryButtonStyle,
-                opacity: store.isGenerating ? 0.5 : 1,
-                padding: '14px 28px',
-                fontSize: '14px',
-              }}
+              style={{ ...primaryButtonStyle, opacity: store.isGenerating ? 0.5 : 1, padding: '14px 28px', fontSize: '14px' }}
             >
               {store.isGenerating ? (
                 <><Loader2 size={18} style={{ animation: 'spin 1s linear infinite' }} /> Generating {store.plan.slides.length} slides...</>
@@ -625,172 +940,121 @@ export default function GeneratorPage() {
           </div>
         )}
 
-        {/* ═══════════ STEP 3: PREVIEW ═══════════ */}
-        {store.step === 'preview' && store.slides && (
+        {/* ═══════════ STEP 3: PREVIEW — VIDEO ═══════════ */}
+        {store.step === 'preview' && isVideoMode && store.generatedVideo && (
           <div style={{ display: 'grid', gap: '24px' }}>
-            {/* Carousel Preview */}
-            <div style={{ display: 'flex', gap: '24px', alignItems: 'flex-start' }}>
-              {/* Main slide view */}
-              <div style={{ flex: 1 }}>
-                <div
-                  style={{
-                    position: 'relative',
-                    background: 'var(--bg-tertiary)',
-                    borderRadius: '16px',
-                    overflow: 'hidden',
-                    border: '1px solid var(--border-color)',
-                  }}
-                >
-                  <img
-                    src={store.slides[store.currentSlide]?.imageDataUrl}
-                    alt={`Slide ${store.currentSlide + 1}`}
-                    style={{ width: '100%', display: 'block', borderRadius: '16px' }}
-                  />
-
-                  {/* Regenerate overlay */}
-                  {store.regeneratingSlide === store.slides[store.currentSlide]?.slideNumber && (
-                    <div
-                      style={{
-                        position: 'absolute',
-                        inset: 0,
-                        background: 'rgba(0,0,0,0.6)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        borderRadius: '16px',
-                      }}
-                    >
-                      <Loader2 size={32} style={{ color: '#fff', animation: 'spin 1s linear infinite' }} />
-                    </div>
-                  )}
-
-                  {/* Navigation arrows */}
-                  {store.slides.length > 1 && (
-                    <>
-                      <button
-                        onClick={() => store.setCurrentSlide(Math.max(0, store.currentSlide - 1))}
-                        disabled={store.currentSlide === 0}
-                        style={{
-                          ...navArrowStyle,
-                          left: '12px',
-                          opacity: store.currentSlide === 0 ? 0.3 : 1,
-                        }}
-                      >
-                        <ChevronLeft size={20} />
-                      </button>
-                      <button
-                        onClick={() => store.setCurrentSlide(Math.min(store.slides!.length - 1, store.currentSlide + 1))}
-                        disabled={store.currentSlide === store.slides.length - 1}
-                        style={{
-                          ...navArrowStyle,
-                          right: '12px',
-                          opacity: store.currentSlide === store.slides.length - 1 ? 0.3 : 1,
-                        }}
-                      >
-                        <ChevronRight size={20} />
-                      </button>
-                    </>
-                  )}
-
-                  {/* Dots */}
-                  <div style={{ position: 'absolute', bottom: '12px', left: 0, right: 0, display: 'flex', justifyContent: 'center', gap: '6px' }}>
-                    {store.slides.map((_, i) => (
-                      <button
-                        key={i}
-                        onClick={() => store.setCurrentSlide(i)}
-                        style={{
-                          width: i === store.currentSlide ? '20px' : '8px',
-                          height: '8px',
-                          borderRadius: '4px',
-                          background: i === store.currentSlide ? '#fff' : 'rgba(255,255,255,0.4)',
-                          border: 'none',
-                          cursor: 'pointer',
-                          transition: 'all 0.2s ease',
-                          padding: 0,
-                        }}
-                      />
-                    ))}
-                  </div>
-                </div>
-
-                {/* Slide actions */}
-                <div style={{ display: 'flex', gap: '8px', marginTop: '12px', justifyContent: 'center' }}>
-                  <button
-                    onClick={() => handleRegenerateSlide(store.slides![store.currentSlide].slideNumber)}
-                    disabled={store.regeneratingSlide !== null}
-                    style={secondaryButtonStyle}
-                  >
-                    <RotateCcw size={14} /> Regenerate
-                  </button>
-                </div>
+            <div style={{ maxWidth: '400px', margin: '0 auto', width: '100%' }}>
+              <div style={{ position: 'relative', background: '#000', borderRadius: '16px', overflow: 'hidden', border: '1px solid var(--border-color)', aspectRatio: '9/16' }}>
+                <video src={store.generatedVideo.videoUrl} controls autoPlay loop playsInline style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
               </div>
-
-              {/* Slide thumbnails */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '120px', flexShrink: 0 }}>
-                <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)', fontFamily: "'IBM Plex Mono', monospace", letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '4px' }}>
-                  SLIDES
-                </div>
-                {store.slides.map((slide, i) => (
-                  <button
-                    key={slide.slideNumber}
-                    onClick={() => store.setCurrentSlide(i)}
-                    style={{
-                      padding: 0,
-                      border: `2px solid ${i === store.currentSlide ? '#8b5cf6' : 'var(--border-color)'}`,
-                      borderRadius: '8px',
-                      overflow: 'hidden',
-                      cursor: 'pointer',
-                      background: 'transparent',
-                      opacity: i === store.currentSlide ? 1 : 0.6,
-                      transition: 'all 0.2s ease',
-                    }}
-                  >
-                    <img
-                      src={slide.imageDataUrl}
-                      alt={`Slide ${slide.slideNumber}`}
-                      style={{ width: '100%', display: 'block' }}
-                    />
-                  </button>
-                ))}
+              <div style={{ display: 'flex', justifyContent: 'center', gap: '12px', marginTop: '12px' }}>
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: "'IBM Plex Mono', monospace" }}>{store.generatedVideo.duration}s</div>
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: "'IBM Plex Mono', monospace" }}>{store.videoPlan?.aspectRatio || '9:16'}</div>
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: "'IBM Plex Mono', monospace" }}>{VIDEO_PLATFORMS.find((p) => p.id === store.videoPlatform)?.label}</div>
               </div>
             </div>
 
-            {/* Caption & Hashtags */}
-            <div style={cardStyle}>
-              <label style={labelStyle}>Caption</label>
-              <div style={{ fontSize: '13px', color: 'var(--text-secondary)', whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>
-                {store.caption}
+            {store.videoPlan && (
+              <div style={cardStyle}>
+                <label style={labelStyle}>Caption</label>
+                <div style={{ fontSize: '13px', color: 'var(--text-secondary)', whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>{store.videoPlan.caption}</div>
+                {store.videoPlan.hashtags.length > 0 && (
+                  <div style={{ marginTop: '8px', fontSize: '12px', color: '#8b5cf6' }}>{store.videoPlan.hashtags.map((h) => `#${h}`).join(' ')}</div>
+                )}
               </div>
-              {store.hashtags.length > 0 && (
-                <div style={{ marginTop: '8px', fontSize: '12px', color: '#8b5cf6' }}>
-                  {store.hashtags.map((h) => `#${h}`).join(' ')}
-                </div>
-              )}
-            </div>
+            )}
 
-            {/* Actions */}
             <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap' }}>
-              <button onClick={handleDownloadAll} style={secondaryButtonStyle}>
-                <Download size={14} /> Download All
+              <a href={store.generatedVideo.videoUrl} download="generated-video.mp4" style={secondaryButtonStyle}>
+                <Download size={14} /> Download
+              </a>
+              <button onClick={() => { store.setStep('review'); store.setIsGeneratingVideo(false); }} style={secondaryButtonStyle}>
+                <RotateCcw size={14} /> Regenerate
               </button>
               <button onClick={handleLoadIntoComposer} style={primaryButtonStyle}>
                 <Send size={14} /> Load into Composer
               </button>
-              <button
-                onClick={() => {
-                  store.reset();
-                  setQuoteResult(null);
-                }}
-                style={secondaryButtonStyle}
-              >
+              <button onClick={() => { store.reset(); setQuoteResult(null); }} style={secondaryButtonStyle}>
                 <RotateCcw size={14} /> Start Over
               </button>
             </div>
           </div>
         )}
+
+        {/* ═══════════ STEP 3: PREVIEW — CAROUSEL ═══════════ */}
+        {store.step === 'preview' && !isVideoMode && store.slides && (
+          <div style={{ display: 'grid', gap: '24px' }}>
+            <div style={{ display: 'flex', gap: '24px', alignItems: 'flex-start' }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ position: 'relative', background: 'var(--bg-tertiary)', borderRadius: '16px', overflow: 'hidden', border: '1px solid var(--border-color)' }}>
+                  <img src={store.slides[store.currentSlide]?.imageDataUrl} alt={`Slide ${store.currentSlide + 1}`} style={{ width: '100%', display: 'block', borderRadius: '16px' }} />
+
+                  {(store.regeneratingSlide === store.slides[store.currentSlide]?.slideNumber || store.isGeneratingVideo) && (
+                    <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', borderRadius: '16px', gap: '8px' }}>
+                      <Loader2 size={32} style={{ color: '#fff', animation: 'spin 1s linear infinite' }} />
+                      {store.isGeneratingVideo && (
+                        <div style={{ color: '#fff', fontSize: '12px', fontFamily: "'IBM Plex Mono', monospace" }}>Animating... {elapsed}s</div>
+                      )}
+                    </div>
+                  )}
+
+                  {store.slides.length > 1 && (
+                    <>
+                      <button onClick={() => store.setCurrentSlide(Math.max(0, store.currentSlide - 1))} disabled={store.currentSlide === 0} style={{ ...navArrowStyle, left: '12px', opacity: store.currentSlide === 0 ? 0.3 : 1 }}>
+                        <ChevronLeft size={20} />
+                      </button>
+                      <button onClick={() => store.setCurrentSlide(Math.min(store.slides!.length - 1, store.currentSlide + 1))} disabled={store.currentSlide === store.slides.length - 1} style={{ ...navArrowStyle, right: '12px', opacity: store.currentSlide === store.slides.length - 1 ? 0.3 : 1 }}>
+                        <ChevronRight size={20} />
+                      </button>
+                    </>
+                  )}
+
+                  <div style={{ position: 'absolute', bottom: '12px', left: 0, right: 0, display: 'flex', justifyContent: 'center', gap: '6px' }}>
+                    {store.slides.map((_, i) => (
+                      <button key={i} onClick={() => store.setCurrentSlide(i)} style={{ width: i === store.currentSlide ? '20px' : '8px', height: '8px', borderRadius: '4px', background: i === store.currentSlide ? '#fff' : 'rgba(255,255,255,0.4)', border: 'none', cursor: 'pointer', transition: 'all 0.2s ease', padding: 0 }} />
+                    ))}
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: '8px', marginTop: '12px', justifyContent: 'center' }}>
+                  <button onClick={() => handleRegenerateSlide(store.slides![store.currentSlide].slideNumber)} disabled={store.regeneratingSlide !== null || store.isGeneratingVideo} style={secondaryButtonStyle}>
+                    <RotateCcw size={14} /> Regenerate
+                  </button>
+                  {capabilities?.aiVideo && (
+                    <button onClick={() => handleAnimateSlide(store.slides![store.currentSlide].imageUrl)} disabled={store.isGeneratingVideo || store.regeneratingSlide !== null} style={secondaryButtonStyle}>
+                      <Play size={14} /> Animate
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '120px', flexShrink: 0 }}>
+                <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)', fontFamily: "'IBM Plex Mono', monospace", letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '4px' }}>SLIDES</div>
+                {store.slides.map((slide, i) => (
+                  <button key={slide.slideNumber} onClick={() => store.setCurrentSlide(i)} style={{ padding: 0, border: `2px solid ${i === store.currentSlide ? '#8b5cf6' : 'var(--border-color)'}`, borderRadius: '8px', overflow: 'hidden', cursor: 'pointer', background: 'transparent', opacity: i === store.currentSlide ? 1 : 0.6, transition: 'all 0.2s ease' }}>
+                    <img src={slide.imageDataUrl} alt={`Slide ${slide.slideNumber}`} style={{ width: '100%', display: 'block' }} />
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div style={cardStyle}>
+              <label style={labelStyle}>Caption</label>
+              <div style={{ fontSize: '13px', color: 'var(--text-secondary)', whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>{store.caption}</div>
+              {store.hashtags.length > 0 && (
+                <div style={{ marginTop: '8px', fontSize: '12px', color: '#8b5cf6' }}>{store.hashtags.map((h) => `#${h}`).join(' ')}</div>
+              )}
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap' }}>
+              <button onClick={handleDownloadAll} style={secondaryButtonStyle}><Download size={14} /> Download All</button>
+              <button onClick={handleLoadIntoComposer} style={primaryButtonStyle}><Send size={14} /> Load into Composer</button>
+              <button onClick={() => { store.reset(); setQuoteResult(null); }} style={secondaryButtonStyle}><RotateCcw size={14} /> Start Over</button>
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Spin animation */}
       <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
     </div>
   );
@@ -799,111 +1063,33 @@ export default function GeneratorPage() {
 // ─── Shared Styles ───────────────────────────────────────
 
 const labelStyle: React.CSSProperties = {
-  fontSize: '11px',
-  fontWeight: 700,
-  color: 'var(--text-muted)',
-  letterSpacing: '0.1em',
-  textTransform: 'uppercase',
-  fontFamily: "'IBM Plex Mono', monospace",
-  marginBottom: '8px',
-  display: 'block',
+  fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.1em', textTransform: 'uppercase', fontFamily: "'IBM Plex Mono', monospace", marginBottom: '8px', display: 'block',
 };
 
 const inputStyle: React.CSSProperties = {
-  width: '100%',
-  padding: '10px 14px',
-  background: 'var(--bg-input)',
-  border: '1px solid var(--border-color)',
-  borderRadius: '10px',
-  color: 'var(--text-primary)',
-  fontSize: '13px',
-  fontFamily: "'Sora', sans-serif",
-  outline: 'none',
-  resize: 'vertical',
-  boxSizing: 'border-box',
+  width: '100%', padding: '10px 14px', background: 'var(--bg-input)', border: '1px solid var(--border-color)', borderRadius: '10px', color: 'var(--text-primary)', fontSize: '13px', fontFamily: "'Sora', sans-serif", outline: 'none', resize: 'vertical', boxSizing: 'border-box',
 };
 
 const cardStyle: React.CSSProperties = {
-  background: 'var(--bg-tertiary)',
-  border: '1px solid var(--border-color)',
-  borderRadius: '14px',
-  padding: '20px',
+  background: 'var(--bg-tertiary)', border: '1px solid var(--border-color)', borderRadius: '14px', padding: '20px',
 };
 
 const primaryButtonStyle: React.CSSProperties = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  gap: '8px',
-  padding: '10px 24px',
-  background: 'linear-gradient(135deg, #8b5cf6, #06b6d4)',
-  border: 'none',
-  borderRadius: '10px',
-  color: '#fff',
-  fontSize: '13px',
-  fontWeight: 700,
-  cursor: 'pointer',
-  fontFamily: "'Sora', sans-serif",
-  transition: 'all 0.2s ease',
+  display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '10px 24px', background: 'linear-gradient(135deg, #8b5cf6, #06b6d4)', border: 'none', borderRadius: '10px', color: '#fff', fontSize: '13px', fontWeight: 700, cursor: 'pointer', fontFamily: "'Sora', sans-serif", transition: 'all 0.2s ease',
 };
 
 const secondaryButtonStyle: React.CSSProperties = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  gap: '6px',
-  padding: '8px 16px',
-  background: 'var(--bg-tertiary)',
-  border: '1px solid var(--border-color)',
-  borderRadius: '10px',
-  color: 'var(--text-secondary)',
-  fontSize: '12px',
-  fontWeight: 600,
-  cursor: 'pointer',
-  fontFamily: "'Sora', sans-serif",
-  textDecoration: 'none',
-  transition: 'all 0.2s ease',
+  display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 16px', background: 'var(--bg-tertiary)', border: '1px solid var(--border-color)', borderRadius: '10px', color: 'var(--text-secondary)', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: "'Sora', sans-serif", textDecoration: 'none', transition: 'all 0.2s ease',
 };
 
 const counterButtonStyle: React.CSSProperties = {
-  width: '32px',
-  height: '32px',
-  borderRadius: '8px',
-  background: 'var(--bg-tertiary)',
-  border: '1px solid var(--border-color)',
-  color: 'var(--text-primary)',
-  fontSize: '16px',
-  fontWeight: 700,
-  cursor: 'pointer',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
+  width: '32px', height: '32px', borderRadius: '8px', background: 'var(--bg-tertiary)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', fontSize: '16px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
 };
 
 const iconBtnStyle: React.CSSProperties = {
-  padding: '4px',
-  borderRadius: '6px',
-  background: 'transparent',
-  border: '1px solid var(--border-color)',
-  color: 'var(--text-muted)',
-  cursor: 'pointer',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
+  padding: '4px', borderRadius: '6px', background: 'transparent', border: '1px solid var(--border-color)', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
 };
 
 const navArrowStyle: React.CSSProperties = {
-  position: 'absolute',
-  top: '50%',
-  transform: 'translateY(-50%)',
-  width: '36px',
-  height: '36px',
-  borderRadius: '50%',
-  background: 'rgba(0,0,0,0.5)',
-  border: 'none',
-  color: '#fff',
-  cursor: 'pointer',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  transition: 'opacity 0.2s ease',
-  padding: 0,
+  position: 'absolute', top: '50%', transform: 'translateY(-50%)', width: '36px', height: '36px', borderRadius: '50%', background: 'rgba(0,0,0,0.5)', border: 'none', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'opacity 0.2s ease', padding: 0,
 };

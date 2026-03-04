@@ -10,6 +10,8 @@ import OAuthCallback from './pages/OAuthCallback';
 import LoginPage from './pages/LoginPage';
 import SettingsPage from './pages/SettingsPage';
 import GeneratorPage from './pages/GeneratorPage';
+import PrivacyPage from './pages/PrivacyPage';
+import TermsPage from './pages/TermsPage';
 import { useSocket } from './hooks/useSocket';
 import { useUIStore } from './store/ui-store';
 import { useAuthStore } from './store/auth-store';
@@ -55,6 +57,8 @@ export function App() {
             {/* Public */}
             <Route path="/login" element={<LoginPage />} />
             <Route path="/oauth-callback" element={<OAuthCallback />} />
+            <Route path="/privacy" element={<PrivacyPage />} />
+            <Route path="/terms" element={<TermsPage />} />
 
             {/* Protected */}
             <Route
