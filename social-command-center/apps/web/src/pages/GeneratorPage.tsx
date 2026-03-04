@@ -617,11 +617,15 @@ export default function GeneratorPage() {
                     lineHeight: 1.6,
                   }}
                 >
-                  {store.videoTotalDuration <= 10
-                    ? `~$0.50 per clip, 30-90 seconds to generate.`
-                    : `~$0.50 per ${Math.ceil(store.videoTotalDuration / 10) * 10}s (${Math.ceil(store.videoTotalDuration / 10)} segments). Total generation: ~${Math.ceil(store.videoTotalDuration / 10) * 1.5} min.`
-                  }
-                  {(store.videoAudioMusic || store.videoAudioVoiceover) && ' + audio generation.'}
+                  {(() => {
+                    const segments = Math.ceil(store.videoTotalDuration / 10);
+                    const videoCost = segments * 0.35; // ~$0.35 avg per clip
+                    const musicCost = store.videoAudioMusic ? 0.05 : 0;
+                    const voiceCost = store.videoAudioVoiceover ? 0.05 : 0;
+                    const total = videoCost + musicCost + voiceCost;
+                    const genTime = segments <= 1 ? '30-90s' : `~${segments * 1.5} min`;
+                    return `Est. ~$${total.toFixed(2)} (${segments} clip${segments > 1 ? 's' : ''} @ ~$0.35${store.videoAudioMusic ? ' + music $0.05' : ''}${store.videoAudioVoiceover ? ' + voiceover $0.05' : ''}). Generation: ${genTime}.`;
+                  })()}
                   {' '}Output is vertical (9:16) for {VIDEO_PLATFORMS.find((p) => p.id === store.videoPlatform)?.label}.
                 </div>
 
