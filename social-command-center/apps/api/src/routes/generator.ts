@@ -12,8 +12,6 @@ import type { SlidePlan, CarouselPlan } from '../services/image-generator.js';
 import { planVideo, generateVoiceover } from '../services/video-generator.js';
 import type { VideoPlatform, AudioOptions } from '../services/video-generator.js';
 import { videoGenerateQueue } from '../queue/queues.js';
-import { uploadBuffer, generateMediaKey } from '../services/s3.js';
-import { buildPublicMediaUrl } from '../utils/signed-media-url.js';
 import {
   checkCredits,
   deductCredits,
@@ -361,61 +359,3 @@ generatorRouter.post('/video/voice-test', async (req, res) => {
   }
 });
 
-// Generate speech audio from a script (synchronous — returns MP3 URL + data URL)
-generatorRouter.post('/speech/generate', async (req, res) => {
-  try {
-    const { script, voiceId = 'Deep_Voice_Man' } = req.body as {
-      script: string;
-      voiceId?: string;
-    };
-    const userId = req.userId;
-
-    if (!script?.trim()) {
-      return res.status(400).json({ error: 'A script is required' });
-    }
-    if (script.length > 5000) {
-      return res.status(400).json({ error: 'Script must be 5000 characters or less' });
-    }
-
-    // Credit check + deduct
-    const cost = CREDIT_COSTS.VIDEO_VOICEOVER;
-    const creditCheck = await checkCredits(userId, cost);
-    if (!creditCheck.allowed) {
-      return res.status(402).json({
-        error: `Insufficient credits. Need ${cost} credits, have ${creditCheck.balance}.`,
-        code: 'INSUFFICIENT_CREDITS',
-        required: cost,
-        balance: creditCheck.balance,
-      });
-    }
-
-    const audioBuffer = await generateVoiceover(script, voiceId);
-
-    // Upload to storage
-    const key = generateMediaKey(userId, `speech-${Date.now()}.mp3`);
-    await uploadBuffer(key, audioBuffer, 'audio/mpeg');
-    const publicUrl = buildPublicMediaUrl(key, 3600);
-
-    // Base64 data URL for immediate playback
-    const base64 = audioBuffer.toString('base64');
-    const audioDataUrl = `data:audio/mpeg;base64,${base64}`;
-
-    await deductCredits(userId, cost, 'speech', `Speech: "${script.slice(0, 50)}..." (${voiceId})`, {
-      voiceId,
-      scriptLength: script.length,
-    });
-
-    res.json({
-      data: {
-        audioUrl: publicUrl,
-        audioDataUrl,
-        storageKey: key,
-        duration: Math.ceil(script.split(/\s+/).filter(Boolean).length / 2.5),
-      },
-    });
-  } catch (error) {
-    const errMsg = error instanceof Error ? error.message : String(error);
-    console.error('[Generator] Speech generation failed:', errMsg);
-    res.status(500).json({ error: `Speech generation failed: ${errMsg}` });
-  }
-});

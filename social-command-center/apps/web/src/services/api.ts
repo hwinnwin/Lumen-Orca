@@ -347,20 +347,6 @@ export async function testVoice(voiceId: string) {
   return res.data.data as { audioDataUrl: string };
 }
 
-// ─── Script to Speech ─────────────────────────────────────
-
-export interface GeneratedSpeech {
-  audioUrl: string;
-  audioDataUrl: string;
-  storageKey: string;
-  duration: number;
-}
-
-export async function generateSpeech(data: { script: string; voiceId?: string }) {
-  const res = await api.post('/generator/speech/generate', data, { timeout: 60000 });
-  return res.data.data as GeneratedSpeech;
-}
-
 // ─── Credits ─────────────────────────────────────────────
 
 export interface CreditBalance {
