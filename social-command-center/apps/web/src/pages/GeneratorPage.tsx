@@ -203,6 +203,12 @@ export default function GeneratorPage() {
         topic: store.topic,
         platform: store.videoPlatform,
         tone: store.tone,
+        totalDuration: store.videoTotalDuration,
+        audioOptions: {
+          music: store.videoAudioMusic,
+          musicStyle: store.videoMusicStyle || undefined,
+          voiceover: store.videoAudioVoiceover,
+        },
       });
       store.setVideoPlan(plan);
       setVideoPromptDraft(plan.prompt);
@@ -226,9 +232,15 @@ export default function GeneratorPage() {
         sourceImageUrl: store.videoSourceMode === 'image' && store.videoSourceImageUrl ? store.videoSourceImageUrl : undefined,
         duration: store.videoDuration,
         aspectRatio: plan.aspectRatio as '9:16' | '1:1' | '16:9',
+        segments: plan.segments,
+        totalDuration: plan.totalDuration,
+        voiceoverScript: plan.voiceoverScript,
+        musicStyle: plan.musicStyle,
       });
       store.setVideoJobId(jobId);
-      toast.info('Video generation started — this takes 30–90 seconds');
+      const segmentInfo = plan.segments && plan.segments.length > 1 ? ` (${plan.segments.length} segments)` : '';
+      const audioInfo = [plan.musicStyle && 'music', plan.voiceoverScript && 'voiceover'].filter(Boolean).join(' + ');
+      toast.info(`Video generation started${segmentInfo}${audioInfo ? ` with ${audioInfo}` : ''}`);
       // Result will arrive via Socket.io (video:generated event)
     } catch {
       toast.error('Failed to start video generation');
@@ -503,7 +515,7 @@ export default function GeneratorPage() {
                   />
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                   <div>
                     <label style={labelStyle}>Platform</label>
                     <select
@@ -515,31 +527,6 @@ export default function GeneratorPage() {
                         <option key={id} value={id}>{label}</option>
                       ))}
                     </select>
-                  </div>
-
-                  <div>
-                    <label style={labelStyle}>Duration</label>
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                      {([6, 10] as const).map((d) => (
-                        <button
-                          key={d}
-                          onClick={() => store.setVideoDuration(d)}
-                          style={{
-                            flex: 1,
-                            padding: '10px',
-                            borderRadius: '10px',
-                            background: store.videoDuration === d ? 'var(--bg-active)' : 'var(--bg-tertiary)',
-                            border: `1px solid ${store.videoDuration === d ? '#8b5cf6' : 'var(--border-color)'}`,
-                            color: store.videoDuration === d ? '#8b5cf6' : 'var(--text-secondary)',
-                            fontSize: '13px',
-                            fontWeight: 700,
-                            cursor: 'pointer',
-                          }}
-                        >
-                          {d}s
-                        </button>
-                      ))}
-                    </div>
                   </div>
 
                   <div>
@@ -558,6 +545,66 @@ export default function GeneratorPage() {
                   </div>
                 </div>
 
+                <div>
+                  <label style={labelStyle}>Duration</label>
+                  <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                    {[6, 10, 15, 30, 60, 90].map((d) => (
+                      <button
+                        key={d}
+                        onClick={() => store.setVideoTotalDuration(d)}
+                        style={{
+                          padding: '8px 14px',
+                          borderRadius: '10px',
+                          background: store.videoTotalDuration === d ? 'var(--bg-active)' : 'var(--bg-tertiary)',
+                          border: `1px solid ${store.videoTotalDuration === d ? '#8b5cf6' : 'var(--border-color)'}`,
+                          color: store.videoTotalDuration === d ? '#8b5cf6' : 'var(--text-secondary)',
+                          fontSize: '13px',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {d}s
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Audio Options */}
+                <div>
+                  <label style={labelStyle}>Audio</label>
+                  <div style={{ display: 'grid', gap: '10px' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', fontSize: '13px', color: 'var(--text-secondary)' }}>
+                      <input
+                        type="checkbox"
+                        checked={store.videoAudioMusic}
+                        onChange={(e) => store.setVideoAudioMusic(e.target.checked)}
+                        style={{ width: '16px', height: '16px', accentColor: '#8b5cf6' }}
+                      />
+                      <span style={{ fontWeight: 600 }}>Background Music</span>
+                      <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>AI-generated via MusicGen</span>
+                    </label>
+                    {store.videoAudioMusic && (
+                      <input
+                        type="text"
+                        value={store.videoMusicStyle}
+                        onChange={(e) => store.setVideoMusicStyle(e.target.value)}
+                        placeholder="Music style, e.g. 'upbeat electronic' or 'calm ambient piano'"
+                        style={{ ...inputStyle, marginLeft: '26px' }}
+                      />
+                    )}
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', fontSize: '13px', color: 'var(--text-secondary)' }}>
+                      <input
+                        type="checkbox"
+                        checked={store.videoAudioVoiceover}
+                        onChange={(e) => store.setVideoAudioVoiceover(e.target.checked)}
+                        style={{ width: '16px', height: '16px', accentColor: '#8b5cf6' }}
+                      />
+                      <span style={{ fontWeight: 600 }}>AI Voiceover</span>
+                      <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Script generated by Claude, narrated by AI</span>
+                    </label>
+                  </div>
+                </div>
+
                 <div
                   style={{
                     padding: '10px 16px',
@@ -570,7 +617,12 @@ export default function GeneratorPage() {
                     lineHeight: 1.6,
                   }}
                 >
-                  Video generation costs ~$0.50 per 6s clip and takes 30-90 seconds. Output is vertical (9:16) optimized for {VIDEO_PLATFORMS.find((p) => p.id === store.videoPlatform)?.label}.
+                  {store.videoTotalDuration <= 10
+                    ? `~$0.50 per clip, 30-90 seconds to generate.`
+                    : `~$0.50 per ${Math.ceil(store.videoTotalDuration / 10) * 10}s (${Math.ceil(store.videoTotalDuration / 10)} segments). Total generation: ~${Math.ceil(store.videoTotalDuration / 10) * 1.5} min.`
+                  }
+                  {(store.videoAudioMusic || store.videoAudioVoiceover) && ' + audio generation.'}
+                  {' '}Output is vertical (9:16) for {VIDEO_PLATFORMS.find((p) => p.id === store.videoPlatform)?.label}.
                 </div>
 
                 <button
@@ -748,55 +800,93 @@ export default function GeneratorPage() {
         {store.step === 'review' && isVideoMode && store.videoPlan && (
           <div style={{ display: 'grid', gap: '20px' }}>
             <p style={{ fontSize: '12px', color: 'var(--text-muted)', fontFamily: "'IBM Plex Mono', monospace" }}>
-              Review the video concept. Edit the prompt before generating.
+              Review the video concept. Edit prompts before generating.
             </p>
 
-            {/* Video prompt */}
-            <div style={cardStyle}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                <label style={{ ...labelStyle, marginBottom: 0 }}>Video Prompt</label>
-                {editingVideoPrompt ? (
-                  <div style={{ display: 'flex', gap: '4px' }}>
-                    <button
-                      onClick={() => {
-                        store.setVideoPlan({ ...store.videoPlan!, prompt: videoPromptDraft });
-                        setEditingVideoPrompt(false);
-                      }}
-                      style={iconBtnStyle}
-                      title="Save"
-                    >
-                      <Check size={14} style={{ color: '#22c55e' }} />
-                    </button>
-                    <button
-                      onClick={() => {
-                        setVideoPromptDraft(store.videoPlan!.prompt);
-                        setEditingVideoPrompt(false);
-                      }}
-                      style={iconBtnStyle}
-                      title="Cancel"
-                    >
-                      <X size={14} style={{ color: '#ff4444' }} />
-                    </button>
+            {/* Video segments or single prompt */}
+            {store.videoPlan.segments && store.videoPlan.segments.length > 1 ? (
+              <div style={{ display: 'grid', gap: '10px' }}>
+                <label style={labelStyle}>Video Segments ({store.videoPlan.segments.length})</label>
+                {store.videoPlan.segments.map((seg) => (
+                  <div key={seg.segmentNumber} style={{ ...cardStyle, padding: '12px 16px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                      <span style={{ fontSize: '11px', fontWeight: 700, color: '#8b5cf6', fontFamily: "'IBM Plex Mono', monospace" }}>
+                        SEGMENT {seg.segmentNumber} — {seg.duration}s
+                      </span>
+                    </div>
+                    <div style={{ fontSize: '12px', color: 'var(--text-secondary)', lineHeight: 1.6, fontFamily: "'IBM Plex Mono', monospace" }}>
+                      {seg.prompt}
+                    </div>
                   </div>
+                ))}
+              </div>
+            ) : (
+              <div style={cardStyle}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                  <label style={{ ...labelStyle, marginBottom: 0 }}>Video Prompt</label>
+                  {editingVideoPrompt ? (
+                    <div style={{ display: 'flex', gap: '4px' }}>
+                      <button
+                        onClick={() => {
+                          store.setVideoPlan({ ...store.videoPlan!, prompt: videoPromptDraft });
+                          setEditingVideoPrompt(false);
+                        }}
+                        style={iconBtnStyle}
+                        title="Save"
+                      >
+                        <Check size={14} style={{ color: '#22c55e' }} />
+                      </button>
+                      <button
+                        onClick={() => {
+                          setVideoPromptDraft(store.videoPlan!.prompt);
+                          setEditingVideoPrompt(false);
+                        }}
+                        style={iconBtnStyle}
+                        title="Cancel"
+                      >
+                        <X size={14} style={{ color: '#ff4444' }} />
+                      </button>
+                    </div>
+                  ) : (
+                    <button onClick={() => setEditingVideoPrompt(true)} style={iconBtnStyle} title="Edit">
+                      <Pencil size={12} />
+                    </button>
+                  )}
+                </div>
+                {editingVideoPrompt ? (
+                  <textarea
+                    value={videoPromptDraft}
+                    onChange={(e) => setVideoPromptDraft(e.target.value)}
+                    rows={4}
+                    style={{ ...inputStyle, fontFamily: "'IBM Plex Mono', monospace", fontSize: '12px' }}
+                  />
                 ) : (
-                  <button onClick={() => setEditingVideoPrompt(true)} style={iconBtnStyle} title="Edit">
-                    <Pencil size={12} />
-                  </button>
+                  <div style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.6, fontFamily: "'IBM Plex Mono', monospace" }}>
+                    {store.videoPlan.prompt}
+                  </div>
                 )}
               </div>
-              {editingVideoPrompt ? (
-                <textarea
-                  value={videoPromptDraft}
-                  onChange={(e) => setVideoPromptDraft(e.target.value)}
-                  rows={4}
-                  style={{ ...inputStyle, fontFamily: "'IBM Plex Mono', monospace", fontSize: '12px' }}
-                />
-              ) : (
-                <div style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.6, fontFamily: "'IBM Plex Mono', monospace" }}>
-                  {store.videoPlan.prompt}
+            )}
+
+            {/* Voiceover script */}
+            {store.videoPlan.voiceoverScript && (
+              <div style={cardStyle}>
+                <label style={labelStyle}>Voiceover Script</label>
+                <div style={{ fontSize: '13px', color: 'var(--text-secondary)', whiteSpace: 'pre-wrap', lineHeight: 1.6, fontStyle: 'italic' }}>
+                  {store.videoPlan.voiceoverScript}
                 </div>
-              )}
-            </div>
+              </div>
+            )}
+
+            {/* Music style */}
+            {store.videoPlan.musicStyle && (
+              <div style={cardStyle}>
+                <label style={labelStyle}>Background Music</label>
+                <div style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+                  {store.videoPlan.musicStyle}
+                </div>
+              </div>
+            )}
 
             {/* Caption + hashtags */}
             <div style={cardStyle}>
@@ -812,16 +902,22 @@ export default function GeneratorPage() {
             </div>
 
             {/* Video details */}
-            <div style={{ display: 'flex', gap: '12px' }}>
-              <div style={{ ...cardStyle, flex: 1, textAlign: 'center' }}>
+            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+              <div style={{ ...cardStyle, flex: 1, textAlign: 'center', minWidth: '80px' }}>
                 <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontFamily: "'IBM Plex Mono', monospace", marginBottom: '4px' }}>DURATION</div>
-                <div style={{ fontSize: '20px', fontWeight: 700 }}>{store.videoPlan.duration}s</div>
+                <div style={{ fontSize: '20px', fontWeight: 700 }}>{store.videoPlan.totalDuration || store.videoPlan.duration}s</div>
               </div>
-              <div style={{ ...cardStyle, flex: 1, textAlign: 'center' }}>
+              {store.videoPlan.segments && store.videoPlan.segments.length > 1 && (
+                <div style={{ ...cardStyle, flex: 1, textAlign: 'center', minWidth: '80px' }}>
+                  <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontFamily: "'IBM Plex Mono', monospace", marginBottom: '4px' }}>SEGMENTS</div>
+                  <div style={{ fontSize: '20px', fontWeight: 700 }}>{store.videoPlan.segments.length}</div>
+                </div>
+              )}
+              <div style={{ ...cardStyle, flex: 1, textAlign: 'center', minWidth: '80px' }}>
                 <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontFamily: "'IBM Plex Mono', monospace", marginBottom: '4px' }}>ASPECT RATIO</div>
                 <div style={{ fontSize: '20px', fontWeight: 700 }}>{store.videoPlan.aspectRatio}</div>
               </div>
-              <div style={{ ...cardStyle, flex: 1, textAlign: 'center' }}>
+              <div style={{ ...cardStyle, flex: 1, textAlign: 'center', minWidth: '80px' }}>
                 <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontFamily: "'IBM Plex Mono', monospace", marginBottom: '4px' }}>PLATFORM</div>
                 <div style={{ fontSize: '14px', fontWeight: 700 }}>{VIDEO_PLATFORMS.find((p) => p.id === store.videoPlatform)?.label}</div>
               </div>
@@ -855,7 +951,10 @@ export default function GeneratorPage() {
                 fontFamily: "'IBM Plex Mono', monospace",
                 textAlign: 'center',
               }}>
-                This usually takes 30-90 seconds. Please don't close this page.
+                {store.videoPlan && store.videoPlan.segments && store.videoPlan.segments.length > 1
+                  ? `Generating ${store.videoPlan.segments.length} video segments${store.videoPlan.musicStyle ? ' + music' : ''}${store.videoPlan.voiceoverScript ? ' + voiceover' : ''}. This may take several minutes.`
+                  : 'This usually takes 30-90 seconds.'
+                } Please don't close this page.
               </div>
             )}
           </div>

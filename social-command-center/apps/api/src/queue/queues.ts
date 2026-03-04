@@ -33,4 +33,9 @@ export interface VideoGenerateJobData {
   aspectRatio: '9:16' | '1:1' | '16:9';
   userId: string;
   jobId: string;
+  // Multi-segment + audio fields
+  segments?: Array<{ segmentNumber: number; prompt: string; duration: 6 | 10 }>;
+  totalDuration?: number;
+  voiceoverScript?: string;
+  musicStyle?: string;
 }

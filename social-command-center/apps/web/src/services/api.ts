@@ -239,6 +239,18 @@ export interface GeneratedSlide {
 
 export type VideoPlatform = 'reels' | 'tiktok' | 'shorts';
 
+export interface VideoSegment {
+  segmentNumber: number;
+  prompt: string;
+  duration: 6 | 10;
+}
+
+export interface AudioOptions {
+  music: boolean;
+  musicStyle?: string;
+  voiceover: boolean;
+}
+
 export interface VideoPlan {
   prompt: string;
   caption: string;
@@ -246,6 +258,10 @@ export interface VideoPlan {
   duration: number;
   aspectRatio: string;
   platform: string;
+  segments?: VideoSegment[];
+  voiceoverScript?: string;
+  musicStyle?: string;
+  totalDuration?: number;
 }
 
 export interface GeneratedVideo {
@@ -294,6 +310,8 @@ export async function generateVideoPlan(data: {
   topic: string;
   platform?: VideoPlatform;
   tone?: string;
+  totalDuration?: number;
+  audioOptions?: AudioOptions;
 }) {
   const res = await api.post('/generator/video/plan', data, { timeout: 60000 });
   return res.data.data as VideoPlan;
@@ -304,6 +322,10 @@ export async function generateVideoFromPrompt(data: {
   sourceImageUrl?: string;
   duration?: 6 | 10;
   aspectRatio?: '9:16' | '1:1' | '16:9';
+  segments?: VideoSegment[];
+  totalDuration?: number;
+  voiceoverScript?: string;
+  musicStyle?: string;
 }) {
   const res = await api.post('/generator/video/generate', data, { timeout: 30000 });
   return res.data.data as { jobId: string };

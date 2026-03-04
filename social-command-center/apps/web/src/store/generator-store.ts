@@ -33,8 +33,12 @@ interface GeneratorState {
   // ─── Video-specific state ───────────────────────────
   videoPlatform: VideoPlatform;
   videoDuration: 6 | 10;
+  videoTotalDuration: number;
   videoSourceMode: 'text' | 'image';
   videoSourceImageUrl: string | null;
+  videoAudioMusic: boolean;
+  videoAudioVoiceover: boolean;
+  videoMusicStyle: string;
   videoPlan: VideoPlan | null;
   generatedVideo: GeneratedVideo | null;
   isGeneratingVideo: boolean;
@@ -58,8 +62,12 @@ interface GeneratorState {
   // Video actions
   setVideoPlatform: (platform: VideoPlatform) => void;
   setVideoDuration: (duration: 6 | 10) => void;
+  setVideoTotalDuration: (duration: number) => void;
   setVideoSourceMode: (mode: 'text' | 'image') => void;
   setVideoSourceImageUrl: (url: string | null) => void;
+  setVideoAudioMusic: (v: boolean) => void;
+  setVideoAudioVoiceover: (v: boolean) => void;
+  setVideoMusicStyle: (style: string) => void;
   setVideoPlan: (plan: VideoPlan) => void;
   setGeneratedVideo: (video: GeneratedVideo) => void;
   setIsGeneratingVideo: (v: boolean) => void;
@@ -86,8 +94,12 @@ const initialState = {
   // Video
   videoPlatform: 'reels' as VideoPlatform,
   videoDuration: 6 as 6 | 10,
+  videoTotalDuration: 6,
   videoSourceMode: 'text' as 'text' | 'image',
   videoSourceImageUrl: null as string | null,
+  videoAudioMusic: false,
+  videoAudioVoiceover: false,
+  videoMusicStyle: '',
   videoPlan: null as VideoPlan | null,
   generatedVideo: null as GeneratedVideo | null,
   isGeneratingVideo: false,
@@ -134,8 +146,12 @@ export const useGeneratorStore = create<GeneratorState>((set) => ({
   // Video actions
   setVideoPlatform: (videoPlatform) => set({ videoPlatform }),
   setVideoDuration: (videoDuration) => set({ videoDuration }),
+  setVideoTotalDuration: (videoTotalDuration) => set({ videoTotalDuration }),
   setVideoSourceMode: (videoSourceMode) => set({ videoSourceMode }),
   setVideoSourceImageUrl: (videoSourceImageUrl) => set({ videoSourceImageUrl }),
+  setVideoAudioMusic: (videoAudioMusic) => set({ videoAudioMusic }),
+  setVideoAudioVoiceover: (videoAudioVoiceover) => set({ videoAudioVoiceover }),
+  setVideoMusicStyle: (videoMusicStyle) => set({ videoMusicStyle }),
   setVideoPlan: (plan) => set({ videoPlan: plan, step: 'review' }),
   setGeneratedVideo: (video) => set({ generatedVideo: video, step: 'preview', isGeneratingVideo: false }),
   setIsGeneratingVideo: (isGeneratingVideo) => set({ isGeneratingVideo }),

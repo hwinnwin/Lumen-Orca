@@ -10,7 +10,7 @@ import {
 } from '../services/image-generator.js';
 import type { SlidePlan, CarouselPlan } from '../services/image-generator.js';
 import { planVideo } from '../services/video-generator.js';
-import type { VideoPlatform } from '../services/video-generator.js';
+import type { VideoPlatform, AudioOptions } from '../services/video-generator.js';
 import { videoGenerateQueue } from '../queue/queues.js';
 
 export const generatorRouter = Router();
@@ -138,17 +138,19 @@ generatorRouter.post('/video/plan', async (req, res) => {
   }
 
   try {
-    const { topic, platform = 'reels', tone = 'professional' } = req.body as {
+    const { topic, platform = 'reels', tone = 'professional', totalDuration = 6, audioOptions } = req.body as {
       topic: string;
       platform?: VideoPlatform;
       tone?: string;
+      totalDuration?: number;
+      audioOptions?: AudioOptions;
     };
 
     if (!topic?.trim()) {
       return res.status(400).json({ error: 'Topic is required' });
     }
 
-    const plan = await planVideo(topic, platform, tone);
+    const plan = await planVideo(topic, platform, tone, totalDuration, audioOptions);
     res.json({ data: plan });
   } catch (error) {
     const errMsg = error instanceof Error ? error.message : String(error);
@@ -160,11 +162,15 @@ generatorRouter.post('/video/plan', async (req, res) => {
 // Generate a video from a prompt (async — enqueues BullMQ job, result via Socket.io)
 generatorRouter.post('/video/generate', async (req, res) => {
   try {
-    const { prompt, sourceImageUrl, duration = 6, aspectRatio = '9:16' } = req.body as {
+    const { prompt, sourceImageUrl, duration = 6, aspectRatio = '9:16', segments, totalDuration, voiceoverScript, musicStyle } = req.body as {
       prompt: string;
       sourceImageUrl?: string;
       duration?: 6 | 10;
       aspectRatio?: '9:16' | '1:1' | '16:9';
+      segments?: Array<{ segmentNumber: number; prompt: string; duration: 6 | 10 }>;
+      totalDuration?: number;
+      voiceoverScript?: string;
+      musicStyle?: string;
     };
     const userId = req.userId;
 
@@ -176,7 +182,7 @@ generatorRouter.post('/video/generate', async (req, res) => {
 
     await videoGenerateQueue.add(
       `video-${jobId}`,
-      { prompt, sourceImageUrl, duration, aspectRatio, userId, jobId },
+      { prompt, sourceImageUrl, duration, aspectRatio, userId, jobId, segments, totalDuration, voiceoverScript, musicStyle },
       {
         attempts: 1,
         removeOnComplete: { age: 3600 },
@@ -184,7 +190,9 @@ generatorRouter.post('/video/generate', async (req, res) => {
       },
     );
 
-    console.log(`[Generator] Enqueued video job ${jobId}`);
+    const segmentInfo = segments && segments.length > 1 ? ` (${segments.length} segments)` : '';
+    const audioInfo = [voiceoverScript && 'voiceover', musicStyle && 'music'].filter(Boolean).join('+');
+    console.log(`[Generator] Enqueued video job ${jobId}${segmentInfo}${audioInfo ? ` with ${audioInfo}` : ''}`);
     res.status(202).json({ data: { jobId } });
   } catch (error) {
     const errMsg = error instanceof Error ? error.message : String(error);
