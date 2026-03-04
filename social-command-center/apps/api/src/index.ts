@@ -22,6 +22,7 @@ import { publishWorker } from './queue/workers/publish.js';
 import { schedulerWorker } from './queue/workers/scheduler.js';
 import { metricsWorker } from './queue/workers/metrics.js';
 import { mediaProcessWorker } from './queue/workers/media-process.js';
+import { videoGenerateWorker } from './queue/workers/video-generate.js';
 import { startTokenRefreshSweep } from './jobs/token-refresh-sweep.js';
 import { initEventEmitter } from './services/event-emitter.js';
 
@@ -139,11 +140,12 @@ initEventEmitter(io);
 export { io };
 
 // Start BullMQ workers
-console.log('[Workers] Starting publish, scheduler, metrics, media workers...');
+console.log('[Workers] Starting publish, scheduler, metrics, media, video workers...');
 publishWorker.on('ready', () => console.log('[Workers] Publish worker ready'));
 schedulerWorker.on('ready', () => console.log('[Workers] Scheduler worker ready'));
 metricsWorker.on('ready', () => console.log('[Workers] Metrics worker ready'));
 mediaProcessWorker.on('ready', () => console.log('[Workers] Media process worker ready'));
+videoGenerateWorker.on('ready', () => console.log('[Workers] Video generate worker ready'));
 
 // Start token refresh sweep
 startTokenRefreshSweep();
@@ -156,6 +158,7 @@ async function shutdown() {
     schedulerWorker.close(),
     metricsWorker.close(),
     mediaProcessWorker.close(),
+    videoGenerateWorker.close(),
   ]);
   console.log('[Shutdown] Workers closed');
   process.exit(0);

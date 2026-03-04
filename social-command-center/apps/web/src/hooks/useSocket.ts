@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { initSocket, disconnectSocket } from '../services/socket';
 import { usePostStore } from '../store/post-store';
 import { useUIStore } from '../store/ui-store';
+import { useGeneratorStore } from '../store/generator-store';
 import { PLATFORMS } from '@scc/shared';
 
 /**
@@ -111,6 +112,35 @@ export function useSocket() {
       'metrics:updated',
       (_data: { postId: string; platform: string; metrics: unknown }) => {
         queryClient.invalidateQueries({ queryKey: ['posts'] });
+      },
+    );
+
+    // Video generated
+    socket.on(
+      'video:generated',
+      (data: { jobId: string; videoUrl: string; storageKey: string; duration: number }) => {
+        const store = useGeneratorStore.getState();
+        if (store.videoJobId === data.jobId) {
+          store.setGeneratedVideo({
+            videoUrl: data.videoUrl,
+            storageKey: data.storageKey,
+            duration: data.duration,
+          });
+          toast.success('Video generated successfully');
+        }
+      },
+    );
+
+    // Video generation failed
+    socket.on(
+      'video:failed',
+      (data: { jobId: string; error: string }) => {
+        const store = useGeneratorStore.getState();
+        if (store.videoJobId === data.jobId) {
+          store.setIsGeneratingVideo(false);
+          store.setVideoJobId(null);
+          toast.error('Video generation failed', { description: data.error });
+        }
       },
     );
 

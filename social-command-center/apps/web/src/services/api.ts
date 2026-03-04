@@ -305,8 +305,8 @@ export async function generateVideoFromPrompt(data: {
   duration?: 6 | 10;
   aspectRatio?: '9:16' | '1:1' | '16:9';
 }) {
-  const res = await api.post('/generator/video/generate', data, { timeout: 300000 });
-  return res.data.data as GeneratedVideo;
+  const res = await api.post('/generator/video/generate', data, { timeout: 30000 });
+  return res.data.data as { jobId: string };
 }
 
 export async function animateSlide(data: {
@@ -314,6 +314,6 @@ export async function animateSlide(data: {
   motionPrompt?: string;
   duration?: 6 | 10;
 }) {
-  const res = await api.post('/generator/video/animate-slide', data, { timeout: 300000 });
-  return res.data.data as GeneratedVideo;
+  const res = await api.post('/generator/video/animate-slide', data, { timeout: 30000 });
+  return res.data.data as { jobId: string };
 }

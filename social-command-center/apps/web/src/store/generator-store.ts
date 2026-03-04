@@ -38,6 +38,7 @@ interface GeneratorState {
   videoPlan: VideoPlan | null;
   generatedVideo: GeneratedVideo | null;
   isGeneratingVideo: boolean;
+  videoJobId: string | null;
 
   // Actions
   setStep: (step: GeneratorStep) => void;
@@ -62,6 +63,7 @@ interface GeneratorState {
   setVideoPlan: (plan: VideoPlan) => void;
   setGeneratedVideo: (video: GeneratedVideo) => void;
   setIsGeneratingVideo: (v: boolean) => void;
+  setVideoJobId: (jobId: string | null) => void;
 
   reset: () => void;
 }
@@ -89,6 +91,7 @@ const initialState = {
   videoPlan: null as VideoPlan | null,
   generatedVideo: null as GeneratedVideo | null,
   isGeneratingVideo: false,
+  videoJobId: null as string | null,
 };
 
 export const useGeneratorStore = create<GeneratorState>((set) => ({
@@ -134,8 +137,9 @@ export const useGeneratorStore = create<GeneratorState>((set) => ({
   setVideoSourceMode: (videoSourceMode) => set({ videoSourceMode }),
   setVideoSourceImageUrl: (videoSourceImageUrl) => set({ videoSourceImageUrl }),
   setVideoPlan: (plan) => set({ videoPlan: plan, step: 'review' }),
-  setGeneratedVideo: (video) => set({ generatedVideo: video, step: 'preview' }),
+  setGeneratedVideo: (video) => set({ generatedVideo: video, step: 'preview', isGeneratingVideo: false }),
   setIsGeneratingVideo: (isGeneratingVideo) => set({ isGeneratingVideo }),
+  setVideoJobId: (videoJobId) => set({ videoJobId }),
 
   reset: () => set(initialState),
 }));

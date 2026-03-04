@@ -64,3 +64,16 @@ export function emitMediaProcessed(userId: string, mediaId: string, status: stri
 export function emitMetricsUpdated(userId: string, postId: string, platform: string, metrics: unknown) {
   emitToUser(userId, 'metrics:updated', { postId, platform, metrics, timestamp: Date.now() });
 }
+
+// Video generation events
+export function emitVideoGenerated(
+  userId: string,
+  jobId: string,
+  video: { videoUrl: string; storageKey: string; duration: number },
+) {
+  emitToUser(userId, 'video:generated', { jobId, ...video, timestamp: Date.now() });
+}
+
+export function emitVideoFailed(userId: string, jobId: string, error: string) {
+  emitToUser(userId, 'video:failed', { jobId, error, timestamp: Date.now() });
+}

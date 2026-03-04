@@ -98,6 +98,13 @@ export default function GeneratorPage() {
     };
   }, []);
 
+  // Stop elapsed timer when video result arrives via Socket.io or generation fails
+  useEffect(() => {
+    if (!store.isGeneratingVideo && elapsedRef.current) {
+      stopElapsedTimer();
+    }
+  }, [store.isGeneratingVideo]);
+
   const startElapsedTimer = () => {
     setElapsed(0);
     elapsedRef.current = setInterval(() => setElapsed((e) => e + 1), 1000);
@@ -214,17 +221,17 @@ export default function GeneratorPage() {
     store.setIsGeneratingVideo(true);
     startElapsedTimer();
     try {
-      const result = await videoGenMutation.mutateAsync({
+      const { jobId } = await videoGenMutation.mutateAsync({
         prompt: plan.prompt,
         sourceImageUrl: store.videoSourceMode === 'image' && store.videoSourceImageUrl ? store.videoSourceImageUrl : undefined,
         duration: store.videoDuration,
         aspectRatio: plan.aspectRatio as '9:16' | '1:1' | '16:9',
       });
-      store.setGeneratedVideo(result);
-      toast.success('Video generated!');
+      store.setVideoJobId(jobId);
+      toast.info('Video generation started — this takes 30–90 seconds');
+      // Result will arrive via Socket.io (video:generated event)
     } catch {
-      toast.error('Video generation failed');
-    } finally {
+      toast.error('Failed to start video generation');
       store.setIsGeneratingVideo(false);
       stopElapsedTimer();
     }
@@ -234,16 +241,16 @@ export default function GeneratorPage() {
     store.setIsGeneratingVideo(true);
     startElapsedTimer();
     try {
-      const result = await animateSlideMutation.mutateAsync({
+      const { jobId } = await animateSlideMutation.mutateAsync({
         slideImageUrl,
         motionPrompt: 'Subtle cinematic motion, gentle zoom with soft parallax depth effect',
         duration: 6,
       });
-      store.setGeneratedVideo(result);
-      toast.success('Slide animated into video!');
+      store.setVideoJobId(jobId);
+      toast.info('Slide animation started — this takes 30–90 seconds');
+      // Result will arrive via Socket.io (video:generated event)
     } catch {
-      toast.error('Failed to animate slide');
-    } finally {
+      toast.error('Failed to start slide animation');
       store.setIsGeneratingVideo(false);
       stopElapsedTimer();
     }

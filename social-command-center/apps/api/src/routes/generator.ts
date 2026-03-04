@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { randomUUID } from 'crypto';
 import { env } from '../config/env.js';
 import {
   planCarousel,
@@ -8,12 +9,9 @@ import {
   isReplicateConfigured,
 } from '../services/image-generator.js';
 import type { SlidePlan, CarouselPlan } from '../services/image-generator.js';
-import {
-  planVideo,
-  generateVideo,
-  generateVideoFromSlide,
-} from '../services/video-generator.js';
+import { planVideo } from '../services/video-generator.js';
 import type { VideoPlatform } from '../services/video-generator.js';
+import { videoGenerateQueue } from '../queue/queues.js';
 
 export const generatorRouter = Router();
 
@@ -159,7 +157,7 @@ generatorRouter.post('/video/plan', async (req, res) => {
   }
 });
 
-// Generate a video from a prompt (Replicate — slow, 30-120s)
+// Generate a video from a prompt (async — enqueues BullMQ job, result via Socket.io)
 generatorRouter.post('/video/generate', async (req, res) => {
   try {
     const { prompt, sourceImageUrl, duration = 6, aspectRatio = '9:16' } = req.body as {
@@ -174,23 +172,28 @@ generatorRouter.post('/video/generate', async (req, res) => {
       return res.status(400).json({ error: 'A video prompt is required' });
     }
 
-    const result = await generateVideo(
-      { prompt, sourceImageUrl, duration, aspectRatio },
-      userId,
+    const jobId = randomUUID();
+
+    await videoGenerateQueue.add(
+      `video-${jobId}`,
+      { prompt, sourceImageUrl, duration, aspectRatio, userId, jobId },
+      {
+        attempts: 1,
+        removeOnComplete: { age: 3600 },
+        removeOnFail: { age: 86400 },
+      },
     );
 
-    res.json({ data: result });
+    console.log(`[Generator] Enqueued video job ${jobId}`);
+    res.status(202).json({ data: { jobId } });
   } catch (error) {
     const errMsg = error instanceof Error ? error.message : String(error);
-    console.error('[Generator] Video generation failed:', errMsg);
-    if (error instanceof Error && error.stack) {
-      console.error('[Generator] Stack:', error.stack);
-    }
+    console.error('[Generator] Video enqueue failed:', errMsg);
     res.status(500).json({ error: `Video generation failed: ${errMsg}` });
   }
 });
 
-// Animate an existing carousel slide into a video
+// Animate an existing carousel slide into a video (async — enqueues BullMQ job)
 generatorRouter.post('/video/animate-slide', async (req, res) => {
   try {
     const { slideImageUrl, motionPrompt, duration = 6 } = req.body as {
@@ -204,11 +207,24 @@ generatorRouter.post('/video/animate-slide', async (req, res) => {
       return res.status(400).json({ error: 'A slide image URL is required' });
     }
 
-    const result = await generateVideoFromSlide(slideImageUrl, motionPrompt || '', userId, duration);
-    res.json({ data: result });
+    const jobId = randomUUID();
+    const prompt = motionPrompt || 'Subtle cinematic motion, gentle zoom in with soft parallax depth effect, dreamy atmosphere';
+
+    await videoGenerateQueue.add(
+      `animate-${jobId}`,
+      { prompt, sourceImageUrl: slideImageUrl, duration, aspectRatio: '9:16' as const, userId, jobId },
+      {
+        attempts: 1,
+        removeOnComplete: { age: 3600 },
+        removeOnFail: { age: 86400 },
+      },
+    );
+
+    console.log(`[Generator] Enqueued slide animation job ${jobId}`);
+    res.status(202).json({ data: { jobId } });
   } catch (error) {
     const errMsg = error instanceof Error ? error.message : String(error);
-    console.error('[Generator] Slide animation failed:', errMsg);
+    console.error('[Generator] Slide animation enqueue failed:', errMsg);
     res.status(500).json({ error: `Slide animation failed: ${errMsg}` });
   }
 });
