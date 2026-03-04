@@ -51,85 +51,35 @@ export class FacebookAdapter implements PlatformAdapter {
   }
 
   /**
-   * Upload and publish a video via Facebook's resumable upload API.
-   * Unlike photos, videos are published directly via /{pageId}/videos
-   * (the finish phase includes the description/message).
+   * Upload and publish a video to a Facebook Page.
+   * Uses a simple single-request form-data upload (works for files up to 1 GB).
+   * The video is published directly with the description included.
    * Returns the video_id which doubles as the post ID.
    */
   private async uploadVideo(accessToken: string, fileBuffer: Buffer, pageId: string, description?: string): Promise<MediaUploadResponse> {
-    // Step 1: Start upload
-    const startRes = await fetch(`${GRAPH_API}/${pageId}/videos`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        upload_phase: 'start',
-        file_size: fileBuffer.length,
-        access_token: accessToken,
-      }),
-    });
+    console.log(`[Facebook] Uploading video (${(fileBuffer.length / 1024 / 1024).toFixed(1)}MB) to page ${pageId}`);
 
-    if (!startRes.ok) {
-      throw new Error(`Facebook video upload start failed: ${await startRes.text()}`);
-    }
-
-    const startData = await startRes.json() as {
-      video_id: string;
-      upload_session_id: string;
-      start_offset: string;
-      end_offset: string;
-    };
-
-    // Step 2: Upload chunks
-    let startOffset = parseInt(startData.start_offset);
-    let endOffset = parseInt(startData.end_offset);
-
-    while (startOffset < fileBuffer.length) {
-      const chunk = fileBuffer.subarray(startOffset, endOffset);
-      const chunkForm = new FormData();
-      chunkForm.append('upload_phase', 'transfer');
-      chunkForm.append('upload_session_id', startData.upload_session_id);
-      chunkForm.append('start_offset', startOffset.toString());
-      chunkForm.append('video_file_chunk', new Blob([new Uint8Array(chunk)]));
-      chunkForm.append('access_token', accessToken);
-
-      const chunkRes = await fetch(`${GRAPH_API}/${pageId}/videos`, {
-        method: 'POST',
-        body: chunkForm,
-      });
-
-      if (!chunkRes.ok) {
-        throw new Error(`Facebook video chunk upload failed: ${await chunkRes.text()}`);
-      }
-
-      const chunkData = await chunkRes.json() as {
-        start_offset: string;
-        end_offset: string;
-      };
-      startOffset = parseInt(chunkData.start_offset);
-      endOffset = parseInt(chunkData.end_offset);
-    }
-
-    // Step 3: Finish upload — include description to publish the video
-    const finishBody: Record<string, string> = {
-      upload_phase: 'finish',
-      upload_session_id: startData.upload_session_id,
-      access_token: accessToken,
-    };
+    const formData = new FormData();
+    formData.append('source', new Blob([new Uint8Array(fileBuffer)], { type: 'video/mp4' }), 'video.mp4');
+    formData.append('access_token', accessToken);
     if (description) {
-      finishBody.description = description;
+      formData.append('description', description);
     }
 
-    const finishRes = await fetch(`${GRAPH_API}/${pageId}/videos`, {
+    const res = await fetch(`${GRAPH_API}/${pageId}/videos`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(finishBody),
+      body: formData,
     });
 
-    if (!finishRes.ok) {
-      throw new Error(`Facebook video upload finish failed: ${await finishRes.text()}`);
+    if (!res.ok) {
+      const errorText = await res.text();
+      console.error(`[Facebook] Video upload failed:`, errorText);
+      throw new Error(`Facebook video upload failed: ${errorText}`);
     }
 
-    return { platformMediaId: startData.video_id, isVideo: true };
+    const data = await res.json() as { id: string };
+    console.log(`[Facebook] Video uploaded successfully, video_id: ${data.id}`);
+    return { platformMediaId: data.id, isVideo: true };
   }
 
   async publish(params: PublishParams): Promise<PublishResponse> {

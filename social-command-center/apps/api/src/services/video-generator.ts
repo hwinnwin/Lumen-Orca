@@ -322,23 +322,41 @@ export async function generateMusic(
   return fetchReplicateOutput(output, 'music');
 }
 
+/** Available voiceover voices for MiniMax Speech-02-HD */
+export const VOICEOVER_VOICES = [
+  { id: 'Deep_Voice_Man', label: 'Deep Male', gender: 'male' },
+  { id: 'Casual_Guy', label: 'Casual Male', gender: 'male' },
+  { id: 'Patient_Man', label: 'Patient Male', gender: 'male' },
+  { id: 'Determined_Man', label: 'Determined Male', gender: 'male' },
+  { id: 'Elegant_Man', label: 'Elegant Male', gender: 'male' },
+  { id: 'Wise_Woman', label: 'Wise Female', gender: 'female' },
+  { id: 'Calm_Woman', label: 'Calm Female', gender: 'female' },
+  { id: 'Inspirational_girl', label: 'Inspirational Female', gender: 'female' },
+  { id: 'Lively_Girl', label: 'Lively Female', gender: 'female' },
+  { id: 'Friendly_Person', label: 'Friendly (Neutral)', gender: 'neutral' },
+] as const;
+
+export type VoiceId = (typeof VOICEOVER_VOICES)[number]['id'];
+
 /**
  * Generate voiceover using MiniMax Speech-02-HD.
  * Returns an audio buffer (MP3).
  */
 export async function generateVoiceover(
   script: string,
+  voiceId: string = 'Deep_Voice_Man',
 ): Promise<Buffer> {
   const replicate = getReplicate();
   if (!replicate) throw new Error('Voiceover generation requires REPLICATE_API_TOKEN.');
 
-  console.log(`[VideoGenerator] Generating voiceover (${script.length} chars)`);
+  console.log(`[VideoGenerator] Generating voiceover (${script.length} chars, voice: ${voiceId})`);
 
   const output = await replicate.run(
     'minimax/speech-02-hd' as `${string}/${string}`,
     {
       input: {
         text: script,
+        voice_id: voiceId,
         speed: 1.0,
       },
     },
@@ -379,7 +397,7 @@ async function fetchReplicateOutput(output: unknown, label: string): Promise<Buf
     // Case 3: ReadableStream (newer Replicate SDK)
     if (typeof obj.getReader === 'function') {
       console.log(`[fetchReplicateOutput] ${label}: reading from ReadableStream`);
-      const reader = (obj as ReadableStream<Uint8Array>).getReader();
+      const reader = (obj as unknown as ReadableStream<Uint8Array>).getReader();
       const chunks: Uint8Array[] = [];
       while (true) {
         const { done, value } = await reader.read();
@@ -549,11 +567,12 @@ export async function generateMultiSegmentVideo(
     segments: VideoSegment[];
     aspectRatio?: '9:16' | '1:1' | '16:9';
     voiceoverScript?: string;
+    voiceoverVoice?: string;
     musicStyle?: string;
   },
   userId: string,
 ): Promise<GeneratedVideo> {
-  const { segments, aspectRatio = '9:16', voiceoverScript, musicStyle } = params;
+  const { segments, aspectRatio = '9:16', voiceoverScript, voiceoverVoice, musicStyle } = params;
 
   console.log(`[VideoGenerator] Generating ${segments.length}-segment video with${musicStyle ? ' music' : ''}${voiceoverScript ? ' voiceover' : ''}`);
 
@@ -582,7 +601,7 @@ export async function generateMultiSegmentVideo(
       console.warn(`[VideoGenerator] Music generation failed, continuing without:`, err);
       return undefined;
     }) : undefined,
-    voiceoverScript ? generateVoiceover(voiceoverScript).catch((err) => {
+    voiceoverScript ? generateVoiceover(voiceoverScript, voiceoverVoice).catch((err) => {
       console.warn(`[VideoGenerator] Voiceover generation failed, continuing without:`, err);
       return undefined;
     }) : undefined,

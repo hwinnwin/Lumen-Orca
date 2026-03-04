@@ -37,5 +37,6 @@ export interface VideoGenerateJobData {
   segments?: Array<{ segmentNumber: number; prompt: string; duration: 6 | 10 }>;
   totalDuration?: number;
   voiceoverScript?: string;
+  voiceoverVoice?: string;
   musicStyle?: string;
 }

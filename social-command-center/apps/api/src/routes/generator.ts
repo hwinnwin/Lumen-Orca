@@ -219,7 +219,7 @@ generatorRouter.post('/video/plan', async (req, res) => {
 // Generate a video from a prompt (async — enqueues BullMQ job, result via Socket.io)
 generatorRouter.post('/video/generate', async (req, res) => {
   try {
-    const { prompt, sourceImageUrl, duration = 6, aspectRatio = '9:16', segments, totalDuration, voiceoverScript, musicStyle } = req.body as {
+    const { prompt, sourceImageUrl, duration = 6, aspectRatio = '9:16', segments, totalDuration, voiceoverScript, voiceoverVoice, musicStyle } = req.body as {
       prompt: string;
       sourceImageUrl?: string;
       duration?: 6 | 10;
@@ -227,6 +227,7 @@ generatorRouter.post('/video/generate', async (req, res) => {
       segments?: Array<{ segmentNumber: number; prompt: string; duration: 6 | 10 }>;
       totalDuration?: number;
       voiceoverScript?: string;
+      voiceoverVoice?: string;
       musicStyle?: string;
     };
     const userId = req.userId;
@@ -266,7 +267,7 @@ generatorRouter.post('/video/generate', async (req, res) => {
 
     await videoGenerateQueue.add(
       `video-${jobId}`,
-      { prompt, sourceImageUrl, duration, aspectRatio, userId, jobId, segments, totalDuration, voiceoverScript, musicStyle },
+      { prompt, sourceImageUrl, duration, aspectRatio, userId, jobId, segments, totalDuration, voiceoverScript, voiceoverVoice, musicStyle },
       {
         attempts: 1,
         removeOnComplete: { age: 3600 },

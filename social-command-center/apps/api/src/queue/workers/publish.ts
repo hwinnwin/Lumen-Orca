@@ -156,18 +156,16 @@ export const publishWorker = new Worker<PublishJobData>(
 
           // For videos, pass the post content as description (published during upload).
           // For images, upload as unpublished (will attach via feed post).
-          const uploadParams: Record<string, unknown> = {
+          const uploadParams = {
             accessToken,
             fileBuffer,
             mimeType,
             filename: mediaAttachment?.media.originalKey?.split('/').pop() || `media-${idx}.${isVideoFile ? 'mp4' : 'png'}`,
             pageId,
+            ...(isVideoFile ? { description: content } : {}),
           };
-          if (isVideoFile) {
-            (uploadParams as Record<string, unknown>).description = content;
-          }
 
-          const uploadResult = await adapter.uploadMedia(uploadParams as Parameters<typeof adapter.uploadMedia>[0]);
+          const uploadResult = await adapter.uploadMedia(uploadParams as unknown as Parameters<typeof adapter.uploadMedia>[0]);
 
           platformMediaIds.push(uploadResult.platformMediaId);
           console.log(`[Publish] Facebook: uploaded ${isVideoFile ? 'video' : 'image'} ${idx + 1}/${mediaUrls.length}, id: ${uploadResult.platformMediaId}`);

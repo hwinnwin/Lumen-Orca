@@ -38,6 +38,7 @@ interface GeneratorState {
   videoSourceImageUrl: string | null;
   videoAudioMusic: boolean;
   videoAudioVoiceover: boolean;
+  videoVoiceId: string;
   videoMusicStyle: string;
   videoPlan: VideoPlan | null;
   generatedVideo: GeneratedVideo | null;
@@ -67,6 +68,7 @@ interface GeneratorState {
   setVideoSourceImageUrl: (url: string | null) => void;
   setVideoAudioMusic: (v: boolean) => void;
   setVideoAudioVoiceover: (v: boolean) => void;
+  setVideoVoiceId: (voiceId: string) => void;
   setVideoMusicStyle: (style: string) => void;
   setVideoPlan: (plan: VideoPlan) => void;
   setGeneratedVideo: (video: GeneratedVideo) => void;
@@ -99,6 +101,7 @@ const initialState = {
   videoSourceImageUrl: null as string | null,
   videoAudioMusic: false,
   videoAudioVoiceover: false,
+  videoVoiceId: 'Deep_Voice_Man',
   videoMusicStyle: '',
   videoPlan: null as VideoPlan | null,
   generatedVideo: null as GeneratedVideo | null,
@@ -151,6 +154,7 @@ export const useGeneratorStore = create<GeneratorState>((set) => ({
   setVideoSourceImageUrl: (videoSourceImageUrl) => set({ videoSourceImageUrl }),
   setVideoAudioMusic: (videoAudioMusic) => set({ videoAudioMusic }),
   setVideoAudioVoiceover: (videoAudioVoiceover) => set({ videoAudioVoiceover }),
+  setVideoVoiceId: (videoVoiceId) => set({ videoVoiceId }),
   setVideoMusicStyle: (videoMusicStyle) => set({ videoMusicStyle }),
   setVideoPlan: (plan) => set({ videoPlan: plan, step: 'review' }),
   setGeneratedVideo: (video) => set({ generatedVideo: video, step: 'preview', isGeneratingVideo: false }),

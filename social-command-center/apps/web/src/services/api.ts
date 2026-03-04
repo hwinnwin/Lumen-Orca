@@ -325,6 +325,7 @@ export async function generateVideoFromPrompt(data: {
   segments?: VideoSegment[];
   totalDuration?: number;
   voiceoverScript?: string;
+  voiceoverVoice?: string;
   musicStyle?: string;
 }) {
   const res = await api.post('/generator/video/generate', data, { timeout: 30000 });
