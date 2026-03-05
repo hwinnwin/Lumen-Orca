@@ -55,14 +55,21 @@ function PlatformToggle({
   active,
   connected,
   onClick,
+  needsVideo,
 }: {
   platform: PlatformConfig;
   active: boolean;
   connected: boolean;
   onClick: () => void;
+  needsVideo?: boolean;
 }) {
   const accent = platform.accent || platform.color;
-  const disabled = !connected;
+  const disabled = !connected || !!needsVideo;
+  const sublabel = !connected
+    ? 'Not connected'
+    : needsVideo
+      ? 'Attach a video to enable'
+      : platform.label;
   return (
     <button
       onClick={disabled ? undefined : onClick}
@@ -80,8 +87,8 @@ function PlatformToggle({
         borderRadius: '14px',
         cursor: disabled ? 'not-allowed' : 'pointer',
         transition: 'all 0.3s cubic-bezier(0.22, 1, 0.36, 1)',
-        transform: active && connected ? 'scale(1.02)' : 'scale(1)',
-        boxShadow: active && connected
+        transform: active && connected && !needsVideo ? 'scale(1.02)' : 'scale(1)',
+        boxShadow: active && connected && !needsVideo
           ? `0 0 20px ${accent}22, 0 4px 12px rgba(0,0,0,0.15)`
           : '0 2px 8px rgba(0,0,0,0.08)',
         opacity: disabled ? 0.3 : active ? 1 : 0.5,
@@ -95,7 +102,7 @@ function PlatformToggle({
           color: disabled ? 'var(--text-disabled)' : active ? accent : 'var(--text-tertiary)',
           width: '28px',
           textAlign: 'center',
-          filter: active && connected ? `drop-shadow(0 0 6px ${accent}55)` : 'none',
+          filter: active && connected && !needsVideo ? `drop-shadow(0 0 6px ${accent}55)` : 'none',
         }}
       >
         {platform.icon}
@@ -119,7 +126,7 @@ function PlatformToggle({
             fontFamily: "'IBM Plex Mono', monospace",
           }}
         >
-          {disabled ? 'Not connected' : platform.label}
+          {sublabel}
         </div>
       </div>
       <div
@@ -130,7 +137,7 @@ function PlatformToggle({
           borderRadius: '50%',
           background: disabled ? 'transparent' : active ? accent : 'transparent',
           border: `2px solid ${disabled ? 'var(--border-subtle)' : active ? accent : 'var(--border-color)'}`,
-          boxShadow: active && connected ? `0 0 8px ${accent}88` : 'none',
+          boxShadow: active && connected && !needsVideo ? `0 0 8px ${accent}88` : 'none',
           transition: 'all 0.3s ease',
         }}
       />
@@ -1289,12 +1296,14 @@ export default function SocialCommandCenter() {
   const [schedule, setSchedule] = useState<string>('Now');
   const [customScheduleDate, setCustomScheduleDate] = useState('');
   const [mediaFiles, setMediaFiles] = useState<UploadedFile[]>([]);
+  const hasVideoAttached = mediaFiles.some((f) => f.type === 'video');
   const [queue, setQueue] = useState<QueueItem[]>([]);
   const [posting, setPosting] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [platformOverrides, setPlatformOverrides] = useState<
     Partial<Record<PlatformId, string>>
   >({});
+  const [youtubeTitle, setYoutubeTitle] = useState('');
 
   const { data: connections } = useConnections();
   const composeStore = useComposeStore();
@@ -1339,15 +1348,26 @@ export default function SocialCommandCenter() {
     return set;
   }, [connections]);
 
-  // Auto-select all connected platforms on first load
+  // Auto-select all connected platforms on first load (exclude YouTube unless video attached)
   useEffect(() => {
     if (connectedPlatforms.size > 0 && activePlatforms.length === 0) {
-      setActivePlatforms(Array.from(connectedPlatforms));
+      const toSelect = Array.from(connectedPlatforms).filter(
+        (id) => id !== 'youtube' || hasVideoAttached,
+      );
+      setActivePlatforms(toSelect);
     }
   }, [connectedPlatforms.size]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Auto-deselect YouTube when video is removed (YouTube is video-only)
+  useEffect(() => {
+    if (!hasVideoAttached && activePlatforms.includes('youtube')) {
+      setActivePlatforms((prev) => prev.filter((p) => p !== 'youtube'));
+    }
+  }, [hasVideoAttached]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const togglePlatform = (id: PlatformId) => {
     if (!connectedPlatforms.has(id)) return; // Guard: can't toggle unconnected
+    if (id === 'youtube' && !hasVideoAttached) return; // Guard: YouTube needs video
     setActivePlatforms((prev) =>
       prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id],
     );
@@ -1365,8 +1385,17 @@ export default function SocialCommandCenter() {
     youtube: 'YOUTUBE',
   };
 
+  // YouTube-only posts don't require body text (video is the content), but need a title
+  const isYouTubeOnly = activePlatforms.length === 1 && activePlatforms[0] === 'youtube';
+  const youtubeSelected = activePlatforms.includes('youtube');
+  const youtubeReady = !youtubeSelected || !!youtubeTitle.trim();
+  const canPost =
+    activePlatforms.length > 0 &&
+    (!!content.trim() || (isYouTubeOnly && hasVideoAttached)) &&
+    youtubeReady;
+
   const handlePost = async () => {
-    if (!content.trim() || !activePlatforms.length) return;
+    if (!canPost) return;
 
     // Check that all selected platforms are actually connected
     const unconnected = activePlatforms.filter((id) => !connectedPlatforms.has(id));
@@ -1403,8 +1432,8 @@ export default function SocialCommandCenter() {
           try {
             const id = await mediaUpload.mutateAsync({ file: f.file, index: i });
             mediaIds.push(id);
-          } catch {
-            // Continue even if upload fails
+          } catch (err) {
+            console.error(`[Compose] Media upload failed for ${f.name}:`, err);
           }
         } else if (f.id) {
           mediaIds.push(f.id);
@@ -1441,9 +1470,16 @@ export default function SocialCommandCenter() {
           overrides[PLATFORM_MAP[key as PlatformId] || key] = val;
         }
       }
+      // Include YouTube title in overrides so the publish worker can extract it
+      if (youtubeTitle.trim()) {
+        overrides['__youtubeTitle'] = youtubeTitle.trim();
+      }
+
+      // For YouTube-only posts with no body text, use the YouTube title as content
+      const postContent = content.trim() || (isYouTubeOnly ? youtubeTitle.trim() : '');
 
       await createPost.mutateAsync({
-        content: content.trim(),
+        content: postContent,
         platforms: activePlatforms.map((id) => PLATFORM_MAP[id]),
         platformOverrides: Object.keys(overrides).length > 0 ? overrides : undefined,
         scheduleType,
@@ -1465,6 +1501,7 @@ export default function SocialCommandCenter() {
       setContent('');
       setMediaFiles([]);
       setPlatformOverrides({});
+      setYoutubeTitle('');
       toast.success('Transmission sent!', {
         description: `Posted to ${activePlatforms.length} platforms`,
       });
@@ -1595,6 +1632,7 @@ export default function SocialCommandCenter() {
                 platform={p}
                 active={activePlatforms.includes(p.id)}
                 connected={connectedPlatforms.has(p.id)}
+                needsVideo={p.id === 'youtube' && connectedPlatforms.has(p.id) && !hasVideoAttached}
                 onClick={() => togglePlatform(p.id)}
               />
             ))}
@@ -1602,7 +1640,10 @@ export default function SocialCommandCenter() {
 
           <button
             onClick={() => {
-              const connected = PLATFORMS.filter((p) => connectedPlatforms.has(p.id)).map((p) => p.id);
+              const connected = PLATFORMS
+                .filter((p) => connectedPlatforms.has(p.id))
+                .filter((p) => p.id !== 'youtube' || hasVideoAttached) // YouTube only when video attached
+                .map((p) => p.id);
               if (connected.length === 0) {
                 toast.error('No platforms connected', {
                   description: 'Go to the Connections page to link your accounts.',
@@ -1778,6 +1819,98 @@ export default function SocialCommandCenter() {
             </div>
           </div>
 
+          {/* YouTube Title & Description (shown when YouTube is selected) */}
+          {youtubeSelected && (
+            <div
+              style={{
+                background: 'var(--bg-tertiary)',
+                border: '1px solid rgba(255,0,0,0.2)',
+                borderRadius: '16px',
+                padding: '16px',
+              }}
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  marginBottom: '12px',
+                }}
+              >
+                <span style={{ fontSize: '16px', color: '#FF0000' }}>{'\u25B6'}</span>
+                <span
+                  style={{
+                    fontSize: '13px',
+                    fontWeight: 700,
+                    color: 'var(--text-secondary)',
+                    fontFamily: "'Sora', sans-serif",
+                  }}
+                >
+                  YouTube Details
+                </span>
+                <span
+                  style={{
+                    fontSize: '9px',
+                    padding: '2px 8px',
+                    borderRadius: '20px',
+                    background: 'rgba(255,0,0,0.12)',
+                    color: '#FF0000',
+                    fontWeight: 600,
+                    fontFamily: "'IBM Plex Mono', monospace",
+                  }}
+                >
+                  REQUIRED
+                </span>
+              </div>
+              <input
+                type="text"
+                value={youtubeTitle}
+                onChange={(e) => setYoutubeTitle(e.target.value.slice(0, 100))}
+                placeholder="Video title (required, max 100 chars)"
+                style={{
+                  width: '100%',
+                  padding: '10px 14px',
+                  background: 'var(--bg-secondary)',
+                  border: `1px solid ${youtubeTitle.trim() ? 'rgba(255,0,0,0.3)' : 'rgba(255,100,100,0.4)'}`,
+                  borderRadius: '10px',
+                  color: 'var(--text-primary)',
+                  fontSize: '14px',
+                  fontWeight: 600,
+                  fontFamily: "'Sora', sans-serif",
+                  marginBottom: '8px',
+                  outline: 'none',
+                  boxSizing: 'border-box',
+                }}
+              />
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                }}
+              >
+                <span
+                  style={{
+                    fontSize: '10px',
+                    color: 'var(--text-disabled)',
+                    fontFamily: "'IBM Plex Mono', monospace",
+                  }}
+                >
+                  Description will use your main content above{isYouTubeOnly ? ' (or leave empty for title-only)' : ''}
+                </span>
+                <span
+                  style={{
+                    fontSize: '10px',
+                    fontFamily: "'IBM Plex Mono', monospace",
+                    color: youtubeTitle.length > 90 ? '#ffaa00' : 'var(--text-muted)',
+                  }}
+                >
+                  {youtubeTitle.length}/100
+                </span>
+              </div>
+            </div>
+          )}
+
           {/* Media Upload */}
           <MediaUploadZone
             files={mediaFiles}
@@ -1852,9 +1985,7 @@ export default function SocialCommandCenter() {
 
             <button
               onClick={handlePost}
-              disabled={
-                posting || !content.trim() || !activePlatforms.length
-              }
+              disabled={posting || !canPost}
               style={{
                 marginLeft: 'auto',
                 padding: '14px 32px',
@@ -1874,8 +2005,7 @@ export default function SocialCommandCenter() {
                 transition:
                   'all 0.3s cubic-bezier(0.22, 1, 0.36, 1)',
                 transform: posting ? 'scale(0.98)' : 'scale(1)',
-                opacity:
-                  !content.trim() || !activePlatforms.length ? 0.3 : 1,
+                opacity: !canPost ? 0.3 : 1,
                 display: 'flex',
                 alignItems: 'center',
                 gap: '8px',

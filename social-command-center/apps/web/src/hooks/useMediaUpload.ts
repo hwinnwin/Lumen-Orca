@@ -21,9 +21,12 @@ export function useMediaUpload() {
       // Step 1: Get upload URL from API
       updateMediaFile(index, { status: 'uploading', progress: 10 });
 
+      // Fallback content type if File.type is empty (e.g. some video formats)
+      const contentType = file.type || (file.name.endsWith('.mp4') ? 'video/mp4' : 'application/octet-stream');
+
       const urlRes = await api.post<{ data: UploadResult }>('/media/upload-url', {
-        filename: file.name,
-        contentType: file.type,
+        filename: file.name || 'upload',
+        contentType,
         fileSize: file.size,
       });
 
