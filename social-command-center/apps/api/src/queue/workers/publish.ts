@@ -117,6 +117,16 @@ export const publishWorker = new Worker<PublishJobData>(
       console.log(`[Publish] Media URLs:`, mediaUrls.map((u) => u.substring(0, 80)).join(', '));
     }
 
+    // YouTube only supports video uploads — reject early with a clear message
+    if (platformEnum === 'YOUTUBE' && !hasVideo) {
+      const msg = 'YouTube only supports video posts. Please attach a video to publish to YouTube.';
+      await prisma.publishResult.update({
+        where: { postId_platform: { postId, platform: platformEnum } },
+        data: { status: 'FAILED', error: msg },
+      });
+      throw new Error(msg);
+    }
+
     // Instagram/Facebook API needs the correct page/user ID
     const pageId = platformEnum === 'INSTAGRAM'
       ? connection.platformUserId || undefined
