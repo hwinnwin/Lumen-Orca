@@ -222,7 +222,10 @@ export const publishWorker = new Worker<PublishJobData>(
         mediaType,
         // YouTube-specific
         ...(videoBuffer ? { videoBuffer, isShort: true } : {}),
-        ...(platformEnum === 'YOUTUBE' ? { title: content.substring(0, 100) } : {}),
+        ...(platformEnum === 'YOUTUBE' ? {
+          title: content.substring(0, 100),
+          tags: post.tags?.length ? post.tags : [],
+        } : {}),
       },
     });
 
