@@ -55,6 +55,7 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 100
 // Request a presigned upload URL (or local upload URL when S3 is not configured)
 mediaRouter.post('/upload-url', async (req, res) => {
   try {
+    console.log('[Media] upload-url body:', JSON.stringify(req.body));
     const { filename, contentType, fileSize, platforms } = req.body as {
       filename: string;
       contentType: string;
@@ -63,7 +64,7 @@ mediaRouter.post('/upload-url', async (req, res) => {
     };
 
     if (!filename || !contentType || !fileSize) {
-      console.error('[Media] upload-url missing fields:', { filename, contentType, fileSize, bodyKeys: Object.keys(req.body || {}) });
+      console.error('[Media] upload-url missing fields:', { filename, contentType, fileSize, body: JSON.stringify(req.body) });
       return res.status(400).json({ error: 'filename, contentType, and fileSize are required' });
     }
 
