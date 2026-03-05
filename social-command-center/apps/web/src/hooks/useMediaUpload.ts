@@ -23,11 +23,19 @@ export function useMediaUpload() {
 
       // Fallback content type if File.type is empty (e.g. some video formats)
       const contentType = file.type || (file.name.endsWith('.mp4') ? 'video/mp4' : 'application/octet-stream');
+      const filename = file.name || 'upload';
+      const fileSize = file.size;
+
+      console.log(`[MediaUpload] Requesting upload URL: name="${filename}", type="${contentType}", size=${fileSize}`);
+
+      if (!filename || !contentType || !fileSize) {
+        throw new Error(`Invalid file: name="${filename}", type="${contentType}", size=${fileSize}`);
+      }
 
       const urlRes = await api.post<{ data: UploadResult }>('/media/upload-url', {
-        filename: file.name || 'upload',
+        filename,
         contentType,
-        fileSize: file.size,
+        fileSize,
       });
 
       const { mediaId, uploadUrl, local } = urlRes.data.data;

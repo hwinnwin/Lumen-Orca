@@ -63,6 +63,7 @@ mediaRouter.post('/upload-url', async (req, res) => {
     };
 
     if (!filename || !contentType || !fileSize) {
+      console.error('[Media] upload-url missing fields:', { filename, contentType, fileSize, bodyKeys: Object.keys(req.body || {}) });
       return res.status(400).json({ error: 'filename, contentType, and fileSize are required' });
     }
 
