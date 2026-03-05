@@ -77,7 +77,9 @@ export class YouTubeAdapter implements PlatformAdapter {
     );
 
     if (!initRes.ok) {
-      throw new Error(`YouTube upload init failed: ${await initRes.text()}`);
+      const errBody = await initRes.text();
+      console.error(`[YouTube] Upload init failed (${initRes.status}):`, errBody);
+      throw new Error(`YouTube upload init failed (${initRes.status}): ${errBody}`);
     }
 
     const uploadUri = initRes.headers.get('location');
