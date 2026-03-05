@@ -1389,9 +1389,10 @@ export default function SocialCommandCenter() {
   const isYouTubeOnly = activePlatforms.length === 1 && activePlatforms[0] === 'youtube';
   const youtubeSelected = activePlatforms.includes('youtube');
   const youtubeReady = !youtubeSelected || !!youtubeTitle.trim();
+  const hasContent = !!content.trim();
   const canPost =
     activePlatforms.length > 0 &&
-    (!!content.trim() || (isYouTubeOnly && hasVideoAttached)) &&
+    (hasContent || hasVideoAttached) &&
     youtubeReady;
 
   const handlePost = async () => {
@@ -1475,8 +1476,8 @@ export default function SocialCommandCenter() {
         overrides['__youtubeTitle'] = youtubeTitle.trim();
       }
 
-      // For YouTube-only posts with no body text, use the YouTube title as content
-      const postContent = content.trim() || (isYouTubeOnly ? youtubeTitle.trim() : '');
+      // Fallback content: use YouTube title, or a generic placeholder for video-only posts
+      const postContent = content.trim() || youtubeTitle.trim() || (hasVideoAttached ? 'Video post' : '');
 
       await createPost.mutateAsync({
         content: postContent,
