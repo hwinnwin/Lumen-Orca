@@ -176,6 +176,31 @@ export const publishWorker = new Worker<PublishJobData>(
       console.log(`[Publish] Facebook: ${platformMediaIds.length}/${mediaUrls.length} media items uploaded`);
     }
 
+    // YouTube requires downloading the video into a buffer for resumable upload
+    let videoBuffer: Buffer | undefined;
+    if (platformEnum === 'YOUTUBE' && mediaUrls.length > 0 && hasVideo) {
+      const videoAttachment = readyMedia.find((a) => a.media.type === 'VIDEO' || a.media.mimeType?.startsWith('video/'));
+      if (videoAttachment) {
+        if (!isS3Configured && videoAttachment.media.originalKey) {
+          const localBuf = await readFromLocalStorage(videoAttachment.media.originalKey);
+          if (localBuf) {
+            videoBuffer = localBuf;
+          }
+        }
+        if (!videoBuffer) {
+          const videoUrl = videoAttachment.media.originalUrl;
+          const response = await fetch(videoUrl);
+          if (response.ok) {
+            videoBuffer = Buffer.from(await response.arrayBuffer());
+          }
+        }
+        if (!videoBuffer) {
+          throw new Error('YouTube: failed to download video for upload');
+        }
+        console.log(`[Publish] YouTube: downloaded video buffer (${(videoBuffer.length / 1024 / 1024).toFixed(1)} MB)`);
+      }
+    }
+
     const result = await adapter.publish({
       accessToken,
       content,
@@ -185,6 +210,9 @@ export const publishWorker = new Worker<PublishJobData>(
       platformSpecific: {
         memberUrn: connection.platformUserId,
         mediaType,
+        // YouTube-specific
+        ...(videoBuffer ? { videoBuffer, isShort: true } : {}),
+        ...(platformEnum === 'YOUTUBE' ? { title: content.substring(0, 100) } : {}),
       },
     });
 
