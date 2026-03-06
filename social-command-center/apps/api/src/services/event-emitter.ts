@@ -77,3 +77,16 @@ export function emitVideoGenerated(
 export function emitVideoFailed(userId: string, jobId: string, error: string) {
   emitToUser(userId, 'video:failed', { jobId, error, timestamp: Date.now() });
 }
+
+// Video editor export events
+export function emitVideoExported(
+  userId: string,
+  jobId: string,
+  video: { videoUrl: string; storageKey: string; duration: number },
+) {
+  emitToUser(userId, 'video:exported', { jobId, ...video, timestamp: Date.now() });
+}
+
+export function emitVideoExportFailed(userId: string, jobId: string, error: string) {
+  emitToUser(userId, 'video:export-failed', { jobId, error, timestamp: Date.now() });
+}

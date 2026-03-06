@@ -833,3 +833,140 @@ export async function generateVideoFromSlide(
     userId,
   );
 }
+
+// ─── Video Editor Export ────────────────────────────────
+
+/**
+ * Export an edited video from user-uploaded clips + optional audio.
+ * Downloads clips from storage, trims/re-encodes, concatenates, mixes audio, uploads result.
+ */
+export async function exportEditedVideo(
+  clips: Array<{ storageKey: string; startTime?: number; endTime?: number }>,
+  audioStorageKey: string | undefined,
+  audioVolume: number,
+  userId: string,
+): Promise<GeneratedVideo> {
+  const { downloadBuffer } = await import('./s3.js');
+  const tmpDir = await mkdtemp(join(tmpdir(), 'scc-export-'));
+
+  try {
+    // Download and prepare each clip
+    const normalizedPaths: string[] = [];
+    for (let i = 0; i < clips.length; i++) {
+      const clip = clips[i];
+      console.log(`[VideoExport] Downloading clip ${i + 1}/${clips.length}: ${clip.storageKey}`);
+      const buffer = await downloadBuffer(clip.storageKey);
+      const rawPath = join(tmpDir, `raw_${i}.mp4`);
+      await writeFile(rawPath, buffer);
+
+      // Re-encode + trim to uniform format for safe concatenation
+      const normalizedPath = join(tmpDir, `clip_${i}.mp4`);
+      const ffmpegArgs = ['-y'];
+
+      // Trim: seek to start time
+      if (clip.startTime !== undefined && clip.startTime > 0) {
+        ffmpegArgs.push('-ss', String(clip.startTime));
+      }
+
+      ffmpegArgs.push('-i', rawPath);
+
+      // Trim: set duration from start to end
+      if (clip.endTime !== undefined) {
+        const startOffset = clip.startTime || 0;
+        const duration = clip.endTime - startOffset;
+        if (duration > 0) {
+          ffmpegArgs.push('-t', String(duration));
+        }
+      }
+
+      // Re-encode to uniform H.264 + AAC, 30fps, scale to 1080 height preserving aspect ratio
+      ffmpegArgs.push(
+        '-vf', 'scale=-2:1080',
+        '-r', '30',
+        '-c:v', 'libx264', '-preset', 'fast', '-crf', '23',
+        '-c:a', 'aac', '-b:a', '128k',
+        '-movflags', '+faststart',
+        normalizedPath,
+      );
+
+      await execFileAsync('ffmpeg', ffmpegArgs, { timeout: 300000 });
+      normalizedPaths.push(normalizedPath);
+      console.log(`[VideoExport] Clip ${i + 1} normalized`);
+    }
+
+    // Concatenate all clips
+    let currentVideoPath: string;
+
+    if (normalizedPaths.length === 1) {
+      currentVideoPath = normalizedPaths[0];
+    } else {
+      const concatList = normalizedPaths.map((p) => `file '${p}'`).join('\n');
+      const concatListPath = join(tmpDir, 'concat.txt');
+      await writeFile(concatListPath, concatList);
+
+      currentVideoPath = join(tmpDir, 'concat.mp4');
+      await execFileAsync('ffmpeg', [
+        '-y', '-f', 'concat', '-safe', '0',
+        '-i', concatListPath,
+        '-c', 'copy',
+        currentVideoPath,
+      ], { timeout: 300000 });
+
+      console.log(`[VideoExport] Concatenated ${normalizedPaths.length} clips`);
+    }
+
+    // Mix audio if provided
+    if (audioStorageKey) {
+      console.log(`[VideoExport] Downloading audio: ${audioStorageKey}`);
+      const audioBuffer = await downloadBuffer(audioStorageKey);
+      const audioPath = join(tmpDir, 'audio_input.mp3');
+      await writeFile(audioPath, audioBuffer);
+
+      const vol = Math.max(0, Math.min(100, audioVolume)) / 100;
+      const withAudioPath = join(tmpDir, 'with_audio.mp4');
+
+      await execFileAsync('ffmpeg', [
+        '-y',
+        '-i', currentVideoPath,
+        '-i', audioPath,
+        '-filter_complex', `[1:a]volume=${vol}[aud]`,
+        '-map', '0:v',
+        '-map', '[aud]',
+        '-c:v', 'copy',
+        '-c:a', 'aac', '-b:a', '192k',
+        '-shortest',
+        withAudioPath,
+      ], { timeout: 300000 });
+
+      currentVideoPath = withAudioPath;
+      console.log(`[VideoExport] Mixed audio at ${audioVolume}% volume`);
+    }
+
+    // Probe final duration
+    let duration = 0;
+    try {
+      const { stdout } = await execFileAsync('ffprobe', [
+        '-v', 'error', '-show_entries', 'format=duration',
+        '-of', 'default=noprint_wrappers=1:nokey=1', currentVideoPath,
+      ], { timeout: 10000 });
+      const parsed = parseFloat(stdout.trim());
+      if (!isNaN(parsed) && parsed > 0) duration = Math.round(parsed);
+    } catch { /* use 0 */ }
+
+    // Upload final video
+    const finalBuffer = await readFile(currentVideoPath);
+    const storageKey = generateMediaKey(userId, 'export.mp4');
+    const videoUrl = await uploadBuffer(storageKey, finalBuffer, 'video/mp4');
+    const publicUrl = buildPublicMediaUrl(storageKey);
+
+    console.log(`[VideoExport] Upload complete: ${storageKey} (${duration}s)`);
+
+    return {
+      videoUrl: publicUrl || videoUrl,
+      storageKey,
+      duration,
+    };
+  } finally {
+    await rm(tmpDir, { recursive: true, force: true }).catch(() => {});
+  }
+}

@@ -6,6 +6,7 @@ export const mediaProcessQueue = new Queue('process-media', bullMQConnection);
 export const metricsQueue = new Queue('fetch-metrics', bullMQConnection);
 export const schedulerQueue = new Queue('post-scheduler', bullMQConnection);
 export const videoGenerateQueue = new Queue('video-generate', bullMQConnection);
+export const videoExportQueue = new Queue('video-export', bullMQConnection);
 
 // Types for job data
 export interface PublishJobData {
@@ -24,6 +25,14 @@ export interface MetricsJobData {
   platformPostId: string;
   platform: string;
   userId: string;
+}
+
+export interface VideoExportJobData {
+  clips: Array<{ storageKey: string; startTime?: number; endTime?: number }>;
+  audioStorageKey?: string;
+  audioVolume: number;
+  userId: string;
+  jobId: string;
 }
 
 export interface VideoGenerateJobData {

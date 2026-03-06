@@ -189,4 +189,28 @@ export async function readFromLocalStorage(key: string): Promise<Buffer | null> 
   }
 }
 
+/**
+ * Download a stored object back to a Buffer.
+ * Works with both S3 and local filesystem.
+ */
+export async function downloadBuffer(key: string): Promise<Buffer> {
+  if (!isS3Configured) {
+    const filePath = resolve(LOCAL_UPLOADS_DIR, key);
+    return fs.readFile(filePath);
+  }
+
+  const command = new GetObjectCommand({
+    Bucket: env.S3_BUCKET,
+    Key: key,
+  });
+
+  const response = await s3Client.send(command);
+  const stream = response.Body as NodeJS.ReadableStream;
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream) {
+    chunks.push(Buffer.from(chunk));
+  }
+  return Buffer.concat(chunks);
+}
+
 export { s3Client, LOCAL_UPLOADS_DIR };

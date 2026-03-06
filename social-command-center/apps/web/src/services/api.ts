@@ -361,6 +361,17 @@ export async function generateSpeech(data: { script: string; voiceId?: string })
   return res.data.data as GeneratedSpeech;
 }
 
+// ─── Video Editor Export ─────────────────────────────────
+
+export async function exportVideo(data: {
+  clips: Array<{ storageKey: string; startTime?: number; endTime?: number }>;
+  audioStorageKey?: string;
+  audioVolume?: number;
+}) {
+  const res = await api.post('/generator/video/export', data, { timeout: 30000 });
+  return res.data.data as { jobId: string };
+}
+
 // ─── Credits ─────────────────────────────────────────────
 
 export interface CreditBalance {
@@ -393,6 +404,7 @@ export interface CreditCosts {
   AI_REPURPOSE: number;
   AI_STRATEGY: number;
   AI_GENERATE_POSTS: number;
+  VIDEO_EXPORT: number;
   VIDEO_PLAN: number;
   CAROUSEL_PLAN: number;
 }

@@ -10,6 +10,7 @@ import {
   animateSlide,
   testVoice,
   generateSpeech,
+  exportVideo,
 } from '../services/api';
 
 export function useGeneratorCapabilities() {
@@ -57,5 +58,11 @@ export function useTestVoice() {
 
 export function useGenerateSpeech() {
   return useMutation({ mutationFn: generateSpeech });
+}
+
+// ─── Video Editor Hook ──────────────────────────────────
+
+export function useExportVideo() {
+  return useMutation({ mutationFn: exportVideo });
 }
 

@@ -144,6 +144,35 @@ export function useSocket() {
       },
     );
 
+    // Video editor export completed
+    socket.on(
+      'video:exported',
+      (data: { jobId: string; videoUrl: string; storageKey: string; duration: number }) => {
+        const store = useGeneratorStore.getState();
+        if (store.editorExportJobId === data.jobId) {
+          store.setEditorExportedVideo({
+            videoUrl: data.videoUrl,
+            storageKey: data.storageKey,
+            duration: data.duration,
+          });
+          toast.success('Video exported successfully');
+        }
+      },
+    );
+
+    // Video editor export failed
+    socket.on(
+      'video:export-failed',
+      (data: { jobId: string; error: string }) => {
+        const store = useGeneratorStore.getState();
+        if (store.editorExportJobId === data.jobId) {
+          store.setIsExporting(false);
+          store.setEditorExportJobId(null);
+          toast.error('Video export failed', { description: data.error });
+        }
+      },
+    );
+
     return () => {
       disconnectSocket();
       initialized.current = false;

@@ -21,6 +21,12 @@ import {
   Video,
   Play,
   Mic,
+  Film,
+  ChevronUp,
+  ChevronDown,
+  Upload,
+  Trash2,
+  Volume2,
 } from 'lucide-react';
 import Header from '../components/layout/Header';
 import { useGeneratorStore } from '../store/generator-store';
@@ -36,10 +42,12 @@ import {
   useAnimateSlide,
   useTestVoice,
   useGenerateSpeech,
+  useExportVideo,
 } from '../hooks/useGenerator';
 import { useCreditBalance, useInvalidateCredits } from '../hooks/useCredits';
 import { useComposeStore } from '../store/compose-store';
 import type { SlidePlan, VideoPlatform } from '../services/api';
+import { api } from '../services/api';
 
 const CONTENT_TYPES: { id: ContentType; label: string; desc: string; icon: typeof Layout }[] = [
   { id: 'carousel', label: 'Carousel', desc: 'Text overlay slides with styled backgrounds', icon: Layout },
@@ -48,6 +56,7 @@ const CONTENT_TYPES: { id: ContentType; label: string; desc: string; icon: typeo
   { id: 'educational', label: 'Educational', desc: 'Numbered tips, steps, or facts', icon: BookOpen },
   { id: 'video-clip', label: 'Video Clip', desc: 'AI-generated short video for Reels, TikTok, Shorts', icon: Video },
   { id: 'script-to-speech', label: 'Script to Speech', desc: 'Convert text into AI-narrated audio with natural voices', icon: Mic },
+  { id: 'video-editor', label: 'Video Editor', desc: 'Combine your clips + audio into a finished video', icon: Film },
 ];
 
 const TONES = [
@@ -103,6 +112,7 @@ export default function GeneratorPage() {
   const animateSlideMutation = useAnimateSlide();
   const testVoiceMutation = useTestVoice();
   const speechMutation = useGenerateSpeech();
+  const exportVideoMutation = useExportVideo();
   const composeStore = useComposeStore();
   const { data: creditData } = useCreditBalance();
   const invalidateCredits = useInvalidateCredits();
@@ -377,9 +387,162 @@ export default function GeneratorPage() {
     }
   };
 
+  // ─── Video Editor Handlers ─────────────────────────────
+
+  const handleEditorFileSelect = async (files: FileList | null) => {
+    if (!files) return;
+    const maxClips = 10;
+    const currentCount = store.editorClips.length;
+    const remaining = maxClips - currentCount;
+    if (remaining <= 0) {
+      toast.error('Maximum 10 clips');
+      return;
+    }
+
+    const filesToAdd = Array.from(files).slice(0, remaining);
+    for (const file of filesToAdd) {
+      const clipId = crypto.randomUUID();
+      // Add clip in uploading state
+      store.addEditorClip({
+        id: clipId,
+        fileName: file.name,
+        duration: 0,
+        storageKey: null,
+        startTime: 0,
+        endTime: 0,
+        status: 'uploading',
+      });
+
+      // Get duration from video element
+      const video = document.createElement('video');
+      video.preload = 'metadata';
+      const objectUrl = URL.createObjectURL(file);
+      video.src = objectUrl;
+      video.onloadedmetadata = () => {
+        const dur = Math.round(video.duration);
+        store.updateEditorClip(clipId, { duration: dur, endTime: dur });
+        URL.revokeObjectURL(objectUrl);
+      };
+
+      // Upload via media upload flow
+      try {
+        const contentType = file.type || 'video/mp4';
+        const urlRes = await api.post<{ data: { mediaId: string; uploadUrl: string; key: string; local?: boolean } }>('/media/upload-url', {
+          filename: file.name,
+          contentType,
+          fileSize: file.size,
+        });
+        const { mediaId, uploadUrl, key, local } = urlRes.data.data;
+
+        if (local) {
+          await api.put(uploadUrl, file, { headers: { 'Content-Type': contentType } });
+        } else {
+          await fetch(uploadUrl, { method: 'PUT', body: file, headers: { 'Content-Type': contentType } });
+        }
+        await api.post(`/media/${mediaId}/confirm`);
+        store.updateEditorClip(clipId, { storageKey: key, status: 'ready' });
+      } catch {
+        store.updateEditorClip(clipId, { status: 'error' });
+        toast.error(`Failed to upload ${file.name}`);
+      }
+    }
+  };
+
+  const handleEditorAudioUpload = async (file: File) => {
+    try {
+      const contentType = file.type || 'audio/mpeg';
+      const urlRes = await api.post<{ data: { mediaId: string; uploadUrl: string; key: string; local?: boolean } }>('/media/upload-url', {
+        filename: file.name,
+        contentType,
+        fileSize: file.size,
+      });
+      const { mediaId, uploadUrl, key, local } = urlRes.data.data;
+
+      if (local) {
+        await api.put(uploadUrl, file, { headers: { 'Content-Type': contentType } });
+      } else {
+        await fetch(uploadUrl, { method: 'PUT', body: file, headers: { 'Content-Type': contentType } });
+      }
+      await api.post(`/media/${mediaId}/confirm`);
+      store.setEditorAudioStorageKey(key);
+      store.setEditorAudioFileName(file.name);
+      toast.success('Audio uploaded');
+    } catch {
+      toast.error('Failed to upload audio');
+    }
+  };
+
+  const handleExportVideo = async () => {
+    const readyClips = store.editorClips.filter((c) => c.status === 'ready' && c.storageKey);
+    if (readyClips.length === 0) {
+      toast.error('Add at least one clip');
+      return;
+    }
+
+    const totalDuration = readyClips.reduce((sum, c) => sum + (c.endTime - c.startTime), 0);
+    if (totalDuration > 300) {
+      toast.error('Total duration cannot exceed 5 minutes');
+      return;
+    }
+
+    store.setIsExporting(true);
+    startElapsedTimer();
+    try {
+      const { jobId } = await exportVideoMutation.mutateAsync({
+        clips: readyClips.map((c) => ({
+          storageKey: c.storageKey!,
+          startTime: c.startTime > 0 ? c.startTime : undefined,
+          endTime: c.endTime < c.duration ? c.endTime : undefined,
+        })),
+        audioStorageKey: store.editorAudioSource === 'speech'
+          ? (store.editorAudioStorageKey || store.generatedSpeech?.storageKey || undefined)
+          : store.editorAudioSource === 'upload'
+          ? (store.editorAudioStorageKey ?? undefined)
+          : undefined,
+        audioVolume: store.editorAudioVolume,
+      });
+      store.setEditorExportJobId(jobId);
+      invalidateCredits();
+      toast.info('Video export started — this may take a minute');
+    } catch (err: unknown) {
+      const axErr = err as { response?: { status?: number; data?: { error?: string } } };
+      if (axErr?.response?.status === 402) {
+        toast.error(axErr.response.data?.error || 'Insufficient credits');
+      } else {
+        toast.error('Failed to start video export');
+      }
+      store.setIsExporting(false);
+      stopElapsedTimer();
+    }
+  };
+
+  // Stop elapsed timer when export result arrives
+  useEffect(() => {
+    if (!store.isExporting && store.editorExportedVideo && elapsedRef.current) {
+      stopElapsedTimer();
+    }
+  }, [store.isExporting, store.editorExportedVideo]);
+
   // ─── Shared Handlers ─────────────────────────────────
 
   const handleLoadIntoComposer = async () => {
+    // Video editor export
+    if (store.editorExportedVideo) {
+      composeStore.setContent('');
+      try {
+        const res = await fetch(store.editorExportedVideo.videoUrl);
+        const blob = await res.blob();
+        const file = new File([blob], 'edited-video.mp4', { type: 'video/mp4' });
+        composeStore.addMediaFiles([{ name: file.name, type: 'video', file, progress: 100, status: 'ready' }]);
+      } catch {
+        toast.error('Failed to load video into composer');
+        return;
+      }
+      navigate('/');
+      toast.success('Video loaded into composer');
+      return;
+    }
+
     // Video content
     if (store.generatedVideo) {
       const videoPlan = store.videoPlan;
@@ -488,6 +651,7 @@ export default function GeneratorPage() {
 
   const isVideoMode = store.contentType === 'video-clip';
   const isSpeechMode = store.contentType === 'script-to-speech';
+  const isEditorMode = store.contentType === 'video-editor';
   return (
     <div
       style={{
@@ -505,7 +669,7 @@ export default function GeneratorPage() {
           {store.step !== 'configure' && (
             <button
               onClick={() => {
-                if (store.step === 'preview' && isSpeechMode) store.setStep('configure');
+                if (store.step === 'preview' && (isSpeechMode || isEditorMode)) store.setStep('configure');
                 else if (store.step === 'preview') store.setStep('review');
                 else if (store.step === 'review') store.setStep('configure');
               }}
@@ -577,7 +741,7 @@ export default function GeneratorPage() {
 
         {/* Step indicator */}
         <div style={{ display: 'flex', gap: '8px', marginBottom: '28px', alignItems: 'center' }}>
-          {(isSpeechMode ? ['configure', 'preview'] as const : ['configure', 'review', 'preview'] as const).map((s, i) => (
+          {((isSpeechMode || isEditorMode) ? ['configure', 'preview'] as const : ['configure', 'review', 'preview'] as const).map((s, i) => (
             <div key={s} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               {i > 0 && (
                 <div style={{ width: '24px', height: '1px', background: 'var(--border-color)' }} />
@@ -983,6 +1147,249 @@ export default function GeneratorPage() {
                     <><Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> Generating speech...</>
                   ) : (
                     <><Mic size={16} /> Generate Speech</>
+                  )}
+                </button>
+              </div>
+            ) : isEditorMode ? (
+              /* Video Editor mode */
+              <div style={{ display: 'grid', gap: '16px' }}>
+                {/* Clip Upload */}
+                <div>
+                  <label style={labelStyle}>Video Clips</label>
+                  <div
+                    style={{
+                      padding: '24px',
+                      borderRadius: '12px',
+                      background: 'var(--bg-tertiary)',
+                      border: '2px dashed var(--border-color)',
+                      textAlign: 'center',
+                      cursor: 'pointer',
+                    }}
+                    onClick={() => document.getElementById('editor-clip-input')?.click()}
+                  >
+                    <Upload size={24} style={{ color: 'var(--text-muted)', marginBottom: '8px' }} />
+                    <div style={{ fontSize: '13px', color: 'var(--text-secondary)', fontWeight: 600 }}>
+                      Click to upload video clips
+                    </div>
+                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>
+                      MP4, MOV, WebM — max 10 clips, 5 min total
+                    </div>
+                    <input
+                      id="editor-clip-input"
+                      type="file"
+                      accept="video/*"
+                      multiple
+                      style={{ display: 'none' }}
+                      onChange={(e) => handleEditorFileSelect(e.target.files)}
+                    />
+                  </div>
+                </div>
+
+                {/* Clip List */}
+                {store.editorClips.length > 0 && (
+                  <div>
+                    <label style={labelStyle}>Clip Order</label>
+                    <div style={{ display: 'grid', gap: '6px' }}>
+                      {store.editorClips.map((clip, idx) => (
+                        <div
+                          key={clip.id}
+                          style={{
+                            padding: '10px 14px',
+                            borderRadius: '10px',
+                            background: 'var(--bg-tertiary)',
+                            border: `1px solid ${clip.status === 'error' ? '#ef4444' : 'var(--border-color)'}`,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '10px',
+                          }}
+                        >
+                          <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)', fontFamily: "'IBM Plex Mono', monospace", minWidth: '20px' }}>
+                            {idx + 1}
+                          </div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {clip.fileName}
+                            </div>
+                            <div style={{ display: 'flex', gap: '8px', marginTop: '4px', alignItems: 'center', fontSize: '11px', color: 'var(--text-muted)', fontFamily: "'IBM Plex Mono', monospace" }}>
+                              {clip.status === 'uploading' ? (
+                                <span><Loader2 size={10} style={{ animation: 'spin 1s linear infinite', display: 'inline' }} /> uploading...</span>
+                              ) : clip.status === 'error' ? (
+                                <span style={{ color: '#ef4444' }}>upload failed</span>
+                              ) : (
+                                <>
+                                  <span>{clip.duration}s</span>
+                                  {clip.duration > 0 && (
+                                    <>
+                                      <span>trim:</span>
+                                      <input
+                                        type="number"
+                                        min={0}
+                                        max={clip.endTime}
+                                        value={clip.startTime}
+                                        onChange={(e) => store.updateEditorClip(clip.id, { startTime: Math.max(0, Number(e.target.value)) })}
+                                        style={{ width: '48px', padding: '2px 4px', background: 'var(--bg-input)', border: '1px solid var(--border-color)', borderRadius: '4px', color: 'var(--text-primary)', fontSize: '11px', textAlign: 'center' }}
+                                      />
+                                      <span>-</span>
+                                      <input
+                                        type="number"
+                                        min={clip.startTime}
+                                        max={clip.duration}
+                                        value={clip.endTime}
+                                        onChange={(e) => store.updateEditorClip(clip.id, { endTime: Math.min(clip.duration, Number(e.target.value)) })}
+                                        style={{ width: '48px', padding: '2px 4px', background: 'var(--bg-input)', border: '1px solid var(--border-color)', borderRadius: '4px', color: 'var(--text-primary)', fontSize: '11px', textAlign: 'center' }}
+                                      />
+                                      <span>s</span>
+                                    </>
+                                  )}
+                                </>
+                              )}
+                            </div>
+                          </div>
+                          <div style={{ display: 'flex', gap: '4px', flexShrink: 0 }}>
+                            <button
+                              onClick={() => idx > 0 && store.reorderEditorClips(idx, idx - 1)}
+                              disabled={idx === 0}
+                              style={{ ...iconBtnStyle, opacity: idx === 0 ? 0.3 : 1 }}
+                            >
+                              <ChevronUp size={14} />
+                            </button>
+                            <button
+                              onClick={() => idx < store.editorClips.length - 1 && store.reorderEditorClips(idx, idx + 1)}
+                              disabled={idx === store.editorClips.length - 1}
+                              style={{ ...iconBtnStyle, opacity: idx === store.editorClips.length - 1 ? 0.3 : 1 }}
+                            >
+                              <ChevronDown size={14} />
+                            </button>
+                            <button
+                              onClick={() => store.removeEditorClip(clip.id)}
+                              style={{ ...iconBtnStyle, color: '#ef4444' }}
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <div style={{ marginTop: '8px', fontSize: '11px', color: 'var(--text-muted)', fontFamily: "'IBM Plex Mono', monospace" }}>
+                      Total: ~{store.editorClips.filter((c) => c.status === 'ready').reduce((sum, c) => sum + (c.endTime - c.startTime), 0)}s
+                      {' / '}
+                      {store.editorClips.length} clip{store.editorClips.length !== 1 ? 's' : ''}
+                    </div>
+                  </div>
+                )}
+
+                {/* Audio Section */}
+                <div>
+                  <label style={labelStyle}>Audio Track</label>
+                  <div style={{ display: 'grid', gap: '8px' }}>
+                    {(['none', 'speech', 'upload'] as const).map((opt) => (
+                      <label
+                        key={opt}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          padding: '8px 12px',
+                          borderRadius: '8px',
+                          background: store.editorAudioSource === opt ? 'var(--bg-active)' : 'var(--bg-tertiary)',
+                          border: `1px solid ${store.editorAudioSource === opt ? '#8b5cf6' : 'var(--border-color)'}`,
+                          cursor: 'pointer',
+                          fontSize: '12px',
+                          fontWeight: 600,
+                          color: 'var(--text-secondary)',
+                        }}
+                      >
+                        <input
+                          type="radio"
+                          name="editor-audio"
+                          checked={store.editorAudioSource === opt}
+                          onChange={() => store.setEditorAudioSource(opt)}
+                          style={{ accentColor: '#8b5cf6' }}
+                        />
+                        {opt === 'none' ? 'No Audio' : opt === 'speech' ? 'Use Generated Speech' : 'Upload Audio File'}
+                      </label>
+                    ))}
+                  </div>
+
+                  {store.editorAudioSource === 'speech' && (
+                    <div style={{ marginTop: '8px', padding: '8px 12px', borderRadius: '8px', background: 'rgba(139,92,246,0.05)', border: '1px solid rgba(139,92,246,0.15)', fontSize: '12px' }}>
+                      {store.generatedSpeech ? (
+                        <span style={{ color: '#8b5cf6' }}>Using generated speech ({store.generatedSpeech.duration}s)</span>
+                      ) : (
+                        <span style={{ color: 'var(--text-muted)' }}>Generate speech first using Script to Speech mode</span>
+                      )}
+                    </div>
+                  )}
+
+                  {store.editorAudioSource === 'upload' && (
+                    <div style={{ marginTop: '8px' }}>
+                      {store.editorAudioFileName ? (
+                        <div style={{ padding: '8px 12px', borderRadius: '8px', background: 'rgba(139,92,246,0.05)', border: '1px solid rgba(139,92,246,0.15)', fontSize: '12px', color: '#8b5cf6', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <Volume2 size={14} /> {store.editorAudioFileName}
+                          <button onClick={() => { store.setEditorAudioStorageKey(null); store.setEditorAudioFileName(null); }} style={{ marginLeft: 'auto', ...iconBtnStyle, color: '#ef4444' }}>
+                            <Trash2 size={12} />
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => document.getElementById('editor-audio-input')?.click()}
+                          style={secondaryButtonStyle}
+                        >
+                          <Upload size={14} /> Choose Audio File
+                        </button>
+                      )}
+                      <input
+                        id="editor-audio-input"
+                        type="file"
+                        accept="audio/*"
+                        style={{ display: 'none' }}
+                        onChange={(e) => e.target.files?.[0] && handleEditorAudioUpload(e.target.files[0])}
+                      />
+                    </div>
+                  )}
+
+                  {store.editorAudioSource !== 'none' && (
+                    <div style={{ marginTop: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <label style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>Volume</label>
+                      <input
+                        type="range"
+                        min={0}
+                        max={100}
+                        value={store.editorAudioVolume}
+                        onChange={(e) => store.setEditorAudioVolume(Number(e.target.value))}
+                        style={{ flex: 1, accentColor: '#8b5cf6' }}
+                      />
+                      <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: "'IBM Plex Mono', monospace", minWidth: '32px' }}>
+                        {store.editorAudioVolume}%
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: "'IBM Plex Mono', monospace", padding: '8px 12px', background: 'rgba(139,92,246,0.05)', borderRadius: '8px', border: '1px solid rgba(139,92,246,0.15)' }}>
+                  Cost: 50 credits per export
+                </div>
+
+                <button
+                  onClick={handleExportVideo}
+                  disabled={
+                    store.isExporting ||
+                    store.editorClips.filter((c) => c.status === 'ready').length === 0 ||
+                    (store.editorAudioSource === 'speech' && !store.editorAudioStorageKey && !store.generatedSpeech) ||
+                    (store.editorAudioSource === 'upload' && !store.editorAudioStorageKey)
+                  }
+                  style={{
+                    ...primaryButtonStyle,
+                    opacity:
+                      store.isExporting ||
+                      store.editorClips.filter((c) => c.status === 'ready').length === 0
+                        ? 0.5 : 1,
+                  }}
+                >
+                  {store.isExporting ? (
+                    <><Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> Exporting... {elapsed}s</>
+                  ) : (
+                    <><Film size={16} /> Export Video (50 credits)</>
                   )}
                 </button>
               </div>
@@ -1513,6 +1920,56 @@ export default function GeneratorPage() {
               <button onClick={() => { store.setGeneratedSpeech(null); store.setStep('configure'); }} style={secondaryButtonStyle}>
                 <RotateCcw size={14} /> Regenerate
               </button>
+              <button
+                onClick={() => {
+                  const speechKey = store.generatedSpeech?.storageKey || null;
+                  store.setContentType('video-editor');
+                  store.setStep('configure');
+                  store.setEditorAudioSource('speech');
+                  store.setEditorAudioStorageKey(speechKey);
+                  store.setEditorAudioFileName('Generated Speech');
+                }}
+                style={primaryButtonStyle}
+              >
+                <Film size={14} /> Open in Video Editor
+              </button>
+              <button onClick={() => { store.reset(); setQuoteResult(null); }} style={secondaryButtonStyle}>
+                <RotateCcw size={14} /> Start Over
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ═══════════ STEP 2: PREVIEW — VIDEO EDITOR ═══════════ */}
+        {store.step === 'preview' && isEditorMode && store.editorExportedVideo && (
+          <div style={{ display: 'grid', gap: '24px' }}>
+            <div style={{ maxWidth: '500px', margin: '0 auto', width: '100%' }}>
+              <div style={{ position: 'relative', background: '#000', borderRadius: '16px', overflow: 'hidden', border: '1px solid var(--border-color)' }}>
+                <video
+                  src={store.editorExportedVideo.videoUrl}
+                  controls
+                  autoPlay
+                  playsInline
+                  style={{ width: '100%', display: 'block', borderRadius: '16px' }}
+                />
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'center', gap: '12px', marginTop: '12px' }}>
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: "'IBM Plex Mono', monospace" }}>
+                  {store.editorExportedVideo.duration}s
+                </div>
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: "'IBM Plex Mono', monospace" }}>
+                  {store.editorClips.length} clips
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap' }}>
+              <a href={store.editorExportedVideo.videoUrl} download="edited-video.mp4" style={secondaryButtonStyle}>
+                <Download size={14} /> Download MP4
+              </a>
+              <button onClick={handleLoadIntoComposer} style={primaryButtonStyle}>
+                <Send size={14} /> Load into Composer
+              </button>
               <button onClick={() => { store.reset(); setQuoteResult(null); }} style={secondaryButtonStyle}>
                 <RotateCcw size={14} /> Start Over
               </button>
@@ -1521,7 +1978,7 @@ export default function GeneratorPage() {
         )}
 
         {/* ═══════════ STEP 3: PREVIEW — CAROUSEL ═══════════ */}
-        {store.step === 'preview' && !isVideoMode && !isSpeechMode && store.slides && (
+        {store.step === 'preview' && !isVideoMode && !isSpeechMode && !isEditorMode && store.slides && (
           <div style={{ display: 'grid', gap: '24px' }}>
             <div style={{ display: 'flex', gap: '24px', alignItems: 'flex-start' }}>
               <div style={{ flex: 1 }}>

@@ -1,8 +1,18 @@
 import { create } from 'zustand';
 import type { SlidePlan, CarouselPlan, GeneratedSlide, VideoPlan, GeneratedVideo, VideoPlatform, GeneratedSpeech } from '../services/api';
 
-export type ContentType = 'carousel' | 'quote-card' | 'mixed-media' | 'educational' | 'video-clip' | 'script-to-speech';
+export type ContentType = 'carousel' | 'quote-card' | 'mixed-media' | 'educational' | 'video-clip' | 'script-to-speech' | 'video-editor';
 export type GeneratorStep = 'configure' | 'review' | 'preview';
+
+export interface EditorClip {
+  id: string;
+  fileName: string;
+  duration: number;
+  storageKey: string | null;
+  startTime: number;
+  endTime: number;
+  status: 'uploading' | 'ready' | 'error';
+}
 
 interface GeneratorState {
   // Step
@@ -54,6 +64,16 @@ interface GeneratorState {
   generatedSpeech: GeneratedSpeech | null;
   isGeneratingSpeech: boolean;
 
+  // ─── Video Editor state ───────────────────────────────
+  editorClips: EditorClip[];
+  editorAudioSource: 'none' | 'speech' | 'upload';
+  editorAudioStorageKey: string | null;
+  editorAudioFileName: string | null;
+  editorAudioVolume: number;
+  editorExportJobId: string | null;
+  editorExportedVideo: GeneratedVideo | null;
+  isExporting: boolean;
+
   // Actions
   setStep: (step: GeneratorStep) => void;
   setContentType: (type: ContentType) => void;
@@ -92,6 +112,19 @@ interface GeneratorState {
   setSpeechVoiceId: (voiceId: string) => void;
   setGeneratedSpeech: (speech: GeneratedSpeech | null) => void;
   setIsGeneratingSpeech: (v: boolean) => void;
+
+  // Video editor actions
+  addEditorClip: (clip: EditorClip) => void;
+  removeEditorClip: (id: string) => void;
+  reorderEditorClips: (fromIndex: number, toIndex: number) => void;
+  updateEditorClip: (id: string, updates: Partial<EditorClip>) => void;
+  setEditorAudioSource: (source: 'none' | 'speech' | 'upload') => void;
+  setEditorAudioStorageKey: (key: string | null) => void;
+  setEditorAudioFileName: (name: string | null) => void;
+  setEditorAudioVolume: (volume: number) => void;
+  setEditorExportJobId: (jobId: string | null) => void;
+  setEditorExportedVideo: (video: GeneratedVideo | null) => void;
+  setIsExporting: (v: boolean) => void;
 
   reset: () => void;
 }
@@ -134,6 +167,16 @@ const initialState = {
   speechVoiceId: 'Deep_Voice_Man',
   generatedSpeech: null as GeneratedSpeech | null,
   isGeneratingSpeech: false,
+
+  // Video Editor
+  editorClips: [] as EditorClip[],
+  editorAudioSource: 'none' as 'none' | 'speech' | 'upload',
+  editorAudioStorageKey: null as string | null,
+  editorAudioFileName: null as string | null,
+  editorAudioVolume: 100,
+  editorExportJobId: null as string | null,
+  editorExportedVideo: null as GeneratedVideo | null,
+  isExporting: false,
 
 };
 
@@ -197,6 +240,28 @@ export const useGeneratorStore = create<GeneratorState>((set) => ({
   setSpeechVoiceId: (speechVoiceId) => set({ speechVoiceId }),
   setGeneratedSpeech: (speech) => set({ generatedSpeech: speech, step: speech ? 'preview' : 'configure', isGeneratingSpeech: false }),
   setIsGeneratingSpeech: (isGeneratingSpeech) => set({ isGeneratingSpeech }),
+
+  // Video editor actions
+  addEditorClip: (clip) => set((state) => ({ editorClips: [...state.editorClips, clip] })),
+  removeEditorClip: (id) => set((state) => ({ editorClips: state.editorClips.filter((c) => c.id !== id) })),
+  reorderEditorClips: (fromIndex, toIndex) =>
+    set((state) => {
+      const clips = [...state.editorClips];
+      const [moved] = clips.splice(fromIndex, 1);
+      clips.splice(toIndex, 0, moved);
+      return { editorClips: clips };
+    }),
+  updateEditorClip: (id, updates) =>
+    set((state) => ({
+      editorClips: state.editorClips.map((c) => (c.id === id ? { ...c, ...updates } : c)),
+    })),
+  setEditorAudioSource: (editorAudioSource) => set({ editorAudioSource }),
+  setEditorAudioStorageKey: (editorAudioStorageKey) => set({ editorAudioStorageKey }),
+  setEditorAudioFileName: (editorAudioFileName) => set({ editorAudioFileName }),
+  setEditorAudioVolume: (editorAudioVolume) => set({ editorAudioVolume }),
+  setEditorExportJobId: (editorExportJobId) => set({ editorExportJobId }),
+  setEditorExportedVideo: (video) => set({ editorExportedVideo: video, step: video ? 'preview' : 'configure', isExporting: false }),
+  setIsExporting: (isExporting) => set({ isExporting }),
 
   reset: () => set(initialState),
 }));

@@ -11,7 +11,7 @@ import {
 import type { SlidePlan, CarouselPlan } from '../services/image-generator.js';
 import { planVideo, generateVoiceover } from '../services/video-generator.js';
 import type { VideoPlatform, AudioOptions } from '../services/video-generator.js';
-import { videoGenerateQueue } from '../queue/queues.js';
+import { videoGenerateQueue, videoExportQueue } from '../queue/queues.js';
 import {
   checkCredits,
   deductCredits,
@@ -420,6 +420,66 @@ generatorRouter.post('/speech/generate', async (req, res) => {
     const errMsg = error instanceof Error ? error.message : String(error);
     console.error('[Generator] Speech generation failed:', errMsg);
     res.status(500).json({ error: `Speech generation failed: ${errMsg}` });
+  }
+});
+
+// ─── Video Editor Export ─────────────────────────────────
+
+generatorRouter.post('/video/export', async (req, res) => {
+  try {
+    const { clips, audioStorageKey, audioVolume } = req.body as {
+      clips: Array<{ storageKey: string; startTime?: number; endTime?: number }>;
+      audioStorageKey?: string;
+      audioVolume?: number;
+    };
+    const userId = req.userId;
+
+    // Validate clips
+    if (!clips || !Array.isArray(clips) || clips.length === 0) {
+      return res.status(400).json({ error: 'At least one clip is required' });
+    }
+    if (clips.length > 10) {
+      return res.status(400).json({ error: 'Maximum 10 clips allowed' });
+    }
+    for (const clip of clips) {
+      if (!clip.storageKey || typeof clip.storageKey !== 'string') {
+        return res.status(400).json({ error: 'Each clip must have a valid storageKey' });
+      }
+    }
+
+    // Credit check + deduct
+    const cost = CREDIT_COSTS.VIDEO_EXPORT;
+    const creditCheck = await checkCredits(userId, cost);
+    if (!creditCheck.allowed) {
+      return res.status(402).json({
+        error: `Insufficient credits. Video export costs ${cost} credits, you have ${creditCheck.balance}.`,
+        code: 'INSUFFICIENT_CREDITS',
+        required: cost,
+        balance: creditCheck.balance,
+      });
+    }
+
+    await deductCredits(userId, cost, 'video_export', `Video export: ${clips.length} clips`, {
+      clipCount: clips.length,
+      hasAudio: !!audioStorageKey,
+    });
+
+    // Enqueue export job
+    const jobId = randomUUID();
+    await videoExportQueue.add('export', {
+      clips,
+      audioStorageKey,
+      audioVolume: audioVolume ?? 100,
+      userId,
+      jobId,
+    });
+
+    console.log(`[Generator] Video export job ${jobId} enqueued: ${clips.length} clips`);
+    res.json({ data: { jobId } });
+  } catch (error) {
+    const errMsg = error instanceof Error ? error.message : String(error);
+    console.error('[Generator] Video export failed:', errMsg);
+    res.status(500).json({ error: `Video export failed: ${errMsg}` });
   }
 });
 
