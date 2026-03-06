@@ -73,8 +73,8 @@ export default function SettingsPage() {
       toast.error('New passwords do not match');
       return;
     }
-    if (newPassword.length < 6) {
-      toast.error('Password must be at least 6 characters');
+    if (newPassword.length < 8 || !/[A-Z]/.test(newPassword) || !/[a-z]/.test(newPassword)) {
+      toast.error('Password must be at least 8 characters with 1 uppercase and 1 lowercase letter');
       return;
     }
     try {

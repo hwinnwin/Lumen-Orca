@@ -96,6 +96,9 @@ export function useChat() {
       onToken: (token) => {
         useChatStore.getState().appendStreamToken(token);
       },
+      onToolAction: (data) => {
+        useChatStore.getState().setActiveToolAction(data.status || null);
+      },
       onDone: (meta) => {
         const currentState = useChatStore.getState();
         const assistantMessage: ChatMessage = {
@@ -112,12 +115,14 @@ export function useChat() {
           useChatStore.getState().updateConversationTitle(conversationId, meta.title);
         }
 
-        // Invalidate credits query
+        // Invalidate credits + posts queries (tool use may have created posts)
         queryClient.invalidateQueries({ queryKey: ['creditBalance'] });
+        queryClient.invalidateQueries({ queryKey: ['posts'] });
       },
       onError: (error) => {
         console.error('[Chat] Stream error:', error);
         useChatStore.getState().setIsStreaming(false);
+        useChatStore.getState().setActiveToolAction(null);
         useChatStore.getState().appendStreamToken('');
 
         // Show user-friendly error

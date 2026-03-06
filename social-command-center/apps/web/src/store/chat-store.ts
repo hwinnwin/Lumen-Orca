@@ -18,6 +18,7 @@ interface ChatState {
   abortController: AbortController | null;
   isLoadingConversations: boolean;
   isLoadingMessages: boolean;
+  activeToolAction: string | null;
 
   toggle: () => void;
   setOpen: (open: boolean) => void;
@@ -35,6 +36,7 @@ interface ChatState {
   setLoadingMessages: (loading: boolean) => void;
   updateConversationTitle: (id: string, title: string) => void;
   removeConversation: (id: string) => void;
+  setActiveToolAction: (action: string | null) => void;
 }
 
 export const useChatStore = create<ChatState>((set, get) => ({
@@ -48,6 +50,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   abortController: null,
   isLoadingConversations: false,
   isLoadingMessages: false,
+  activeToolAction: null,
 
   toggle: () => set((s) => ({ isOpen: !s.isOpen })),
   setOpen: (isOpen) => set({ isOpen }),
@@ -78,6 +81,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         isStreaming: false,
         streamingContent: '',
         abortController: null,
+        activeToolAction: null,
       };
     }),
 
@@ -86,7 +90,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     if (abortController) {
       abortController.abort();
     }
-    set({ isStreaming: false, streamingContent: '', abortController: null });
+    set({ isStreaming: false, streamingContent: '', abortController: null, activeToolAction: null });
   },
 
   setAbortController: (abortController) => set({ abortController }),
@@ -99,6 +103,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
         c.id === id ? { ...c, title } : c,
       ),
     })),
+
+  setActiveToolAction: (activeToolAction) => set({ activeToolAction }),
 
   removeConversation: (id) =>
     set((s) => {

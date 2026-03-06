@@ -138,6 +138,11 @@ chatRouter.post('/conversations/:id/messages', async (req, res) => {
           res.write(`data: ${JSON.stringify({ type: 'token', content: token })}\n\n`);
         }
       },
+      onToolAction: (tool, status) => {
+        if (!aborted) {
+          res.write(`data: ${JSON.stringify({ type: 'tool_action', tool, status })}\n\n`);
+        }
+      },
       onDone: async (fullResponse, inputTokens, outputTokens) => {
         if (!aborted) {
           // Send the conversation title back so frontend can update

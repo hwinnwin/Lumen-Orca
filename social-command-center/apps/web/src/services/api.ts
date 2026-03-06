@@ -477,6 +477,7 @@ export function streamChatMessage(
   content: string,
   callbacks: {
     onToken: (token: string) => void;
+    onToolAction?: (data: { tool: string; status: string }) => void;
     onDone: (meta: { inputTokens: number; outputTokens: number; title?: string }) => void;
     onError: (error: string) => void;
   },
@@ -519,6 +520,7 @@ export function streamChatMessage(
           try {
             const data = JSON.parse(line.slice(6));
             if (data.type === 'token') callbacks.onToken(data.content);
+            else if (data.type === 'tool_action') callbacks.onToolAction?.(data);
             else if (data.type === 'done') callbacks.onDone(data);
             else if (data.type === 'error') callbacks.onError(data.error);
           } catch { /* ignore parse errors */ }

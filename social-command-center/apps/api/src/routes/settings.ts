@@ -84,8 +84,14 @@ settingsRouter.post('/change-password', async (req, res) => {
       return res.status(400).json({ error: 'Current and new passwords are required' });
     }
 
-    if (newPassword.length < 6) {
-      return res.status(400).json({ error: 'New password must be at least 6 characters' });
+    if (newPassword.length < 8) {
+      return res.status(400).json({ error: 'New password must be at least 8 characters' });
+    }
+    if (!/[A-Z]/.test(newPassword)) {
+      return res.status(400).json({ error: 'New password must contain at least one uppercase letter' });
+    }
+    if (!/[a-z]/.test(newPassword)) {
+      return res.status(400).json({ error: 'New password must contain at least one lowercase letter' });
     }
 
     const user = await prisma.user.findUnique({

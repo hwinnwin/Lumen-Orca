@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useChatStore } from '../../store/chat-store';
 import { useChat } from '../../hooks/useChat';
 import ConversationList from './ConversationList';
@@ -8,6 +8,7 @@ import MessageInput from './MessageInput';
 export default function ChatPanel() {
   const activeView = useChatStore((s) => s.activeView);
   const { loadConversations, openConversation, startNewConversation, sendMessage, removeConversation } = useChat();
+  const [editContent, setEditContent] = useState<string | null>(null);
 
   useEffect(() => {
     loadConversations();
@@ -15,8 +16,24 @@ export default function ChatPanel() {
 
   const handleBack = () => {
     useChatStore.getState().setActiveConversation(null);
+    setEditContent(null);
     loadConversations();
   };
+
+  const handleEditMessage = useCallback((messageId: string, content: string) => {
+    // Truncate messages: keep only messages before the edited one
+    const state = useChatStore.getState();
+    const idx = state.messages.findIndex((m) => m.id === messageId);
+    if (idx >= 0) {
+      useChatStore.getState().setMessages(state.messages.slice(0, idx));
+    }
+    setEditContent(content);
+  }, []);
+
+  const handleSend = useCallback((content: string) => {
+    setEditContent(null);
+    sendMessage(content);
+  }, [sendMessage]);
 
   return (
     <div style={{
@@ -91,8 +108,12 @@ export default function ChatPanel() {
         />
       ) : (
         <>
-          <MessageList />
-          <MessageInput onSend={sendMessage} />
+          <MessageList onEditMessage={handleEditMessage} />
+          <MessageInput
+            onSend={handleSend}
+            editContent={editContent}
+            onEditClear={() => setEditContent(null)}
+          />
         </>
       )}
     </div>

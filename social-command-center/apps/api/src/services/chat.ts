@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { env } from '../config/env.js';
 import { prisma } from '../db/client.js';
+import { CHAT_TOOLS, TOOL_ACTION_LABELS, executeTool } from './chat-tools.js';
 
 // ─── Anthropic Client (same lazy pattern as ai.ts) ──────
 
@@ -86,6 +87,19 @@ ${recentPostSummary}
 - **Analytics**: View post performance and engagement metrics
 - **Scheduling**: Queue posts for optimal timing
 
+## Tool Use Capabilities
+You have tools to take actions within the app. You can:
+- **Create and publish posts** to connected platforms
+- **Check which platforms** are connected
+- **View recent posts** the user has created
+
+### Guidelines for tool use:
+1. Before creating a post, verify the user's requested platform is connected (you can see this in the context above, or use list_connected_platforms).
+2. By default, create posts as DRAFT and show the user the content first, asking if they'd like to publish. Only use IMMEDIATE if the user explicitly says "publish now", "post it", "just do it", "go ahead and publish", etc.
+3. When creating a post, always show the user what content will be posted and to which platforms.
+4. If the user says "turn this into a post" or similar, use the conversation context to craft appropriate, engaging post content.
+5. If a requested platform is not connected, inform the user and suggest they connect it in Settings.
+
 ## Guidelines
 1. Be concise but thorough. Match the depth of your answer to the complexity of the question.
 2. When the user asks about their social media, reference their context above.
@@ -116,13 +130,16 @@ async function getConversationMessages(
   }));
 }
 
-// ─── Streaming Chat ─────────────────────────────────────
+// ─── Streaming Chat (with tool-use loop) ────────────────
+
+const MAX_TOOL_ROUNDS = 5;
 
 export async function streamChatResponse(opts: {
   conversationId: string;
   userId: string;
   userMessage: string;
   onToken: (token: string) => void;
+  onToolAction: (toolName: string, status: string) => void;
   onDone: (fullResponse: string, inputTokens: number, outputTokens: number) => void;
   onError: (error: Error) => void;
 }): Promise<void> {
@@ -150,44 +167,111 @@ export async function streamChatResponse(opts: {
 
   const ai = getClient();
 
+  // Build the messages array — will grow as we add tool results
+  const messages: Anthropic.MessageParam[] = [
+    ...history,
+    { role: 'user', content: opts.userMessage },
+  ];
+
   let fullResponse = '';
+  let totalInputTokens = 0;
+  let totalOutputTokens = 0;
 
   try {
-    const stream = ai.messages.stream({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 4096,
-      system: systemPrompt,
-      messages: [
-        ...history,
-        { role: 'user', content: opts.userMessage },
-      ],
-    });
+    // Tool-use loop: Claude may call tools, we execute and feed results back
+    for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
+      const stream = ai.messages.stream({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 4096,
+        system: systemPrompt,
+        messages,
+        tools: CHAT_TOOLS,
+      });
 
-    // Use event-driven streaming for tokens only
-    stream.on('text', (text) => {
-      fullResponse += text;
-      opts.onToken(text);
-    });
+      // Collect text tokens for streaming to the client
+      let roundText = '';
+      stream.on('text', (text) => {
+        roundText += text;
+        fullResponse += text;
+        opts.onToken(text);
+      });
 
-    // Wait for stream to fully complete, then do DB work safely
-    const finalMessage = await stream.finalMessage();
-    const inputTokens = finalMessage.usage.input_tokens;
-    const outputTokens = finalMessage.usage.output_tokens;
+      const finalMessage = await stream.finalMessage();
+      totalInputTokens += finalMessage.usage.input_tokens;
+      totalOutputTokens += finalMessage.usage.output_tokens;
 
-    // Save assistant message
-    await prisma.chatMessage.create({
-      data: {
-        conversationId: opts.conversationId,
-        role: 'ASSISTANT',
-        content: fullResponse,
-      },
-    });
+      // Check if Claude wants to use tools
+      if (finalMessage.stop_reason === 'tool_use') {
+        // Extract tool_use blocks from the response
+        const toolUseBlocks = finalMessage.content.filter(
+          (block): block is Anthropic.ToolUseBlock => block.type === 'tool_use',
+        );
+
+        if (toolUseBlocks.length === 0) break; // Safety: shouldn't happen
+
+        // Add Claude's response (with tool_use blocks) to messages
+        messages.push({ role: 'assistant', content: finalMessage.content });
+
+        // Execute each tool and build tool_result messages
+        const toolResults: Anthropic.ToolResultBlockParam[] = [];
+
+        for (const toolUse of toolUseBlocks) {
+          const label = TOOL_ACTION_LABELS[toolUse.name] || `Running ${toolUse.name}...`;
+          opts.onToolAction(toolUse.name, label);
+
+          try {
+            const result = await executeTool(
+              toolUse.name,
+              toolUse.input as Record<string, unknown>,
+              opts.userId,
+            );
+            toolResults.push({
+              type: 'tool_result',
+              tool_use_id: toolUse.id,
+              content: result,
+            });
+          } catch (err) {
+            toolResults.push({
+              type: 'tool_result',
+              tool_use_id: toolUse.id,
+              content: JSON.stringify({
+                error: err instanceof Error ? err.message : 'Tool execution failed',
+              }),
+              is_error: true,
+            });
+          }
+        }
+
+        // Add tool results as a user message (Anthropic convention)
+        messages.push({ role: 'user', content: toolResults });
+
+        // Clear tool action indicator — Claude will respond next
+        opts.onToolAction('', '');
+
+        // Continue the loop — Claude will generate a text response based on tool results
+        continue;
+      }
+
+      // Normal end_turn — we're done
+      break;
+    }
+
+    // Save the final assistant text response to DB
+    if (fullResponse.trim()) {
+      await prisma.chatMessage.create({
+        data: {
+          conversationId: opts.conversationId,
+          role: 'ASSISTANT',
+          content: fullResponse,
+        },
+      });
+    }
 
     // Auto-generate title if this is the first exchange
     const messageCount = await prisma.chatMessage.count({
       where: { conversationId: opts.conversationId },
     });
-    if (messageCount <= 2) {
+    if (messageCount <= 2 && fullResponse.trim()) {
       try {
         const title = await generateConversationTitle(opts.userMessage, fullResponse);
         await prisma.chatConversation.update({
@@ -199,7 +283,7 @@ export async function streamChatResponse(opts: {
       }
     }
 
-    opts.onDone(fullResponse, inputTokens, outputTokens);
+    opts.onDone(fullResponse, totalInputTokens, totalOutputTokens);
   } catch (error) {
     opts.onError(error instanceof Error ? error : new Error(String(error)));
   }
