@@ -159,6 +159,11 @@ export async function repurposeContent(data: {
   };
 }
 
+export async function suggestYouTubeTags(data: { title: string; description?: string; existingTags?: string[] }) {
+  const res = await api.post('/ai/suggest-tags', data, { timeout: 30000 });
+  return res.data.data as { tags: string[] };
+}
+
 // ─── Post Editing ────────────────────────────────────────
 
 export async function updatePost(postId: string, data: {
@@ -407,6 +412,7 @@ export interface CreditCosts {
   AI_REPURPOSE: number;
   AI_STRATEGY: number;
   AI_GENERATE_POSTS: number;
+  AI_SUGGEST_TAGS: number;
   VIDEO_EXPORT: number;
   VIDEO_PLAN: number;
   CAROUSEL_PLAN: number;

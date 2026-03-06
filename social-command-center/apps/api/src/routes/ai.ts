@@ -9,6 +9,7 @@ import {
   generateContentStrategy as aiStrategy,
   generateHooks as aiHooks,
   repurposeContent as aiRepurpose,
+  suggestYouTubeTags as aiSuggestTags,
 } from '../services/ai.js';
 import { checkCredits, deductCredits, CREDIT_COSTS } from '../services/credits.js';
 
@@ -267,5 +268,33 @@ aiRouter.post('/repurpose', async (req, res) => {
   } catch (error) {
     console.error('[AI] Repurpose failed:', error);
     res.status(500).json({ error: 'Content repurpose failed. Please try again.' });
+  }
+});
+
+// Suggest YouTube tags using AI
+aiRouter.post('/suggest-tags', async (req, res) => {
+  if (!requireAI(res)) return;
+
+  try {
+    const { title, description, existingTags } = req.body as {
+      title: string;
+      description?: string;
+      existingTags?: string[];
+    };
+
+    if (!title?.trim()) {
+      return res.status(400).json({ error: 'Title is required' });
+    }
+
+    const cost = CREDIT_COSTS.AI_SUGGEST_TAGS;
+    const cc = await checkCredits(req.userId, cost);
+    if (!cc.allowed) return res.status(402).json({ error: `Insufficient credits. Need ${cost}, have ${cc.balance}.`, code: 'INSUFFICIENT_CREDITS', required: cost, balance: cc.balance });
+
+    const result = await aiSuggestTags(title, description, existingTags);
+    await deductCredits(req.userId, cost, 'ai-suggest-tags', 'YouTube tag suggestions');
+    res.json({ data: result });
+  } catch (error) {
+    console.error('[AI] Tag suggestion failed:', error);
+    res.status(500).json({ error: 'Tag suggestion failed. Please try again.' });
   }
 });

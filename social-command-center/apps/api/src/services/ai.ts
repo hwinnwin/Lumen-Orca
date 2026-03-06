@@ -746,3 +746,50 @@ Respond in JSON:
     return { repurposed: [] };
   }
 }
+
+// ─── YouTube Tag Suggestions ────────────────────────────────────
+
+export async function suggestYouTubeTags(
+  title: string,
+  description?: string,
+  existingTags?: string[],
+): Promise<{ tags: string[] }> {
+  const client = getClient();
+
+  const message = await client.messages.create({
+    model: 'claude-haiku-4-5-20251001',
+    max_tokens: 512,
+    system: 'You are a YouTube SEO expert. Generate search-optimized tags that maximize video discoverability. Tags should be plain words/phrases (no # symbols). Mix broad and specific terms.',
+    messages: [
+      {
+        role: 'user',
+        content: `Suggest 15-20 YouTube search tags for this video.
+
+Title: ${title}
+${description ? `Description: ${description.slice(0, 500)}` : ''}
+${existingTags?.length ? `Already have: ${existingTags.join(', ')}` : ''}
+
+Include a mix of:
+- Broad topic tags (1-2 words, high search volume)
+- Specific niche tags (2-4 words, lower competition)
+- Related/adjacent topic tags
+
+Respond in JSON: { "tags": ["tag1", "tag2", ...] }`,
+      },
+    ],
+  });
+
+  const text = message.content[0].type === 'text' ? message.content[0].text : '';
+
+  try {
+    const jsonMatch = text.match(/```json\s*([\s\S]*?)\s*```/) || text.match(/\{[\s\S]*\}/);
+    const parsed = JSON.parse(jsonMatch ? (jsonMatch[1] || jsonMatch[0]) : text);
+    // Strip any accidental # prefixes and deduplicate
+    const tags = (parsed.tags || [])
+      .map((t: string) => t.replace(/^#/, '').trim())
+      .filter(Boolean);
+    return { tags: [...new Set(tags)] as string[] };
+  } catch {
+    return { tags: [] };
+  }
+}

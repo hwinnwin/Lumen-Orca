@@ -7,6 +7,7 @@ import { useEnhanceContent, useBrainstorm, useGeneratePlatformPosts } from '../h
 import { useConnections } from '../hooks/useConnections';
 import { useComposeStore } from '../store/compose-store';
 import { toast } from 'sonner';
+import { suggestYouTubeTags } from '../services/api';
 import Header from '../components/layout/Header';
 
 // Animated background particles
@@ -1306,6 +1307,7 @@ export default function SocialCommandCenter() {
   const [youtubeTitle, setYoutubeTitle] = useState('');
   const [youtubeDescription, setYoutubeDescription] = useState('');
   const [youtubeTags, setYoutubeTags] = useState('');
+  const [suggestingTags, setSuggestingTags] = useState(false);
 
 
   const { data: connections } = useConnections();
@@ -1960,30 +1962,82 @@ export default function SocialCommandCenter() {
                   {youtubeDescription.length}/5000
                 </span>
               </div>
-              <input
-                type="text"
-                value={youtubeTags}
-                onChange={(e) => setYoutubeTags(e.target.value)}
-                placeholder="Search tags without # (comma-separated, e.g. tech, AI, tutorial)"
-                style={{
-                  width: '100%',
-                  padding: '10px 14px',
-                  background: 'var(--bg-secondary)',
-                  border: '1px solid rgba(255,0,0,0.2)',
-                  borderRadius: '10px',
-                  color: 'var(--text-primary)',
-                  fontSize: '13px',
-                  fontFamily: "'Sora', sans-serif",
-                  marginBottom: '6px',
-                  outline: 'none',
-                  boxSizing: 'border-box',
-                }}
-              />
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <input
+                  type="text"
+                  value={youtubeTags}
+                  onChange={(e) => setYoutubeTags(e.target.value)}
+                  placeholder="Search tags without # (comma-separated, e.g. tech, AI, tutorial)"
+                  style={{
+                    flex: 1,
+                    padding: '10px 14px',
+                    background: 'var(--bg-secondary)',
+                    border: '1px solid rgba(255,0,0,0.2)',
+                    borderRadius: '10px',
+                    color: 'var(--text-primary)',
+                    fontSize: '13px',
+                    fontFamily: "'Sora', sans-serif",
+                    outline: 'none',
+                    boxSizing: 'border-box',
+                  }}
+                />
+                <button
+                  onClick={async () => {
+                    if (!youtubeTitle.trim()) {
+                      toast.error('Enter a video title first');
+                      return;
+                    }
+                    setSuggestingTags(true);
+                    try {
+                      const existing = youtubeTags.split(',').map((t) => t.trim()).filter(Boolean);
+                      const { tags } = await suggestYouTubeTags({
+                        title: youtubeTitle,
+                        description: youtubeDescription || content,
+                        existingTags: existing.length > 0 ? existing : undefined,
+                      });
+                      if (tags.length > 0) {
+                        const merged = [...new Set([...existing, ...tags])];
+                        setYoutubeTags(merged.join(', '));
+                        toast.success(`Added ${tags.length} tag suggestions`);
+                      } else {
+                        toast.info('No suggestions generated');
+                      }
+                    } catch (err: unknown) {
+                      const axErr = err as { response?: { status?: number; data?: { error?: string } } };
+                      if (axErr?.response?.status === 402) {
+                        toast.error(axErr.response.data?.error || 'Insufficient credits');
+                      } else {
+                        toast.error('Failed to suggest tags');
+                      }
+                    } finally {
+                      setSuggestingTags(false);
+                    }
+                  }}
+                  disabled={suggestingTags || !youtubeTitle.trim()}
+                  style={{
+                    padding: '10px 14px',
+                    background: suggestingTags ? 'rgba(255,0,0,0.08)' : 'rgba(255,0,0,0.12)',
+                    border: '1px solid rgba(255,0,0,0.3)',
+                    borderRadius: '10px',
+                    color: '#FF0000',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    fontFamily: "'IBM Plex Mono', monospace",
+                    cursor: suggestingTags || !youtubeTitle.trim() ? 'not-allowed' : 'pointer',
+                    opacity: suggestingTags || !youtubeTitle.trim() ? 0.5 : 1,
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {suggestingTags ? 'Suggesting...' : '\u2728 AI Tags (5cr)'}
+                </button>
+              </div>
               <span
                 style={{
                   fontSize: '10px',
                   color: 'var(--text-disabled)',
                   fontFamily: "'IBM Plex Mono', monospace",
+                  marginTop: '4px',
+                  display: 'block',
                 }}
               >
                 Hidden metadata for YouTube search — for visible #hashtags, add them in the description
