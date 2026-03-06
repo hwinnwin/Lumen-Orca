@@ -150,26 +150,29 @@ export async function streamChatResponse(opts: {
 
   const ai = getClient();
 
-  const stream = ai.messages.stream({
-    model: 'claude-sonnet-4-20250514',
-    max_tokens: 4096,
-    system: systemPrompt,
-    messages: [
-      ...history,
-      { role: 'user', content: opts.userMessage },
-    ],
-  });
-
   let fullResponse = '';
 
-  stream.on('text', (text) => {
-    fullResponse += text;
-    opts.onToken(text);
-  });
+  try {
+    const stream = ai.messages.stream({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 4096,
+      system: systemPrompt,
+      messages: [
+        ...history,
+        { role: 'user', content: opts.userMessage },
+      ],
+    });
 
-  stream.on('finalMessage', async (message) => {
-    const inputTokens = message.usage.input_tokens;
-    const outputTokens = message.usage.output_tokens;
+    // Use event-driven streaming for tokens only
+    stream.on('text', (text) => {
+      fullResponse += text;
+      opts.onToken(text);
+    });
+
+    // Wait for stream to fully complete, then do DB work safely
+    const finalMessage = await stream.finalMessage();
+    const inputTokens = finalMessage.usage.input_tokens;
+    const outputTokens = finalMessage.usage.output_tokens;
 
     // Save assistant message
     await prisma.chatMessage.create({
@@ -197,14 +200,9 @@ export async function streamChatResponse(opts: {
     }
 
     opts.onDone(fullResponse, inputTokens, outputTokens);
-  });
-
-  stream.on('error', (error) => {
+  } catch (error) {
     opts.onError(error instanceof Error ? error : new Error(String(error)));
-  });
-
-  // Wait for stream to complete
-  await stream.finalMessage();
+  }
 }
 
 // ─── Title Generator ────────────────────────────────────
