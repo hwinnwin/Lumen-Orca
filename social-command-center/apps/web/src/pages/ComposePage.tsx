@@ -1304,6 +1304,7 @@ export default function SocialCommandCenter() {
     Partial<Record<PlatformId, string>>
   >({});
   const [youtubeTitle, setYoutubeTitle] = useState('');
+  const [youtubeDescription, setYoutubeDescription] = useState('');
   const [youtubeTags, setYoutubeTags] = useState('');
 
 
@@ -1387,8 +1388,7 @@ export default function SocialCommandCenter() {
     youtube: 'YOUTUBE',
   };
 
-  // YouTube-only posts don't require body text (video is the content), but need a title
-  const isYouTubeOnly = activePlatforms.length === 1 && activePlatforms[0] === 'youtube';
+  // YouTube-specific: need title when YouTube is selected
   const youtubeSelected = activePlatforms.includes('youtube');
   const youtubeReady = !youtubeSelected || !!youtubeTitle.trim();
   const hasContent = !!content.trim();
@@ -1473,9 +1473,12 @@ export default function SocialCommandCenter() {
           overrides[PLATFORM_MAP[key as PlatformId] || key] = val;
         }
       }
-      // Include YouTube title in overrides so the publish worker can extract it
+      // Include YouTube title and description in overrides so the publish worker can extract them
       if (youtubeTitle.trim()) {
         overrides['__youtubeTitle'] = youtubeTitle.trim();
+      }
+      if (youtubeDescription.trim()) {
+        overrides['__youtubeDescription'] = youtubeDescription.trim();
       }
 
       // Fallback content: use YouTube title, or a generic placeholder for video-only posts
@@ -1903,20 +1906,58 @@ export default function SocialCommandCenter() {
                 <span
                   style={{
                     fontSize: '10px',
-                    color: 'var(--text-disabled)',
-                    fontFamily: "'IBM Plex Mono', monospace",
-                  }}
-                >
-                  Description will use your main content above{isYouTubeOnly ? ' (or leave empty for title-only)' : ''}
-                </span>
-                <span
-                  style={{
-                    fontSize: '10px',
                     fontFamily: "'IBM Plex Mono', monospace",
                     color: youtubeTitle.length > 90 ? '#ffaa00' : 'var(--text-muted)',
                   }}
                 >
                   {youtubeTitle.length}/100
+                </span>
+              </div>
+              <textarea
+                value={youtubeDescription}
+                onChange={(e) => setYoutubeDescription(e.target.value.slice(0, 5000))}
+                placeholder="Video description (optional — falls back to main content if empty)"
+                rows={3}
+                style={{
+                  width: '100%',
+                  padding: '10px 14px',
+                  background: 'var(--bg-secondary)',
+                  border: '1px solid rgba(255,0,0,0.2)',
+                  borderRadius: '10px',
+                  color: 'var(--text-primary)',
+                  fontSize: '13px',
+                  fontFamily: "'Sora', sans-serif",
+                  marginBottom: '4px',
+                  outline: 'none',
+                  boxSizing: 'border-box',
+                  resize: 'vertical',
+                }}
+              />
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginBottom: '10px',
+                }}
+              >
+                <span
+                  style={{
+                    fontSize: '10px',
+                    color: 'var(--text-disabled)',
+                    fontFamily: "'IBM Plex Mono', monospace",
+                  }}
+                >
+                  {youtubeDescription.trim() ? '' : 'Will use main content if left empty'}
+                </span>
+                <span
+                  style={{
+                    fontSize: '10px',
+                    fontFamily: "'IBM Plex Mono', monospace",
+                    color: youtubeDescription.length > 4900 ? '#ffaa00' : 'var(--text-muted)',
+                  }}
+                >
+                  {youtubeDescription.length}/5000
                 </span>
               </div>
               <input

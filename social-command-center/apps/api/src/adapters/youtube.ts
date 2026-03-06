@@ -33,7 +33,7 @@ export class YouTubeAdapter implements PlatformAdapter {
     const { accessToken, content, platformSpecific } = params;
 
     const title = (platformSpecific?.title as string) || content.substring(0, 100);
-    const description = content;
+    const description = (platformSpecific?.description as string) || content;
     const tags = (platformSpecific?.tags as string[]) || [];
     const privacyStatus = (platformSpecific?.privacyStatus as string) || 'public';
     const isShort = (platformSpecific?.isShort as boolean) || false;
