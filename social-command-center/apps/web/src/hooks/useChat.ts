@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 import { useChatStore, getCachedMessages, cacheMessages } from '../store/chat-store';
 import {
   fetchConversations,
@@ -21,6 +22,7 @@ export function useChat() {
       store.setConversations(convos ?? []);
     } catch (err) {
       console.error('[Chat] Failed to load conversations:', err);
+      toast.error('Failed to load conversations');
     } finally {
       store.setLoadingConversations(false);
     }
@@ -45,6 +47,7 @@ export function useChat() {
       }
     } catch (err) {
       console.error('[Chat] Failed to load messages:', err);
+      toast.error('Failed to load messages');
     } finally {
       store.setLoadingMessages(false);
     }
@@ -62,6 +65,7 @@ export function useChat() {
       return conv.id;
     } catch (err) {
       console.error('[Chat] Failed to create conversation:', err);
+      toast.error('Failed to create conversation');
       return null;
     }
   }, []);
@@ -114,6 +118,13 @@ export function useChat() {
       onError: (error) => {
         console.error('[Chat] Stream error:', error);
         useChatStore.getState().setIsStreaming(false);
+        useChatStore.getState().appendStreamToken('');
+
+        // Show user-friendly error
+        if (error.includes('Insufficient credits')) {
+          toast.error('Not enough credits for chat');
+        }
+
         // Add error message as assistant response
         const errMsg: ChatMessage = {
           id: `err-${Date.now()}`,
@@ -135,6 +146,7 @@ export function useChat() {
       store.removeConversation(id);
     } catch (err) {
       console.error('[Chat] Failed to delete conversation:', err);
+      toast.error('Failed to delete conversation');
     }
   }, []);
 

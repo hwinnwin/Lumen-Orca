@@ -119,3 +119,16 @@ input:focus {
 @keyframes blink {
   50% { opacity: 0; }
 }
+
+/* Chat panel responsive — floating on desktop, full-screen on mobile */
+@media (min-width: 480px) {
+  .chat-panel {
+    bottom: 80px !important;
+    right: 24px !important;
+    width: 420px !important;
+    height: 600px !important;
+    max-width: 420px !important;
+    max-height: 600px !important;
+    border-radius: 16px !important;
+  }
+}

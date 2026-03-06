@@ -7,24 +7,31 @@ export default function ChatWidget() {
 
   return (
     <>
-      {/* Floating panel */}
+      {/* Floating panel — responsive: full-screen on mobile, floating on desktop */}
       {isOpen && (
-        <div style={{
-          position: 'fixed',
-          bottom: '80px',
-          right: '24px',
-          width: '400px',
-          height: '560px',
-          background: 'var(--bg-secondary)',
-          border: '1px solid var(--border-color)',
-          borderRadius: '16px',
-          boxShadow: 'var(--shadow-lg)',
-          zIndex: 1000,
-          display: 'flex',
-          flexDirection: 'column',
-          overflow: 'hidden',
-          fontFamily: "'Sora', sans-serif",
-        }}>
+        <div
+          role="dialog"
+          aria-label="AI Assistant"
+          style={{
+            position: 'fixed',
+            bottom: 0,
+            right: 0,
+            width: '100%',
+            height: '100%',
+            maxWidth: '420px',
+            maxHeight: '600px',
+            background: 'var(--bg-secondary)',
+            border: '1px solid var(--border-color)',
+            borderRadius: '0px',
+            boxShadow: 'var(--shadow-lg)',
+            zIndex: 1000,
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden',
+            fontFamily: "'Sora', sans-serif",
+          }}
+          className="chat-panel"
+        >
           <ChatPanel />
         </div>
       )}
@@ -32,6 +39,7 @@ export default function ChatWidget() {
       {/* FAB button */}
       <button
         onClick={toggle}
+        aria-label={isOpen ? 'Close AI Assistant' : 'Open AI Assistant'}
         style={{
           position: 'fixed',
           bottom: '24px',
@@ -53,7 +61,6 @@ export default function ChatWidget() {
         }}
         onMouseEnter={(e) => (e.currentTarget.style.transform = 'scale(1.08)')}
         onMouseLeave={(e) => (e.currentTarget.style.transform = 'scale(1)')}
-        title={isOpen ? 'Close chat' : 'Open AI Assistant'}
       >
         {isOpen ? '\u2715' : '\u2728'}
       </button>

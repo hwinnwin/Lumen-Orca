@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { randomBytes } from 'crypto';
 import bcrypt from 'bcryptjs';
+import rateLimit from 'express-rate-limit';
 import { prisma } from '../db/client.js';
 import { env } from '../config/env.js';
 import { authMiddleware, generateToken } from '../middleware/auth.js';
@@ -13,9 +14,18 @@ import { getGoogleAuthUrl, handleGoogleCallback } from '../services/oauth/google
 
 export const authRouter = Router();
 
+// ─── Rate Limiting ──────────────────────────────────────
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10,                   // 10 attempts per window
+  message: { error: 'Too many attempts, please try again later' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 // ─── Public Routes (no JWT required) ────────────────────
 
-authRouter.post('/register', async (req, res) => {
+authRouter.post('/register', authLimiter, async (req, res) => {
   try {
     const { email, password, name } = req.body;
 
@@ -53,7 +63,7 @@ authRouter.post('/register', async (req, res) => {
   }
 });
 
-authRouter.post('/login', async (req, res) => {
+authRouter.post('/login', authLimiter, async (req, res) => {
   try {
     const { email, password } = req.body;
 
@@ -112,7 +122,10 @@ function logOAuth(msg: string) {
   console.log(entry);
 }
 
-authRouter.get('/debug', (_req, res) => {
+authRouter.get('/debug', authMiddleware, (_req, res) => {
+  if (env.NODE_ENV === 'production') {
+    return res.status(404).json({ error: 'Not found' });
+  }
   res.json({ log: oauthLog, stateCount: oauthStates.size });
 });
 

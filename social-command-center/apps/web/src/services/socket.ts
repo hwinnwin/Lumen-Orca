@@ -8,26 +8,20 @@ let socket: Socket | null = null;
 export function initSocket(): Socket {
   if (socket?.connected) return socket;
 
+  const token = localStorage.getItem('scc-token');
+
   socket = io(window.location.origin, {
     transports: ['websocket', 'polling'],
     reconnection: true,
     reconnectionAttempts: 10,
     reconnectionDelay: 1000,
     reconnectionDelayMax: 5000,
+    auth: { token },
   });
 
   socket.on('connect', () => {
     console.log('[Socket] Connected:', socket?.id);
-    // Join the authenticated user's room
-    const userJson = localStorage.getItem('scc-user');
-    if (userJson) {
-      try {
-        const user = JSON.parse(userJson);
-        socket?.emit('join-user', user.id);
-      } catch {
-        // ignore parse errors
-      }
-    }
+    // Room auto-joined server-side via JWT
   });
 
   socket.on('disconnect', (reason) => {

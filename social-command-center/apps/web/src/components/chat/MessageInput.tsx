@@ -50,6 +50,7 @@ export default function MessageInput({ onSend }: MessageInputProps) {
         onChange={handleInput}
         onKeyDown={handleKeyDown}
         placeholder="Ask anything..."
+        aria-label="Chat message"
         rows={1}
         style={{
           flex: 1,
@@ -69,7 +70,7 @@ export default function MessageInput({ onSend }: MessageInputProps) {
       {isStreaming ? (
         <button
           onClick={cancelStream}
-          title="Stop generating"
+          aria-label="Stop generating"
           style={{
             width: '36px',
             height: '36px',
@@ -91,7 +92,7 @@ export default function MessageInput({ onSend }: MessageInputProps) {
         <button
           onClick={handleSend}
           disabled={!input.trim()}
-          title="Send message"
+          aria-label="Send message"
           style={{
             width: '36px',
             height: '36px',

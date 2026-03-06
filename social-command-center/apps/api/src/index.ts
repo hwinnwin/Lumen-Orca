@@ -126,17 +126,30 @@ app.use((req, _res, next) => {
   next();
 });
 
-// Socket.io connection handling
-io.on('connection', (socket) => {
-  console.log(`Socket connected: ${socket.id}`);
+// Socket.io connection handling with JWT auth
+import jwt from 'jsonwebtoken';
 
-  socket.on('join-user', (userId: string) => {
+io.use((socket, next) => {
+  const token = socket.handshake.auth?.token || socket.handshake.query?.token;
+  if (!token) return next(new Error('Authentication required'));
+  try {
+    const payload = jwt.verify(token as string, env.JWT_SECRET) as { userId: string };
+    (socket as unknown as Record<string, string>).userId = payload.userId;
+    next();
+  } catch {
+    next(new Error('Invalid token'));
+  }
+});
+
+io.on('connection', (socket) => {
+  const userId = (socket as unknown as Record<string, string>).userId;
+  // Auto-join user's room based on verified JWT
+  if (userId) {
     socket.join(`user:${userId}`);
-    console.log(`Socket ${socket.id} joined room user:${userId}`);
-  });
+  }
 
   socket.on('disconnect', () => {
-    console.log(`Socket disconnected: ${socket.id}`);
+    // cleanup handled automatically by Socket.io
   });
 });
 

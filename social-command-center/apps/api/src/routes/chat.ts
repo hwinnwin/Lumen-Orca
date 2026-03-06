@@ -99,10 +99,12 @@ chatRouter.post('/conversations/:id/messages', async (req, res) => {
   });
   if (!conversation) return res.status(404).json({ error: 'Conversation not found' });
 
-  // Credit check
+  // Deduct credits upfront (atomic — prevents double-spend)
   const cost = CREDIT_COSTS.AI_CHAT;
-  const cc = await checkCredits(req.userId, cost);
-  if (!cc.allowed) {
+  try {
+    await deductCredits(req.userId, cost, 'ai-chat', 'AI chat message');
+  } catch {
+    const cc = await checkCredits(req.userId, 0);
     return res.status(402).json({
       error: `Insufficient credits. Need ${cost}, have ${cc.balance}.`,
       code: 'INSUFFICIENT_CREDITS',
@@ -119,8 +121,12 @@ chatRouter.post('/conversations/:id/messages', async (req, res) => {
     'X-Accel-Buffering': 'no',
   });
 
+  // Timeout after 5 minutes to prevent resource exhaustion
+  req.setTimeout(5 * 60 * 1000);
+
   let aborted = false;
   req.on('close', () => { aborted = true; });
+  req.on('timeout', () => { aborted = true; res.end(); });
 
   try {
     await streamChatResponse({
@@ -133,8 +139,6 @@ chatRouter.post('/conversations/:id/messages', async (req, res) => {
         }
       },
       onDone: async (fullResponse, inputTokens, outputTokens) => {
-        await deductCredits(req.userId, cost, 'ai-chat', 'AI chat message');
-
         if (!aborted) {
           // Send the conversation title back so frontend can update
           const conv = await prisma.chatConversation.findUnique({

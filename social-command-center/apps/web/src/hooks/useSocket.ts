@@ -174,6 +174,17 @@ export function useSocket() {
     );
 
     return () => {
+      if (socket) {
+        socket.off('post:status');
+        socket.off('post:published');
+        socket.off('post:failed');
+        socket.off('media:processed');
+        socket.off('metrics:updated');
+        socket.off('video:generated');
+        socket.off('video:failed');
+        socket.off('video:exported');
+        socket.off('video:export-failed');
+      }
       disconnectSocket();
       initialized.current = false;
     };
