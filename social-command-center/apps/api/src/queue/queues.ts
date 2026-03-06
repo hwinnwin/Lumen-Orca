@@ -33,6 +33,10 @@ export interface VideoExportJobData {
   audioVolume: number;
   userId: string;
   jobId: string;
+  // AI-generated audio (generated server-side during export)
+  musicStyle?: string;
+  voiceoverScript?: string;
+  voiceoverVoice?: string;
 }
 
 export interface VideoGenerateJobData {

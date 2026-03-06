@@ -66,10 +66,13 @@ interface GeneratorState {
 
   // ─── Video Editor state ───────────────────────────────
   editorClips: EditorClip[];
-  editorAudioSource: 'none' | 'speech' | 'upload';
+  editorAudioSource: 'none' | 'speech' | 'upload' | 'music' | 'voiceover';
   editorAudioStorageKey: string | null;
   editorAudioFileName: string | null;
   editorAudioVolume: number;
+  editorMusicStyle: string;
+  editorVoiceoverScript: string;
+  editorVoiceoverVoice: string;
   editorExportJobId: string | null;
   editorExportedVideo: GeneratedVideo | null;
   isExporting: boolean;
@@ -118,10 +121,13 @@ interface GeneratorState {
   removeEditorClip: (id: string) => void;
   reorderEditorClips: (fromIndex: number, toIndex: number) => void;
   updateEditorClip: (id: string, updates: Partial<EditorClip>) => void;
-  setEditorAudioSource: (source: 'none' | 'speech' | 'upload') => void;
+  setEditorAudioSource: (source: 'none' | 'speech' | 'upload' | 'music' | 'voiceover') => void;
   setEditorAudioStorageKey: (key: string | null) => void;
   setEditorAudioFileName: (name: string | null) => void;
   setEditorAudioVolume: (volume: number) => void;
+  setEditorMusicStyle: (style: string) => void;
+  setEditorVoiceoverScript: (script: string) => void;
+  setEditorVoiceoverVoice: (voice: string) => void;
   setEditorExportJobId: (jobId: string | null) => void;
   setEditorExportedVideo: (video: GeneratedVideo | null) => void;
   setIsExporting: (v: boolean) => void;
@@ -170,10 +176,13 @@ const initialState = {
 
   // Video Editor
   editorClips: [] as EditorClip[],
-  editorAudioSource: 'none' as 'none' | 'speech' | 'upload',
+  editorAudioSource: 'none' as 'none' | 'speech' | 'upload' | 'music' | 'voiceover',
   editorAudioStorageKey: null as string | null,
   editorAudioFileName: null as string | null,
   editorAudioVolume: 100,
+  editorMusicStyle: '',
+  editorVoiceoverScript: '',
+  editorVoiceoverVoice: 'Deep_Voice_Man',
   editorExportJobId: null as string | null,
   editorExportedVideo: null as GeneratedVideo | null,
   isExporting: false,
@@ -259,6 +268,9 @@ export const useGeneratorStore = create<GeneratorState>((set) => ({
   setEditorAudioStorageKey: (editorAudioStorageKey) => set({ editorAudioStorageKey }),
   setEditorAudioFileName: (editorAudioFileName) => set({ editorAudioFileName }),
   setEditorAudioVolume: (editorAudioVolume) => set({ editorAudioVolume }),
+  setEditorMusicStyle: (editorMusicStyle) => set({ editorMusicStyle }),
+  setEditorVoiceoverScript: (editorVoiceoverScript) => set({ editorVoiceoverScript }),
+  setEditorVoiceoverVoice: (editorVoiceoverVoice) => set({ editorVoiceoverVoice }),
   setEditorExportJobId: (editorExportJobId) => set({ editorExportJobId }),
   setEditorExportedVideo: (video) => set({ editorExportedVideo: video, step: video ? 'preview' : 'configure', isExporting: false }),
   setIsExporting: (isExporting) => set({ isExporting }),

@@ -845,6 +845,9 @@ export async function exportEditedVideo(
   audioStorageKey: string | undefined,
   audioVolume: number,
   userId: string,
+  musicStyle?: string,
+  voiceoverScript?: string,
+  voiceoverVoice?: string,
 ): Promise<GeneratedVideo> {
   const { downloadBuffer } = await import('./s3.js');
   const tmpDir = await mkdtemp(join(tmpdir(), 'scc-export-'));
@@ -915,7 +918,34 @@ export async function exportEditedVideo(
       console.log(`[VideoExport] Concatenated ${normalizedPaths.length} clips`);
     }
 
+    // Generate AI audio if requested (music or voiceover)
+    let generatedAudioPath: string | undefined;
+    if (musicStyle && !audioStorageKey) {
+      console.log(`[VideoExport] Generating AI music: "${musicStyle}"`);
+      // Probe video duration for music length
+      let videoDur = 30;
+      try {
+        const { stdout } = await execFileAsync('ffprobe', [
+          '-v', 'error', '-show_entries', 'format=duration',
+          '-of', 'default=noprint_wrappers=1:nokey=1', currentVideoPath,
+        ], { timeout: 10000 });
+        const parsed = parseFloat(stdout.trim());
+        if (!isNaN(parsed) && parsed > 0) videoDur = Math.min(parsed, 30);
+      } catch { /* use fallback */ }
+      const musicBuffer = await generateMusic(musicStyle, videoDur);
+      generatedAudioPath = join(tmpDir, 'ai_music.wav');
+      await writeFile(generatedAudioPath, musicBuffer);
+      console.log(`[VideoExport] AI music generated (${videoDur}s)`);
+    } else if (voiceoverScript && !audioStorageKey) {
+      console.log(`[VideoExport] Generating AI voiceover`);
+      const voBuffer = await generateVoiceover(voiceoverScript, voiceoverVoice || 'Deep_Voice_Man');
+      generatedAudioPath = join(tmpDir, 'ai_voiceover.mp3');
+      await writeFile(generatedAudioPath, voBuffer);
+      console.log(`[VideoExport] AI voiceover generated`);
+    }
+
     // Mix audio if provided
+    const effectiveAudioPath = generatedAudioPath;
     if (audioStorageKey) {
       console.log(`[VideoExport] Downloading audio: ${audioStorageKey}`);
       const audioBuffer = await downloadBuffer(audioStorageKey);
@@ -940,6 +970,26 @@ export async function exportEditedVideo(
 
       currentVideoPath = withAudioPath;
       console.log(`[VideoExport] Mixed audio at ${audioVolume}% volume`);
+    } else if (effectiveAudioPath) {
+      // Mix AI-generated audio
+      const vol = Math.max(0, Math.min(100, audioVolume)) / 100;
+      const withAudioPath = join(tmpDir, 'with_ai_audio.mp4');
+
+      await execFileAsync('ffmpeg', [
+        '-y',
+        '-i', currentVideoPath,
+        '-i', effectiveAudioPath,
+        '-filter_complex', `[1:a]volume=${vol}[aud]`,
+        '-map', '0:v',
+        '-map', '[aud]',
+        '-c:v', 'copy',
+        '-c:a', 'aac', '-b:a', '192k',
+        '-shortest',
+        withAudioPath,
+      ], { timeout: 300000 });
+
+      currentVideoPath = withAudioPath;
+      console.log(`[VideoExport] Mixed AI audio at ${audioVolume}% volume`);
     }
 
     // Probe final duration

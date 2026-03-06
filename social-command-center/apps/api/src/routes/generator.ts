@@ -427,10 +427,13 @@ generatorRouter.post('/speech/generate', async (req, res) => {
 
 generatorRouter.post('/video/export', async (req, res) => {
   try {
-    const { clips, audioStorageKey, audioVolume } = req.body as {
+    const { clips, audioStorageKey, audioVolume, musicStyle, voiceoverScript, voiceoverVoice } = req.body as {
       clips: Array<{ storageKey: string; startTime?: number; endTime?: number }>;
       audioStorageKey?: string;
       audioVolume?: number;
+      musicStyle?: string;
+      voiceoverScript?: string;
+      voiceoverVoice?: string;
     };
     const userId = req.userId;
 
@@ -448,7 +451,9 @@ generatorRouter.post('/video/export', async (req, res) => {
     }
 
     // Credit check + deduct
-    const cost = CREDIT_COSTS.VIDEO_EXPORT;
+    const baseCost = CREDIT_COSTS.VIDEO_EXPORT;
+    const audioCost = musicStyle ? CREDIT_COSTS.VIDEO_MUSIC : voiceoverScript ? CREDIT_COSTS.VIDEO_VOICEOVER : 0;
+    const cost = baseCost + audioCost;
     const creditCheck = await checkCredits(userId, cost);
     if (!creditCheck.allowed) {
       return res.status(402).json({
@@ -459,9 +464,14 @@ generatorRouter.post('/video/export', async (req, res) => {
       });
     }
 
-    await deductCredits(userId, cost, 'video_export', `Video export: ${clips.length} clips`, {
+    const hasAudio = !!audioStorageKey || !!musicStyle || !!voiceoverScript;
+    const totalCost = cost;
+
+    await deductCredits(userId, totalCost, 'video_export', `Video export: ${clips.length} clips${hasAudio ? ' + audio' : ''}`, {
       clipCount: clips.length,
-      hasAudio: !!audioStorageKey,
+      hasAudio,
+      musicStyle: musicStyle || undefined,
+      hasVoiceover: !!voiceoverScript,
     });
 
     // Enqueue export job
@@ -472,6 +482,9 @@ generatorRouter.post('/video/export', async (req, res) => {
       audioVolume: audioVolume ?? 100,
       userId,
       jobId,
+      musicStyle,
+      voiceoverScript,
+      voiceoverVoice,
     });
 
     console.log(`[Generator] Video export job ${jobId} enqueued: ${clips.length} clips`);

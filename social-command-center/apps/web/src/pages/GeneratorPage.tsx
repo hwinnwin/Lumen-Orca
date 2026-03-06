@@ -500,6 +500,9 @@ export default function GeneratorPage() {
           ? (store.editorAudioStorageKey ?? undefined)
           : undefined,
         audioVolume: store.editorAudioVolume,
+        musicStyle: store.editorAudioSource === 'music' ? store.editorMusicStyle : undefined,
+        voiceoverScript: store.editorAudioSource === 'voiceover' ? store.editorVoiceoverScript : undefined,
+        voiceoverVoice: store.editorAudioSource === 'voiceover' ? store.editorVoiceoverVoice : undefined,
       });
       store.setEditorExportJobId(jobId);
       invalidateCredits();
@@ -1282,7 +1285,7 @@ export default function GeneratorPage() {
                 <div>
                   <label style={labelStyle}>Audio Track</label>
                   <div style={{ display: 'grid', gap: '8px' }}>
-                    {(['none', 'speech', 'upload'] as const).map((opt) => (
+                    {(['none', 'speech', 'upload', 'music', 'voiceover'] as const).map((opt) => (
                       <label
                         key={opt}
                         style={{
@@ -1306,7 +1309,7 @@ export default function GeneratorPage() {
                           onChange={() => store.setEditorAudioSource(opt)}
                           style={{ accentColor: '#8b5cf6' }}
                         />
-                        {opt === 'none' ? 'No Audio' : opt === 'speech' ? 'Use Generated Speech' : 'Upload Audio File'}
+                        {opt === 'none' ? 'No Audio' : opt === 'speech' ? 'Use Generated Speech' : opt === 'upload' ? 'Upload Audio File' : opt === 'music' ? 'AI Music' : 'AI Voiceover'}
                       </label>
                     ))}
                   </div>
@@ -1348,6 +1351,64 @@ export default function GeneratorPage() {
                     </div>
                   )}
 
+                  {store.editorAudioSource === 'music' && (
+                    <div style={{ marginTop: '8px', display: 'grid', gap: '8px' }}>
+                      <select
+                        value={MUSIC_PRESETS.find((p) => p.prompt === store.editorMusicStyle)?.id || 'custom'}
+                        onChange={(e) => {
+                          const preset = MUSIC_PRESETS.find((p) => p.id === e.target.value);
+                          store.setEditorMusicStyle(preset?.prompt || '');
+                        }}
+                        style={inputStyle}
+                      >
+                        {MUSIC_PRESETS.map((p) => (
+                          <option key={p.id} value={p.id}>{p.label}</option>
+                        ))}
+                      </select>
+                      {!MUSIC_PRESETS.some((p) => p.id !== 'custom' && p.prompt === store.editorMusicStyle) && (
+                        <input
+                          value={store.editorMusicStyle}
+                          onChange={(e) => store.setEditorMusicStyle(e.target.value)}
+                          placeholder="Describe the music style..."
+                          style={inputStyle}
+                        />
+                      )}
+                    </div>
+                  )}
+
+                  {store.editorAudioSource === 'voiceover' && (
+                    <div style={{ marginTop: '8px', display: 'grid', gap: '8px' }}>
+                      <textarea
+                        value={store.editorVoiceoverScript}
+                        onChange={(e) => store.setEditorVoiceoverScript(e.target.value)}
+                        placeholder="Enter voiceover script..."
+                        rows={3}
+                        style={inputStyle}
+                      />
+                      <select
+                        value={store.editorVoiceoverVoice}
+                        onChange={(e) => store.setEditorVoiceoverVoice(e.target.value)}
+                        style={inputStyle}
+                      >
+                        <optgroup label="Male">
+                          {VOICE_PRESETS.filter((v) => v.gender === 'male').map((v) => (
+                            <option key={v.id} value={v.id}>{v.label}</option>
+                          ))}
+                        </optgroup>
+                        <optgroup label="Female">
+                          {VOICE_PRESETS.filter((v) => v.gender === 'female').map((v) => (
+                            <option key={v.id} value={v.id}>{v.label}</option>
+                          ))}
+                        </optgroup>
+                        <optgroup label="Neutral">
+                          {VOICE_PRESETS.filter((v) => v.gender === 'neutral').map((v) => (
+                            <option key={v.id} value={v.id}>{v.label}</option>
+                          ))}
+                        </optgroup>
+                      </select>
+                    </div>
+                  )}
+
                   {store.editorAudioSource !== 'none' && (
                     <div style={{ marginTop: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <label style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>Volume</label>
@@ -1367,7 +1428,10 @@ export default function GeneratorPage() {
                 </div>
 
                 <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: "'IBM Plex Mono', monospace", padding: '8px 12px', background: 'rgba(139,92,246,0.05)', borderRadius: '8px', border: '1px solid rgba(139,92,246,0.15)' }}>
-                  Cost: 50 credits per export
+                  Cost: {50 + (store.editorAudioSource === 'music' || store.editorAudioSource === 'voiceover' ? 20 : 0)} credits per export
+                  {(store.editorAudioSource === 'music' || store.editorAudioSource === 'voiceover') && (
+                    <span style={{ opacity: 0.7 }}> (50 base + 20 AI audio)</span>
+                  )}
                 </div>
 
                 <button
@@ -1376,7 +1440,9 @@ export default function GeneratorPage() {
                     store.isExporting ||
                     store.editorClips.filter((c) => c.status === 'ready').length === 0 ||
                     (store.editorAudioSource === 'speech' && !store.editorAudioStorageKey && !store.generatedSpeech) ||
-                    (store.editorAudioSource === 'upload' && !store.editorAudioStorageKey)
+                    (store.editorAudioSource === 'upload' && !store.editorAudioStorageKey) ||
+                    (store.editorAudioSource === 'music' && !store.editorMusicStyle) ||
+                    (store.editorAudioSource === 'voiceover' && !store.editorVoiceoverScript.trim())
                   }
                   style={{
                     ...primaryButtonStyle,
@@ -1389,7 +1455,7 @@ export default function GeneratorPage() {
                   {store.isExporting ? (
                     <><Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> Exporting... {elapsed}s</>
                   ) : (
-                    <><Film size={16} /> Export Video (50 credits)</>
+                    <><Film size={16} /> Export Video ({50 + (store.editorAudioSource === 'music' || store.editorAudioSource === 'voiceover' ? 20 : 0)} credits)</>
                   )}
                 </button>
               </div>

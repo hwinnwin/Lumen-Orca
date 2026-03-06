@@ -12,12 +12,13 @@ import { addCredits, CREDIT_COSTS } from '../../services/credits.js';
 export const videoExportWorker = new Worker<VideoExportJobData>(
   'video-export',
   async (job: Job<VideoExportJobData>) => {
-    const { clips, audioStorageKey, audioVolume, userId, jobId } = job.data;
+    const { clips, audioStorageKey, audioVolume, userId, jobId, musicStyle, voiceoverScript, voiceoverVoice } = job.data;
+    const hasAudio = !!audioStorageKey || !!musicStyle || !!voiceoverScript;
 
-    console.log(`[VideoExport] Processing job ${jobId}: ${clips.length} clips${audioStorageKey ? ' + audio' : ''}`);
+    console.log(`[VideoExport] Processing job ${jobId}: ${clips.length} clips${hasAudio ? ' + audio' : ''}`);
 
     try {
-      const result = await exportEditedVideo(clips, audioStorageKey, audioVolume, userId);
+      const result = await exportEditedVideo(clips, audioStorageKey, audioVolume, userId, musicStyle, voiceoverScript, voiceoverVoice);
 
       console.log(`[VideoExport] Job ${jobId} completed: ${result.videoUrl}`);
       emitVideoExported(userId, jobId, result);

@@ -367,6 +367,9 @@ export async function exportVideo(data: {
   clips: Array<{ storageKey: string; startTime?: number; endTime?: number }>;
   audioStorageKey?: string;
   audioVolume?: number;
+  musicStyle?: string;
+  voiceoverScript?: string;
+  voiceoverVoice?: string;
 }) {
   const res = await api.post('/generator/video/export', data, { timeout: 30000 });
   return res.data.data as { jobId: string };
