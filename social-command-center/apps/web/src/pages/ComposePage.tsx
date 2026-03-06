@@ -1484,10 +1484,10 @@ export default function SocialCommandCenter() {
       // Fallback content: use YouTube title, or a generic placeholder for video-only posts
       const postContent = content.trim() || youtubeTitle.trim() || (hasVideoAttached ? 'Video post' : '');
 
-      // Parse YouTube tags from comma-separated string
+      // Parse YouTube tags from comma-separated string (strip any # symbols)
       const parsedTags = youtubeTags
         .split(',')
-        .map((t) => t.trim())
+        .map((t) => t.trim().replace(/^#/, ''))
         .filter(Boolean);
 
       await createPost.mutateAsync({
@@ -1964,7 +1964,7 @@ export default function SocialCommandCenter() {
                 type="text"
                 value={youtubeTags}
                 onChange={(e) => setYoutubeTags(e.target.value)}
-                placeholder="Tags (comma-separated, e.g. tech, AI, tutorial)"
+                placeholder="Search tags without # (comma-separated, e.g. tech, AI, tutorial)"
                 style={{
                   width: '100%',
                   padding: '10px 14px',
@@ -1986,7 +1986,7 @@ export default function SocialCommandCenter() {
                   fontFamily: "'IBM Plex Mono', monospace",
                 }}
               >
-                YouTube tags help with search discovery
+                Hidden metadata for YouTube search — for visible #hashtags, add them in the description
               </span>
             </div>
           )}
