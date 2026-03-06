@@ -17,7 +17,8 @@ model User {
   connections   PlatformConnection[]
   posts         Post[]
   mediaAssets   MediaAsset[]
-  creditBalance CreditBalance?
+  creditBalance      CreditBalance?
+  chatConversations  ChatConversation[]
   createdAt     DateTime             @default(now())
   updatedAt     DateTime             @updatedAt
 }
@@ -206,4 +207,34 @@ enum MediaStatus {
   PROCESSING
   READY
   FAILED
+}
+
+// ─── Chat ───────────────────────────────────────────────
+
+model ChatConversation {
+  id        String        @id @default(cuid())
+  userId    String
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String        @default("New Chat")
+  messages  ChatMessage[]
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  @@index([userId, updatedAt])
+}
+
+model ChatMessage {
+  id             String           @id @default(cuid())
+  conversationId String
+  conversation   ChatConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  role           ChatRole
+  content        String
+  createdAt      DateTime         @default(now())
+
+  @@index([conversationId, createdAt])
+}
+
+enum ChatRole {
+  USER
+  ASSISTANT
 }

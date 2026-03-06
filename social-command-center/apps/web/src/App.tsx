@@ -15,6 +15,7 @@ import TermsPage from './pages/TermsPage';
 import { useSocket } from './hooks/useSocket';
 import { useUIStore } from './store/ui-store';
 import { useAuthStore } from './store/auth-store';
+import ChatWidget from './components/chat/ChatWidget';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -48,6 +49,17 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+function ProtectedLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <ProtectedRoute>
+      <SocketProvider>
+        {children}
+        <ChatWidget />
+      </SocketProvider>
+    </ProtectedRoute>
+  );
+}
+
 export function App() {
   return (
     <QueryClientProvider client={queryClient}>
@@ -61,66 +73,12 @@ export function App() {
             <Route path="/terms" element={<TermsPage />} />
 
             {/* Protected */}
-            <Route
-              path="/"
-              element={
-                <ProtectedRoute>
-                  <SocketProvider>
-                    <SocialCommandCenter />
-                  </SocketProvider>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/queue"
-              element={
-                <ProtectedRoute>
-                  <SocketProvider>
-                    <QueuePage />
-                  </SocketProvider>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/analytics"
-              element={
-                <ProtectedRoute>
-                  <SocketProvider>
-                    <AnalyticsPage />
-                  </SocketProvider>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/connections"
-              element={
-                <ProtectedRoute>
-                  <SocketProvider>
-                    <ConnectionManager />
-                  </SocketProvider>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/generator"
-              element={
-                <ProtectedRoute>
-                  <SocketProvider>
-                    <GeneratorPage />
-                  </SocketProvider>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/settings"
-              element={
-                <ProtectedRoute>
-                  <SocketProvider>
-                    <SettingsPage />
-                  </SocketProvider>
-                </ProtectedRoute>
-              }
-            />
+            <Route path="/" element={<ProtectedLayout><SocialCommandCenter /></ProtectedLayout>} />
+            <Route path="/queue" element={<ProtectedLayout><QueuePage /></ProtectedLayout>} />
+            <Route path="/analytics" element={<ProtectedLayout><AnalyticsPage /></ProtectedLayout>} />
+            <Route path="/connections" element={<ProtectedLayout><ConnectionManager /></ProtectedLayout>} />
+            <Route path="/generator" element={<ProtectedLayout><GeneratorPage /></ProtectedLayout>} />
+            <Route path="/settings" element={<ProtectedLayout><SettingsPage /></ProtectedLayout>} />
           </Routes>
         </ThemeInitializer>
         <Toaster

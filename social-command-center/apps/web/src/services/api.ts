@@ -413,6 +413,7 @@ export interface CreditCosts {
   AI_STRATEGY: number;
   AI_GENERATE_POSTS: number;
   AI_SUGGEST_TAGS: number;
+  AI_CHAT: number;
   VIDEO_EXPORT: number;
   VIDEO_PLAN: number;
   CAROUSEL_PLAN: number;
@@ -441,4 +442,94 @@ export async function fetchCreditCosts() {
 export async function topUpCredits(amount: number, description?: string) {
   const res = await api.post('/credits/topup', { amount, description });
   return res.data.data as { balance: number; added: number };
+}
+
+// ─── Chat ────────────────────────────────────────────────
+
+import type { ChatConversation, ChatMessage } from '../types/chat';
+
+export async function fetchConversations() {
+  const res = await api.get('/chat/conversations');
+  return res.data.data as ChatConversation[];
+}
+
+export async function createConversation() {
+  const res = await api.post('/chat/conversations');
+  return res.data.data as { id: string; title: string; updatedAt: string };
+}
+
+export async function fetchConversationMessages(conversationId: string) {
+  const res = await api.get(`/chat/conversations/${conversationId}/messages`);
+  return res.data.data as ChatMessage[];
+}
+
+export async function deleteConversation(conversationId: string) {
+  const res = await api.delete(`/chat/conversations/${conversationId}`);
+  return res.data.data;
+}
+
+/**
+ * Send a chat message and receive streamed SSE response.
+ * Uses fetch instead of axios because axios doesn't support streaming ReadableStream.
+ */
+export function streamChatMessage(
+  conversationId: string,
+  content: string,
+  callbacks: {
+    onToken: (token: string) => void;
+    onDone: (meta: { inputTokens: number; outputTokens: number; title?: string }) => void;
+    onError: (error: string) => void;
+  },
+): AbortController {
+  const controller = new AbortController();
+  const token = localStorage.getItem('scc-token');
+
+  fetch(`/api/chat/conversations/${conversationId}/messages`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ content }),
+    signal: controller.signal,
+  })
+    .then(async (response) => {
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({ error: 'Stream failed' }));
+        callbacks.onError(err.error || `HTTP ${response.status}`);
+        return;
+      }
+
+      const reader = response.body?.getReader();
+      if (!reader) { callbacks.onError('No response body'); return; }
+
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          try {
+            const data = JSON.parse(line.slice(6));
+            if (data.type === 'token') callbacks.onToken(data.content);
+            else if (data.type === 'done') callbacks.onDone(data);
+            else if (data.type === 'error') callbacks.onError(data.error);
+          } catch { /* ignore parse errors */ }
+        }
+      }
+    })
+    .catch((err) => {
+      if (err.name !== 'AbortError') {
+        callbacks.onError(err.message || 'Stream failed');
+      }
+    });
+
+  return controller;
 }

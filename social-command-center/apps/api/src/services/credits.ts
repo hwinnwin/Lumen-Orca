@@ -39,6 +39,7 @@ export const CREDIT_COSTS = {
   AI_STRATEGY: 15,
   AI_GENERATE_POSTS: 10,
   AI_SUGGEST_TAGS: 5,
+  AI_CHAT: 3,
   // Video editor export
   VIDEO_EXPORT: 50,
   // Planning (free — planning doesn't cost much and encourages usage)

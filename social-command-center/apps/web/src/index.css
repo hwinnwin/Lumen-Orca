@@ -100,3 +100,22 @@ input:focus {
   background: var(--scrollbar-thumb);
   border-radius: 4px;
 }
+
+/* Chat streaming animations */
+.chat-dots::after {
+  content: '';
+  animation: dots 1.2s steps(3) infinite;
+}
+@keyframes dots {
+  0% { content: ''; }
+  33% { content: '.'; }
+  66% { content: '..'; }
+  100% { content: '...'; }
+}
+.chat-cursor {
+  animation: blink 0.8s step-end infinite;
+  opacity: 1;
+}
+@keyframes blink {
+  50% { opacity: 0; }
+}
