@@ -1,7 +1,7 @@
 import { create } from 'zustand';
-import type { SlidePlan, CarouselPlan, GeneratedSlide, VideoPlan, GeneratedVideo, VideoPlatform } from '../services/api';
+import type { SlidePlan, CarouselPlan, GeneratedSlide, VideoPlan, GeneratedVideo, VideoPlatform, GeneratedSpeech } from '../services/api';
 
-export type ContentType = 'carousel' | 'quote-card' | 'mixed-media' | 'educational' | 'video-clip';
+export type ContentType = 'carousel' | 'quote-card' | 'mixed-media' | 'educational' | 'video-clip' | 'script-to-speech';
 export type GeneratorStep = 'configure' | 'review' | 'preview';
 
 interface GeneratorState {
@@ -48,6 +48,12 @@ interface GeneratorState {
   isGeneratingVideo: boolean;
   videoJobId: string | null;
 
+  // ─── Speech-specific state ────────────────────────────
+  speechScript: string;
+  speechVoiceId: string;
+  generatedSpeech: GeneratedSpeech | null;
+  isGeneratingSpeech: boolean;
+
   // Actions
   setStep: (step: GeneratorStep) => void;
   setContentType: (type: ContentType) => void;
@@ -80,6 +86,12 @@ interface GeneratorState {
   setGeneratedVideo: (video: GeneratedVideo) => void;
   setIsGeneratingVideo: (v: boolean) => void;
   setVideoJobId: (jobId: string | null) => void;
+
+  // Speech actions
+  setSpeechScript: (script: string) => void;
+  setSpeechVoiceId: (voiceId: string) => void;
+  setGeneratedSpeech: (speech: GeneratedSpeech | null) => void;
+  setIsGeneratingSpeech: (v: boolean) => void;
 
   reset: () => void;
 }
@@ -116,6 +128,12 @@ const initialState = {
   generatedVideo: null as GeneratedVideo | null,
   isGeneratingVideo: false,
   videoJobId: null as string | null,
+
+  // Speech
+  speechScript: '',
+  speechVoiceId: 'Deep_Voice_Man',
+  generatedSpeech: null as GeneratedSpeech | null,
+  isGeneratingSpeech: false,
 
 };
 
@@ -173,6 +191,12 @@ export const useGeneratorStore = create<GeneratorState>((set) => ({
   setGeneratedVideo: (video) => set({ generatedVideo: video, step: 'preview', isGeneratingVideo: false }),
   setIsGeneratingVideo: (isGeneratingVideo) => set({ isGeneratingVideo }),
   setVideoJobId: (videoJobId) => set({ videoJobId }),
+
+  // Speech actions
+  setSpeechScript: (speechScript) => set({ speechScript }),
+  setSpeechVoiceId: (speechVoiceId) => set({ speechVoiceId }),
+  setGeneratedSpeech: (speech) => set({ generatedSpeech: speech, step: speech ? 'preview' : 'configure', isGeneratingSpeech: false }),
+  setIsGeneratingSpeech: (isGeneratingSpeech) => set({ isGeneratingSpeech }),
 
   reset: () => set(initialState),
 }));

@@ -20,6 +20,7 @@ import {
   X,
   Video,
   Play,
+  Mic,
 } from 'lucide-react';
 import Header from '../components/layout/Header';
 import { useGeneratorStore } from '../store/generator-store';
@@ -34,6 +35,7 @@ import {
   useGenerateVideo,
   useAnimateSlide,
   useTestVoice,
+  useGenerateSpeech,
 } from '../hooks/useGenerator';
 import { useCreditBalance, useInvalidateCredits } from '../hooks/useCredits';
 import { useComposeStore } from '../store/compose-store';
@@ -45,6 +47,7 @@ const CONTENT_TYPES: { id: ContentType; label: string; desc: string; icon: typeo
   { id: 'mixed-media', label: 'Mixed Media', desc: 'Photos + text slides for visual variety', icon: Image },
   { id: 'educational', label: 'Educational', desc: 'Numbered tips, steps, or facts', icon: BookOpen },
   { id: 'video-clip', label: 'Video Clip', desc: 'AI-generated short video for Reels, TikTok, Shorts', icon: Video },
+  { id: 'script-to-speech', label: 'Script to Speech', desc: 'Convert text into AI-narrated audio with natural voices', icon: Mic },
 ];
 
 const TONES = [
@@ -99,6 +102,7 @@ export default function GeneratorPage() {
   const videoGenMutation = useGenerateVideo();
   const animateSlideMutation = useAnimateSlide();
   const testVoiceMutation = useTestVoice();
+  const speechMutation = useGenerateSpeech();
   const composeStore = useComposeStore();
   const { data: creditData } = useCreditBalance();
   const invalidateCredits = useInvalidateCredits();
@@ -341,6 +345,38 @@ export default function GeneratorPage() {
     }
   };
 
+  // ─── Speech Handler ─────────────────────────────────
+
+  const handleGenerateSpeech = async () => {
+    if (!store.speechScript.trim()) {
+      toast.error('Enter a script first');
+      return;
+    }
+    if (store.speechScript.length > 5000) {
+      toast.error('Script must be 5,000 characters or less');
+      return;
+    }
+    store.setIsGeneratingSpeech(true);
+    try {
+      const result = await speechMutation.mutateAsync({
+        script: store.speechScript,
+        voiceId: store.speechVoiceId,
+      });
+      store.setGeneratedSpeech(result);
+      invalidateCredits();
+      toast.success('Speech generated!');
+    } catch (err: unknown) {
+      const axErr = err as { response?: { status?: number; data?: { error?: string } } };
+      if (axErr?.response?.status === 402) {
+        toast.error(axErr.response.data?.error || 'Insufficient credits');
+      } else {
+        toast.error('Failed to generate speech');
+      }
+    } finally {
+      store.setIsGeneratingSpeech(false);
+    }
+  };
+
   // ─── Shared Handlers ─────────────────────────────────
 
   const handleLoadIntoComposer = async () => {
@@ -451,6 +487,7 @@ export default function GeneratorPage() {
   };
 
   const isVideoMode = store.contentType === 'video-clip';
+  const isSpeechMode = store.contentType === 'script-to-speech';
   return (
     <div
       style={{
@@ -468,7 +505,8 @@ export default function GeneratorPage() {
           {store.step !== 'configure' && (
             <button
               onClick={() => {
-                if (store.step === 'preview') store.setStep('review');
+                if (store.step === 'preview' && isSpeechMode) store.setStep('configure');
+                else if (store.step === 'preview') store.setStep('review');
                 else if (store.step === 'review') store.setStep('configure');
               }}
               style={{
@@ -539,7 +577,7 @@ export default function GeneratorPage() {
 
         {/* Step indicator */}
         <div style={{ display: 'flex', gap: '8px', marginBottom: '28px', alignItems: 'center' }}>
-          {(['configure', 'review', 'preview'] as const).map((s, i) => (
+          {(isSpeechMode ? ['configure', 'preview'] as const : ['configure', 'review', 'preview'] as const).map((s, i) => (
             <div key={s} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               {i > 0 && (
                 <div style={{ width: '24px', height: '1px', background: 'var(--border-color)' }} />
@@ -862,6 +900,89 @@ export default function GeneratorPage() {
                     <><Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> Planning video...</>
                   ) : (
                     <><Wand2 size={16} /> Generate Video Plan</>
+                  )}
+                </button>
+              </div>
+            ) : isSpeechMode ? (
+              /* Script to Speech mode */
+              <div style={{ display: 'grid', gap: '16px' }}>
+                <div>
+                  <label style={labelStyle}>Script</label>
+                  <textarea
+                    value={store.speechScript}
+                    onChange={(e) => store.setSpeechScript(e.target.value)}
+                    placeholder="Write or paste your script here... The AI will narrate this text with a natural-sounding voice."
+                    rows={6}
+                    style={inputStyle}
+                  />
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '4px' }}>
+                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: "'IBM Plex Mono', monospace" }}>
+                      ~{Math.ceil(store.speechScript.trim().split(/\s+/).filter(Boolean).length / 150 * 60)}s estimated
+                    </div>
+                    <div style={{ fontSize: '11px', color: store.speechScript.length > 5000 ? '#ef4444' : 'var(--text-muted)', fontFamily: "'IBM Plex Mono', monospace" }}>
+                      {store.speechScript.length}/5,000
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <label style={labelStyle}>Voice</label>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '6px' }}>
+                    {VOICE_PRESETS.map((v) => (
+                      <button
+                        key={v.id}
+                        onClick={() => store.setSpeechVoiceId(v.id)}
+                        style={{
+                          padding: '8px 12px',
+                          borderRadius: '8px',
+                          background: store.speechVoiceId === v.id ? 'var(--bg-active)' : 'var(--bg-tertiary)',
+                          border: `1px solid ${store.speechVoiceId === v.id ? '#8b5cf6' : 'var(--border-color)'}`,
+                          color: store.speechVoiceId === v.id ? '#8b5cf6' : 'var(--text-secondary)',
+                          fontSize: '12px',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          textAlign: 'left',
+                        }}
+                      >
+                        {v.label}
+                      </button>
+                    ))}
+                  </div>
+                  <button
+                    onClick={() => testVoiceMutation.mutate(store.speechVoiceId, {
+                      onSuccess: (data) => {
+                        const audio = new Audio(data.audioDataUrl);
+                        audio.play();
+                      },
+                      onError: () => toast.error('Voice test failed'),
+                    })}
+                    disabled={testVoiceMutation.isPending}
+                    style={{ ...secondaryButtonStyle, marginTop: '8px' }}
+                  >
+                    {testVoiceMutation.isPending ? (
+                      <><Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> Testing...</>
+                    ) : (
+                      <><Play size={14} /> Test Voice</>
+                    )}
+                  </button>
+                </div>
+
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: "'IBM Plex Mono', monospace", padding: '8px 12px', background: 'rgba(139,92,246,0.05)', borderRadius: '8px', border: '1px solid rgba(139,92,246,0.15)' }}>
+                  Cost: 20 credits per generation
+                </div>
+
+                <button
+                  onClick={handleGenerateSpeech}
+                  disabled={store.isGeneratingSpeech || !store.speechScript.trim() || store.speechScript.length > 5000}
+                  style={{
+                    ...primaryButtonStyle,
+                    opacity: store.isGeneratingSpeech || !store.speechScript.trim() || store.speechScript.length > 5000 ? 0.5 : 1,
+                  }}
+                >
+                  {store.isGeneratingSpeech ? (
+                    <><Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> Generating speech...</>
+                  ) : (
+                    <><Mic size={16} /> Generate Speech</>
                   )}
                 </button>
               </div>
@@ -1358,8 +1479,49 @@ export default function GeneratorPage() {
           </div>
         )}
 
+        {/* ═══════════ STEP 2: PREVIEW — SPEECH ═══════════ */}
+        {store.step === 'preview' && isSpeechMode && store.generatedSpeech && (
+          <div style={{ display: 'grid', gap: '24px' }}>
+            <div style={{ maxWidth: '500px', margin: '0 auto', width: '100%' }}>
+              <div style={cardStyle}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+                  <Mic size={18} style={{ color: '#8b5cf6' }} />
+                  <span style={{ fontSize: '14px', fontWeight: 700 }}>Generated Audio</span>
+                  <span style={{ marginLeft: 'auto', fontSize: '11px', color: 'var(--text-muted)', fontFamily: "'IBM Plex Mono', monospace" }}>
+                    ~{store.generatedSpeech.duration}s
+                  </span>
+                </div>
+                <audio
+                  controls
+                  src={store.generatedSpeech.audioDataUrl}
+                  style={{ width: '100%', borderRadius: '8px' }}
+                />
+              </div>
+
+              <div style={{ ...cardStyle, marginTop: '16px' }}>
+                <label style={labelStyle}>Script</label>
+                <div style={{ fontSize: '13px', color: 'var(--text-secondary)', whiteSpace: 'pre-wrap', lineHeight: 1.6, fontStyle: 'italic' }}>
+                  {store.speechScript}
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap' }}>
+              <a href={store.generatedSpeech.audioDataUrl} download="speech.mp3" style={secondaryButtonStyle}>
+                <Download size={14} /> Download MP3
+              </a>
+              <button onClick={() => { store.setGeneratedSpeech(null); store.setStep('configure'); }} style={secondaryButtonStyle}>
+                <RotateCcw size={14} /> Regenerate
+              </button>
+              <button onClick={() => { store.reset(); setQuoteResult(null); }} style={secondaryButtonStyle}>
+                <RotateCcw size={14} /> Start Over
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* ═══════════ STEP 3: PREVIEW — CAROUSEL ═══════════ */}
-        {store.step === 'preview' && !isVideoMode && store.slides && (
+        {store.step === 'preview' && !isVideoMode && !isSpeechMode && store.slides && (
           <div style={{ display: 'grid', gap: '24px' }}>
             <div style={{ display: 'flex', gap: '24px', alignItems: 'flex-start' }}>
               <div style={{ flex: 1 }}>

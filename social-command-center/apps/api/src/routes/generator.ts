@@ -19,6 +19,8 @@ import {
   calculateCarouselCost,
   CREDIT_COSTS,
 } from '../services/credits.js';
+import { uploadBuffer, generateMediaKey } from '../services/s3.js';
+import { buildPublicMediaUrl } from '../utils/signed-media-url.js';
 
 export const generatorRouter = Router();
 
@@ -356,6 +358,68 @@ generatorRouter.post('/video/voice-test', async (req, res) => {
     const errMsg = error instanceof Error ? error.message : String(error);
     console.error('[Generator] Voice test failed:', errMsg);
     res.status(500).json({ error: `Voice test failed: ${errMsg}` });
+  }
+});
+
+// ─── Script to Speech ────────────────────────────────────
+
+// Generate speech audio from a text script (sync — returns audio directly)
+generatorRouter.post('/speech/generate', async (req, res) => {
+  try {
+    const { script, voiceId } = req.body as { script: string; voiceId?: string };
+    const userId = req.userId;
+
+    if (!script?.trim()) {
+      return res.status(400).json({ error: 'Script text is required' });
+    }
+    if (script.length > 5000) {
+      return res.status(400).json({ error: 'Script must be 5,000 characters or less' });
+    }
+
+    // Credit check
+    const cost = CREDIT_COSTS.VIDEO_VOICEOVER;
+    const creditCheck = await checkCredits(userId, cost);
+    if (!creditCheck.allowed) {
+      return res.status(402).json({
+        error: `Insufficient credits. Need ${cost} credits, have ${creditCheck.balance}.`,
+        code: 'INSUFFICIENT_CREDITS',
+        required: cost,
+        balance: creditCheck.balance,
+      });
+    }
+
+    // Generate audio
+    const audioBuffer = await generateVoiceover(script.trim(), voiceId || 'Deep_Voice_Man');
+
+    // Upload to storage
+    const storageKey = generateMediaKey(userId, 'speech.mp3');
+    const audioUrl = await uploadBuffer(storageKey, audioBuffer, 'audio/mpeg');
+    const publicUrl = buildPublicMediaUrl(storageKey);
+
+    // Deduct credits
+    await deductCredits(userId, cost, 'voiceover', `Speech: "${script.slice(0, 50)}..."`, {
+      scriptLength: script.length,
+      voiceId: voiceId || 'Deep_Voice_Man',
+    });
+
+    // Estimate duration (~150 words per minute)
+    const wordCount = script.trim().split(/\s+/).length;
+    const estimatedDuration = Math.ceil((wordCount / 150) * 60);
+
+    const base64 = audioBuffer.toString('base64');
+
+    res.json({
+      data: {
+        audioUrl: publicUrl || audioUrl,
+        audioDataUrl: `data:audio/mpeg;base64,${base64}`,
+        storageKey,
+        duration: estimatedDuration,
+      },
+    });
+  } catch (error) {
+    const errMsg = error instanceof Error ? error.message : String(error);
+    console.error('[Generator] Speech generation failed:', errMsg);
+    res.status(500).json({ error: `Speech generation failed: ${errMsg}` });
   }
 });
 
