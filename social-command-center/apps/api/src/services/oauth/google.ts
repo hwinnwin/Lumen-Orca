@@ -10,6 +10,7 @@ import { storeTokens } from '../../utils/token-manager.js';
 export function getGoogleAuthUrl(state: string): string {
   const scopes = [
     'https://www.googleapis.com/auth/youtube.upload',
+    'https://www.googleapis.com/auth/youtube.readonly',
     'https://www.googleapis.com/auth/youtube.force-ssl',
   ].join(' ');
 

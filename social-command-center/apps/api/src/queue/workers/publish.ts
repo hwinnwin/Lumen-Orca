@@ -75,6 +75,9 @@ export const publishWorker = new Worker<PublishJobData>(
     const platformKey = platform.toLowerCase();
     const content = overrides?.[platformKey] || post.content;
 
+    // YouTube title: use explicit title from overrides, fall back to content substring
+    const youtubeTitle = overrides?.['__youtubeTitle'] || content.substring(0, 100) || 'Untitled Video';
+
     // Get adapter and validate
     const adapter = getAdapter(platformEnum);
     const mediaCount = post.mediaAttachments.length;
@@ -223,7 +226,7 @@ export const publishWorker = new Worker<PublishJobData>(
         // YouTube-specific
         ...(videoBuffer ? { videoBuffer, isShort: true } : {}),
         ...(platformEnum === 'YOUTUBE' ? {
-          title: content.substring(0, 100),
+          title: youtubeTitle,
           tags: post.tags?.length ? post.tags : [],
         } : {}),
       },

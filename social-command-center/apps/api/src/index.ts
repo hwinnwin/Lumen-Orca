@@ -18,6 +18,7 @@ import { queueRouter } from './routes/queue.js';
 import { settingsRouter } from './routes/settings.js';
 import { generatorRouter } from './routes/generator.js';
 import { creditsRouter } from './routes/credits.js';
+import { captionsRouter } from './routes/captions.js';
 import { authMiddleware } from './middleware/auth.js';
 import { publishWorker } from './queue/workers/publish.js';
 import { schedulerWorker } from './queue/workers/scheduler.js';
@@ -95,6 +96,7 @@ app.use('/api/queue', authMiddleware, queueRouter);
 app.use('/api/settings', authMiddleware, settingsRouter);
 app.use('/api/generator', authMiddleware, generatorRouter);
 app.use('/api/credits', authMiddleware, creditsRouter);
+app.use('/api/captions', authMiddleware, captionsRouter);
 
 // Production: serve the built frontend as static files
 if (env.NODE_ENV === 'production') {

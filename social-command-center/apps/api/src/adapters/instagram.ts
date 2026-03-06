@@ -119,7 +119,9 @@ export class InstagramAdapter implements PlatformAdapter {
     if (!containerRes.ok) {
       const errorText = await containerRes.text();
       console.error(`[Instagram] Container creation failed:`, errorText);
-      throw new Error(`Instagram container creation failed: ${errorText}`);
+      // Parse common Meta API errors for better diagnostics
+      const diagnosticMsg = this.diagnoseMetaError(errorText);
+      throw new Error(`Instagram container creation failed: ${diagnosticMsg || errorText}`);
     }
 
     const { id: containerId } = (await containerRes.json()) as { id: string };
@@ -141,7 +143,8 @@ export class InstagramAdapter implements PlatformAdapter {
     if (!publishRes.ok) {
       const errorText = await publishRes.text();
       console.error(`[Instagram] Publish failed:`, errorText);
-      throw new Error(`Instagram publish failed: ${errorText}`);
+      const diagnosticMsg = this.diagnoseMetaError(errorText);
+      throw new Error(`Instagram publish failed: ${diagnosticMsg || errorText}`);
     }
 
     const { id: mediaId } = (await publishRes.json()) as { id: string };
@@ -191,7 +194,8 @@ export class InstagramAdapter implements PlatformAdapter {
       if (!res.ok) {
         const errorText = await res.text();
         console.error(`[Instagram] Carousel item creation failed:`, errorText);
-        throw new Error(`Instagram carousel item creation failed: ${errorText}`);
+        const diagnosticMsg = this.diagnoseMetaError(errorText);
+        throw new Error(`Instagram carousel item creation failed: ${diagnosticMsg || errorText}`);
       }
 
       const { id } = (await res.json()) as { id: string };
@@ -302,6 +306,55 @@ export class InstagramAdapter implements PlatformAdapter {
   private isVideoUrl(url: string): boolean {
     const videoExtensions = /\.(mp4|mov|avi|wmv|webm|m4v|3gp)(\?|$)/i;
     return videoExtensions.test(url);
+  }
+
+  /**
+   * Parse common Meta Graph API errors and return human-readable diagnostic messages.
+   */
+  private diagnoseMetaError(errorText: string): string | null {
+    try {
+      const parsed = JSON.parse(errorText);
+      const code = parsed?.error?.code;
+      const subcode = parsed?.error?.error_subcode;
+      const msg = parsed?.error?.message || '';
+
+      // Permission errors
+      if (code === 10 || code === 200) {
+        if (msg.includes('instagram_content_publish')) {
+          return 'Missing instagram_content_publish permission. Ensure your Meta app has this permission approved (requires App Review for production, or add yourself as a test user in Meta Developer Dashboard).';
+        }
+        return `Permission denied (code ${code}). Check that your Meta app has the required permissions and the user has granted them. Error: ${msg}`;
+      }
+
+      // Invalid IG User ID
+      if (code === 100 && msg.includes('does not exist')) {
+        return 'Instagram Business Account ID not found. Ensure your Instagram account is a Business or Creator account linked to a Facebook Page.';
+      }
+
+      // Media URL not reachable
+      if (code === 36003 || msg.includes('URL is not reachable') || msg.includes('download the media')) {
+        return 'Instagram could not fetch the media URL. If using local storage, ensure your server is publicly accessible at APP_URL. Consider configuring S3 for reliable media hosting.';
+      }
+
+      // Token expired
+      if (code === 190) {
+        return 'Access token expired or invalid. The user needs to re-authenticate via Meta OAuth.';
+      }
+
+      // Rate limiting
+      if (code === 4 || code === 32) {
+        return `Rate limited by Instagram API. Wait a few minutes and try again. Error: ${msg}`;
+      }
+
+      // App not in live mode
+      if (subcode === 33 || msg.includes('app is in development mode')) {
+        return 'Meta app is in development mode. Only test users can publish. Either add yourself as a test user in the Meta Developer Dashboard, or submit your app for App Review to go live.';
+      }
+
+      return null;
+    } catch {
+      return null;
+    }
   }
 
   async getMetrics(platformPostId: string, accessToken: string): Promise<PostMetrics> {

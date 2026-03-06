@@ -69,6 +69,9 @@ const envSchema = z.object({
 
   // Replicate (AI image generation)
   REPLICATE_API_TOKEN: z.string().default(''),
+
+  // OpenAI (Whisper transcription for captions)
+  OPENAI_API_KEY: z.string().default(''),
 });
 
 function loadEnv() {
