@@ -1304,6 +1304,8 @@ export default function SocialCommandCenter() {
     Partial<Record<PlatformId, string>>
   >({});
   const [youtubeTitle, setYoutubeTitle] = useState('');
+  const [youtubeTags, setYoutubeTags] = useState('');
+
 
   const { data: connections } = useConnections();
   const composeStore = useComposeStore();
@@ -1479,6 +1481,12 @@ export default function SocialCommandCenter() {
       // Fallback content: use YouTube title, or a generic placeholder for video-only posts
       const postContent = content.trim() || youtubeTitle.trim() || (hasVideoAttached ? 'Video post' : '');
 
+      // Parse YouTube tags from comma-separated string
+      const parsedTags = youtubeTags
+        .split(',')
+        .map((t) => t.trim())
+        .filter(Boolean);
+
       await createPost.mutateAsync({
         content: postContent,
         platforms: activePlatforms.map((id) => PLATFORM_MAP[id]),
@@ -1486,6 +1494,7 @@ export default function SocialCommandCenter() {
         scheduleType,
         scheduledAt,
         mediaAssetIds: mediaIds.length > 0 ? mediaIds : undefined,
+        tags: parsedTags.length > 0 ? parsedTags : undefined,
       });
 
       const newItem: QueueItem = {
@@ -1888,6 +1897,7 @@ export default function SocialCommandCenter() {
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center',
+                  marginBottom: '10px',
                 }}
               >
                 <span
@@ -1909,6 +1919,34 @@ export default function SocialCommandCenter() {
                   {youtubeTitle.length}/100
                 </span>
               </div>
+              <input
+                type="text"
+                value={youtubeTags}
+                onChange={(e) => setYoutubeTags(e.target.value)}
+                placeholder="Tags (comma-separated, e.g. tech, AI, tutorial)"
+                style={{
+                  width: '100%',
+                  padding: '10px 14px',
+                  background: 'var(--bg-secondary)',
+                  border: '1px solid rgba(255,0,0,0.2)',
+                  borderRadius: '10px',
+                  color: 'var(--text-primary)',
+                  fontSize: '13px',
+                  fontFamily: "'Sora', sans-serif",
+                  marginBottom: '6px',
+                  outline: 'none',
+                  boxSizing: 'border-box',
+                }}
+              />
+              <span
+                style={{
+                  fontSize: '10px',
+                  color: 'var(--text-disabled)',
+                  fontFamily: "'IBM Plex Mono', monospace",
+                }}
+              >
+                YouTube tags help with search discovery
+              </span>
             </div>
           )}
 
