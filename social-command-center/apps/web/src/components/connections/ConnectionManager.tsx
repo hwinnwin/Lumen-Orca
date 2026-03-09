@@ -3,6 +3,7 @@ import { PLATFORMS } from '@scc/shared';
 import type { PlatformId } from '@scc/shared';
 import { useConnections, useDisconnect } from '../../hooks/useConnections';
 import Header from '../layout/Header';
+import { useBreakpoint } from '../../hooks/useBreakpoint';
 
 const PLATFORM_MAP: Record<string, PlatformId> = {
   FACEBOOK: 'facebook',
@@ -34,6 +35,7 @@ const healthColors = {
 export default function ConnectionManager() {
   const { data: connections, isLoading, refetch } = useConnections();
   const disconnect = useDisconnect();
+  const { isMobile } = useBreakpoint();
 
   // Listen for OAuth popup completion messages.
   // The callback HTML is served from the API server (port 3001), not the Vite dev server,
@@ -81,7 +83,7 @@ export default function ConnectionManager() {
       }}
     >
       <Header />
-      <div style={{ maxWidth: '900px', margin: '0 auto', padding: '32px' }}>
+      <div style={{ maxWidth: '900px', margin: '0 auto', padding: isMobile ? '16px' : '32px' }}>
         <h1
           style={{
             fontSize: '24px',
@@ -108,7 +110,7 @@ export default function ConnectionManager() {
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
+            gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(260px, 1fr))',
             gap: '16px',
           }}
         >

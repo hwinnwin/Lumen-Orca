@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+import { useBreakpoint } from '../hooks/useBreakpoint';
 import {
   Sparkles,
   Wand2,
@@ -101,6 +102,7 @@ const VOICE_PRESETS = [
 
 export default function GeneratorPage() {
   const navigate = useNavigate();
+  const { isMobile } = useBreakpoint();
   const store = useGeneratorStore();
   const { data: capabilities } = useGeneratorCapabilities();
   const planMutation = useGeneratePlan();
@@ -666,7 +668,7 @@ export default function GeneratorPage() {
     >
       <Header />
 
-      <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '32px' }}>
+      <div style={{ maxWidth: '1100px', margin: '0 auto', padding: isMobile ? '16px' : '32px' }}>
         {/* Title */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
           {store.step !== 'configure' && (
@@ -813,7 +815,7 @@ export default function GeneratorPage() {
                   />
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '16px' }}>
                   <div>
                     <label style={labelStyle}>Platform</label>
                     <select
@@ -1556,7 +1558,7 @@ export default function GeneratorPage() {
                   })()}
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '16px' }}>
                   <div>
                     <label style={labelStyle}>Slides</label>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -1846,7 +1848,7 @@ export default function GeneratorPage() {
             </div>
 
             {/* Slide cards */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '12px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: `repeat(auto-fill, minmax(${isMobile ? '200px' : '280px'}, 1fr))`, gap: '12px' }}>
               {store.plan.slides.map((slide) => (
                 <div
                   key={slide.slideNumber}
@@ -2046,7 +2048,7 @@ export default function GeneratorPage() {
         {/* ═══════════ STEP 3: PREVIEW — CAROUSEL ═══════════ */}
         {store.step === 'preview' && !isVideoMode && !isSpeechMode && !isEditorMode && store.slides && (
           <div style={{ display: 'grid', gap: '24px' }}>
-            <div style={{ display: 'flex', gap: '24px', alignItems: 'flex-start' }}>
+            <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: isMobile ? '16px' : '24px', alignItems: 'flex-start' }}>
               <div style={{ flex: 1 }}>
                 <div style={{ position: 'relative', background: 'var(--bg-tertiary)', borderRadius: '16px', overflow: 'hidden', border: '1px solid var(--border-color)' }}>
                   <img src={store.slides[store.currentSlide]?.imageDataUrl} alt={`Slide ${store.currentSlide + 1}`} style={{ width: '100%', display: 'block', borderRadius: '16px' }} />
@@ -2090,10 +2092,10 @@ export default function GeneratorPage() {
                 </div>
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '120px', flexShrink: 0 }}>
+              <div style={{ display: 'flex', flexDirection: isMobile ? 'row' : 'column', gap: '8px', width: isMobile ? '100%' : '120px', flexShrink: 0, overflowX: isMobile ? 'auto' : undefined }}>
                 <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)', fontFamily: "'IBM Plex Mono', monospace", letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '4px' }}>SLIDES</div>
                 {store.slides.map((slide, i) => (
-                  <button key={slide.slideNumber} onClick={() => store.setCurrentSlide(i)} style={{ padding: 0, border: `2px solid ${i === store.currentSlide ? '#8b5cf6' : 'var(--border-color)'}`, borderRadius: '8px', overflow: 'hidden', cursor: 'pointer', background: 'transparent', opacity: i === store.currentSlide ? 1 : 0.6, transition: 'all 0.2s ease' }}>
+                  <button key={slide.slideNumber} onClick={() => store.setCurrentSlide(i)} style={{ padding: 0, border: `2px solid ${i === store.currentSlide ? '#8b5cf6' : 'var(--border-color)'}`, borderRadius: '8px', overflow: 'hidden', cursor: 'pointer', background: 'transparent', opacity: i === store.currentSlide ? 1 : 0.6, transition: 'all 0.2s ease', ...(isMobile ? { width: '80px', flexShrink: 0 } : {}) }}>
                     <img src={slide.imageDataUrl} alt={`Slide ${slide.slideNumber}`} style={{ width: '100%', display: 'block' }} />
                   </button>
                 ))}

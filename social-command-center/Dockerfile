@@ -22,29 +22,23 @@ FROM node:20-alpine AS builder
 RUN corepack enable && corepack prepare pnpm@9.15.0 --activate
 WORKDIR /app
 
-# Copy deps from previous stage
-COPY --from=deps /app/node_modules ./node_modules
-COPY --from=deps /app/apps/api/node_modules ./apps/api/node_modules
-COPY --from=deps /app/apps/web/node_modules ./apps/web/node_modules
-COPY --from=deps /app/packages/shared/node_modules ./packages/shared/node_modules
+# Copy full node_modules tree from deps stage
+COPY --from=deps /app/ ./
 
-# Copy all source code
+# Copy all source code (overwrites package.json etc., that's fine)
 COPY . .
 
 # Generate Prisma client (dummy DATABASE_URL needed for generate, not for actual connection)
 ENV DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy"
 RUN cd apps/api && npx prisma generate
+
 # Find and copy generated Prisma client (pnpm puts it deep in .pnpm store)
 RUN mkdir -p /app/_prisma_generated && \
   PRISMA_DIR=$(find /app/node_modules -path '*/.prisma/client' -type d | head -1) && \
   echo "Prisma client found at: $PRISMA_DIR" && \
   cp -rL "$PRISMA_DIR"/.. /app/_prisma_generated/
 
-# Build shared package (used by both web and api)
-# No build step needed - shared exports raw .ts files consumed directly
-
 # Build the frontend (outputs to apps/web/dist)
-# Skip tsc -b (noEmit: true anyway) - Vite handles the actual build
 RUN cd apps/web && npx vite build
 
 # Build the API (outputs to apps/api/dist)
@@ -71,7 +65,6 @@ COPY packages/shared/package.json packages/shared/
 RUN pnpm install --frozen-lockfile --prod
 
 # Copy Prisma schema and generated client
-# Prisma client was generated in builder and copied with dereferenced symlinks
 COPY apps/api/prisma ./apps/api/prisma
 COPY --from=builder /app/_prisma_generated ./node_modules/.prisma
 

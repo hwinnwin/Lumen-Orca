@@ -18,31 +18,36 @@ export function startTokenRefreshSweep(): void {
 }
 
 export async function runTokenRefreshSweep(): Promise<void> {
-  const bufferMinutes = 10;
-  const threshold = new Date(Date.now() + bufferMinutes * 60 * 1000);
+  try {
+    const bufferMinutes = 10;
+    const threshold = new Date(Date.now() + bufferMinutes * 60 * 1000);
 
-  console.log(`[Token Sweep] Looking for tokens expiring before ${threshold.toISOString()}`);
+    console.log(`[Token Sweep] Looking for tokens expiring before ${threshold.toISOString()}`);
 
-  const expiringConnections = await prisma.platformConnection.findMany({
-    where: {
-      isActive: true,
-      tokenExpiresAt: {
-        lte: threshold,
+    const expiringConnections = await prisma.platformConnection.findMany({
+      where: {
+        isActive: true,
+        tokenExpiresAt: {
+          lte: threshold,
+        },
       },
-    },
-  });
+    });
 
-  console.log(`[Token Sweep] Found ${expiringConnections.length} connections to refresh`);
+    console.log(`[Token Sweep] Found ${expiringConnections.length} connections to refresh`);
 
-  for (const connection of expiringConnections) {
-    try {
-      await ensureValidToken(connection);
-      console.log(`[Token Sweep] Refreshed ${connection.platform} for user ${connection.userId}`);
-    } catch (error) {
-      console.error(
-        `[Token Sweep] Failed to refresh ${connection.platform} for user ${connection.userId}:`,
-        error instanceof Error ? error.message : error,
-      );
+    for (const connection of expiringConnections) {
+      try {
+        await ensureValidToken(connection);
+        console.log(`[Token Sweep] Refreshed ${connection.platform} for user ${connection.userId}`);
+      } catch (error) {
+        console.error(
+          `[Token Sweep] Failed to refresh ${connection.platform} for user ${connection.userId}:`,
+          error instanceof Error ? error.message : error,
+        );
+      }
     }
+  } catch (error) {
+    // Don't let DB connectivity issues crash the process
+    console.error('[Token Sweep] Sweep failed (will retry next interval):', error instanceof Error ? error.message : error);
   }
 }

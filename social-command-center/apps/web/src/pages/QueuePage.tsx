@@ -4,6 +4,7 @@ import type { PlatformId } from '@scc/shared';
 import { usePosts, usePublishPost, useCancelPost, useDeletePost, useUpdatePost } from '../hooks/usePosts';
 import { toast } from 'sonner';
 import Header from '../components/layout/Header';
+import { useBreakpoint } from '../hooks/useBreakpoint';
 
 const PLATFORM_MAP_REVERSE: Record<string, PlatformId> = {
   FACEBOOK: 'facebook',
@@ -26,9 +27,11 @@ const STATUS_COLORS: Record<string, { bg: string; color: string; label: string }
 function EditPostModal({
   post,
   onClose,
+  isMobile,
 }: {
   post: any;
   onClose: () => void;
+  isMobile: boolean;
 }) {
   const updatePost = useUpdatePost();
   const [content, setContent] = useState(post.content);
@@ -60,7 +63,7 @@ function EditPostModal({
         inset: 0,
         zIndex: 1000,
         display: 'flex',
-        alignItems: 'center',
+        alignItems: isMobile ? 'stretch' : 'center',
         justifyContent: 'center',
         background: 'rgba(0,0,0,0.5)',
         backdropFilter: 'blur(4px)',
@@ -71,12 +74,15 @@ function EditPostModal({
         onClick={(e) => e.stopPropagation()}
         style={{
           width: '100%',
-          maxWidth: '560px',
+          maxWidth: isMobile ? '100%' : '560px',
           background: 'var(--bg-secondary)',
           border: '1px solid var(--border-color)',
-          borderRadius: '20px',
-          padding: '28px',
+          borderRadius: isMobile ? '0' : '20px',
+          padding: isMobile ? '20px 16px' : '28px',
           boxShadow: 'var(--shadow-lg)',
+          maxHeight: isMobile ? '100vh' : undefined,
+          margin: isMobile ? '0' : undefined,
+          overflowY: isMobile ? 'auto' as const : undefined,
         }}
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
@@ -218,6 +224,7 @@ function EditPostModal({
 }
 
 export default function QueuePage() {
+  const { isMobile } = useBreakpoint();
   const [filter, setFilter] = useState<string | undefined>(undefined);
   const [editingPost, setEditingPost] = useState<any>(null);
   const { data, isLoading } = usePosts({ status: filter, limit: 50 });
@@ -240,13 +247,13 @@ export default function QueuePage() {
       <Header />
 
       {editingPost && (
-        <EditPostModal post={editingPost} onClose={() => setEditingPost(null)} />
+        <EditPostModal post={editingPost} onClose={() => setEditingPost(null)} isMobile={isMobile} />
       )}
 
-      <div style={{ maxWidth: '1000px', margin: '0 auto', padding: '32px' }}>
+      <div style={{ maxWidth: '1000px', margin: '0 auto', padding: isMobile ? '16px' : '32px' }}>
         <h1
           style={{
-            fontSize: '24px',
+            fontSize: isMobile ? '20px' : '24px',
             fontWeight: 800,
             marginBottom: '8px',
             background: 'var(--gradient-text)',
@@ -268,7 +275,7 @@ export default function QueuePage() {
         </p>
 
         {/* Status Filter */}
-        <div style={{ display: 'flex', gap: '4px', marginBottom: '24px' }}>
+        <div style={{ display: 'flex', gap: isMobile ? '6px' : '4px', marginBottom: '24px', flexWrap: 'wrap' }}>
           {filters.map((f) => (
             <button
               key={f}
@@ -330,13 +337,13 @@ export default function QueuePage() {
                 style={{
                   background: 'var(--bg-tertiary)',
                   border: '1px solid var(--border-color)',
-                  borderRadius: '16px',
-                  padding: '20px',
+                  borderRadius: isMobile ? '12px' : '16px',
+                  padding: isMobile ? '14px' : '20px',
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '14px' }}>
+                <div style={{ display: 'flex', alignItems: isMobile ? 'stretch' : 'flex-start', gap: isMobile ? '10px' : '14px', flexDirection: isMobile ? 'column' : 'row' }}>
                   {/* Platform icons */}
-                  <div style={{ display: 'flex', gap: '4px', minWidth: '80px', flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', gap: '4px', minWidth: isMobile ? undefined : '80px', flexWrap: 'wrap' }}>
                     {post.platforms.map((p: string) => {
                       const platformId = PLATFORM_MAP_REVERSE[p];
                       const platform = PLATFORMS.find((pl) => pl.id === platformId);
@@ -382,10 +389,11 @@ export default function QueuePage() {
                     <div
                       style={{
                         display: 'flex',
-                        gap: '12px',
+                        gap: isMobile ? '6px' : '12px',
                         fontSize: '10px',
                         color: 'var(--text-muted)',
                         fontFamily: "'IBM Plex Mono', monospace",
+                        flexWrap: 'wrap',
                       }}
                     >
                       <span>
@@ -400,7 +408,7 @@ export default function QueuePage() {
                   </div>
 
                   {/* Status + Actions */}
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
+                  <div style={{ display: 'flex', flexDirection: isMobile ? 'row' : 'column', alignItems: isMobile ? 'center' : 'flex-end', gap: '8px', flexWrap: 'wrap' }}>
                     <span
                       style={{
                         padding: '4px 10px',
@@ -414,7 +422,7 @@ export default function QueuePage() {
                       {statusInfo.label}
                     </span>
 
-                    <div style={{ display: 'flex', gap: '6px' }}>
+                    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                       {canEdit && (
                         <button
                           onClick={() => setEditingPost(post)}

@@ -10,6 +10,9 @@ import {
   generateHooks as aiHooks,
   repurposeContent as aiRepurpose,
   suggestYouTubeTags as aiSuggestTags,
+  generateCampaignPlan as aiCampaignPlan,
+  generateCampaignBatch as aiCampaignBatch,
+  type CampaignPostOutline,
 } from '../services/ai.js';
 import { checkCredits, deductCredits, CREDIT_COSTS } from '../services/credits.js';
 
@@ -296,5 +299,109 @@ aiRouter.post('/suggest-tags', async (req, res) => {
   } catch (error) {
     console.error('[AI] Tag suggestion failed:', error);
     res.status(500).json({ error: 'Tag suggestion failed. Please try again.' });
+  }
+});
+
+// ─── Campaign Generator ────────────────────────────────────
+
+// Generate campaign plan (outlines) from a topic
+aiRouter.post('/campaign-plan', async (req, res) => {
+  if (!requireAI(res)) return;
+
+  try {
+    const { topic, platforms, tone = 'professional', audience, brandGuidance, postCount = 20 } = req.body as {
+      topic: string;
+      platforms: string[];
+      tone?: string;
+      audience?: string;
+      brandGuidance?: string;
+      postCount?: number;
+    };
+
+    if (!topic?.trim()) {
+      return res.status(400).json({ error: 'Topic is required' });
+    }
+    if (!platforms?.length) {
+      return res.status(400).json({ error: 'At least one platform is required' });
+    }
+
+    const clampedCount = Math.min(Math.max(postCount, 5), 30);
+
+    const cost = CREDIT_COSTS.AI_CAMPAIGN_PLAN;
+    const cc = await checkCredits(req.userId, cost);
+    if (!cc.allowed) {
+      return res.status(402).json({
+        error: `Insufficient credits. Need ${cost}, have ${cc.balance}.`,
+        code: 'INSUFFICIENT_CREDITS',
+        required: cost,
+        balance: cc.balance,
+      });
+    }
+
+    const result = await aiCampaignPlan(topic, platforms, tone, audience, brandGuidance, clampedCount);
+    await deductCredits(req.userId, cost, 'ai-campaign-plan', `Campaign plan: "${result.campaignTheme}"`);
+    res.json({ data: result });
+  } catch (error) {
+    console.error('[AI] Campaign plan failed:', error);
+    res.status(500).json({ error: 'Campaign plan generation failed. Please try again.' });
+  }
+});
+
+// Generate full content for a batch of campaign outlines
+aiRouter.post('/campaign-generate', async (req, res) => {
+  if (!requireAI(res)) return;
+
+  try {
+    const { topic, tone = 'professional', audience, brandGuidance, outlines } = req.body as {
+      topic: string;
+      tone?: string;
+      audience?: string;
+      brandGuidance?: string;
+      outlines: CampaignPostOutline[];
+    };
+
+    if (!topic?.trim()) {
+      return res.status(400).json({ error: 'Topic is required' });
+    }
+    if (!outlines?.length) {
+      return res.status(400).json({ error: 'At least one outline is required' });
+    }
+    if (outlines.length > 8) {
+      return res.status(400).json({ error: 'Maximum 8 outlines per batch' });
+    }
+
+    const cost = CREDIT_COSTS.AI_CAMPAIGN_BATCH;
+    const cc = await checkCredits(req.userId, cost);
+    if (!cc.allowed) {
+      return res.status(402).json({
+        error: `Insufficient credits. Need ${cost}, have ${cc.balance}.`,
+        code: 'INSUFFICIENT_CREDITS',
+        required: cost,
+        balance: cc.balance,
+      });
+    }
+
+    const result = await aiCampaignBatch(topic, tone, audience, brandGuidance, outlines);
+    await deductCredits(req.userId, cost, 'ai-campaign-batch', `Campaign batch: ${outlines.length} posts`);
+    res.json({ data: result });
+  } catch (error: any) {
+    const statusCode = error?.status || error?.response?.status;
+    const errorMsg = error?.message || 'Unknown error';
+    console.error(`[AI] Campaign batch route error (status=${statusCode}):`, errorMsg);
+
+    if (statusCode === 429) {
+      return res.status(429).json({ error: 'AI rate limit reached. Please wait and retry.', code: 'RATE_LIMITED', detail: errorMsg });
+    }
+    if (statusCode === 529 || statusCode === 503) {
+      return res.status(503).json({ error: 'AI service temporarily overloaded. Please retry.', code: 'AI_OVERLOADED', detail: errorMsg });
+    }
+    if (errorMsg.includes('truncated')) {
+      return res.status(502).json({ error: 'AI response was truncated. Retrying should work.', code: 'AI_TRUNCATED', detail: errorMsg });
+    }
+    if (errorMsg.includes('parse') || errorMsg.includes('JSON')) {
+      return res.status(502).json({ error: 'AI returned invalid format. Please retry.', code: 'AI_PARSE_ERROR', detail: errorMsg });
+    }
+    // Pass the actual error detail back so we can diagnose from browser console
+    res.status(500).json({ error: 'Campaign generation failed.', code: 'UNKNOWN', detail: errorMsg });
   }
 });

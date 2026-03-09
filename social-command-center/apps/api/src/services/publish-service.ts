@@ -43,6 +43,7 @@ export async function scheduleMetricsFetches(
   userId: string,
 ): Promise<void> {
   const delays = [
+    { label: '30s', ms: 30 * 1000 },         // Quick first fetch (platforms need a moment to index)
     { label: '1h', ms: 60 * 60 * 1000 },
     { label: '6h', ms: 6 * 60 * 60 * 1000 },
     { label: '24h', ms: 24 * 60 * 60 * 1000 },

@@ -10,6 +10,7 @@ import OAuthCallback from './pages/OAuthCallback';
 import LoginPage from './pages/LoginPage';
 import SettingsPage from './pages/SettingsPage';
 import GeneratorPage from './pages/GeneratorPage';
+import CampaignPage from './pages/CampaignPage';
 import PrivacyPage from './pages/PrivacyPage';
 import TermsPage from './pages/TermsPage';
 import { useSocket } from './hooks/useSocket';
@@ -74,10 +75,12 @@ export function App() {
 
             {/* Protected */}
             <Route path="/" element={<ProtectedLayout><SocialCommandCenter /></ProtectedLayout>} />
+            <Route path="/compose" element={<Navigate to="/" replace />} />
             <Route path="/queue" element={<ProtectedLayout><QueuePage /></ProtectedLayout>} />
             <Route path="/analytics" element={<ProtectedLayout><AnalyticsPage /></ProtectedLayout>} />
             <Route path="/connections" element={<ProtectedLayout><ConnectionManager /></ProtectedLayout>} />
             <Route path="/generator" element={<ProtectedLayout><GeneratorPage /></ProtectedLayout>} />
+            <Route path="/campaigns" element={<ProtectedLayout><CampaignPage /></ProtectedLayout>} />
             <Route path="/settings" element={<ProtectedLayout><SettingsPage /></ProtectedLayout>} />
           </Routes>
         </ThemeInitializer>

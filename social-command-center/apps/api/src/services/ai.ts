@@ -747,6 +747,290 @@ Respond in JSON:
   }
 }
 
+// ─── Campaign Generator ────────────────────────────────────────
+
+export interface CampaignPostOutline {
+  postNumber: number;
+  title: string;
+  angle: string;
+  contentType: 'text-post' | 'carousel-concept' | 'quote-card-idea' | 'video-hook' | 'thread';
+  targetPlatform: string;
+  briefDescription: string;
+  framework: string;
+}
+
+export interface CampaignPlanResult {
+  topic: string;
+  campaignTheme: string;
+  contentPillars: string[];
+  platformMix: Record<string, number>;
+  toneSummary: string;
+  totalPosts: number;
+  outlines: CampaignPostOutline[];
+}
+
+/**
+ * Generate a campaign plan — outlines for multiple posts from a single topic.
+ * Phase 1 of the two-phase campaign generation.
+ */
+export async function generateCampaignPlan(
+  topic: string,
+  platforms: string[],
+  tone: string = 'professional',
+  audience?: string,
+  brandGuidance?: string,
+  postCount: number = 20,
+): Promise<CampaignPlanResult> {
+  const client = getClient();
+
+  const toneDescriptions: Record<string, string> = {
+    professional: 'polished, authoritative, business-appropriate',
+    casual: 'relaxed, conversational, friendly',
+    inspirational: 'uplifting, motivational, empowering',
+    humorous: 'witty, playful, entertaining',
+    storytelling: 'narrative-driven, engaging, personal',
+    'emperor-mode': 'bold, visionary, commanding — channeling the Emperor of HwinNwin Enterprises, conscious tech leader. Reference Protocol 69, The Alliance, consciousness technology.',
+  };
+
+  const toneDesc = toneDescriptions[tone] || toneDescriptions.professional;
+  const audienceLine = audience ? `\nTarget Audience: ${audience}` : '';
+  const brandLine = brandGuidance ? `\nBrand Voice Guidance: ${brandGuidance}` : '';
+
+  const message = await client.messages.create({
+    model: 'claude-sonnet-4-20250514',
+    max_tokens: 8192,
+    system: SYSTEM_PROMPT,
+    messages: [
+      {
+        role: 'user',
+        content: `You are planning a full content CAMPAIGN — ${postCount} strategic social media posts from ONE topic. This is not random content — it's a cohesive campaign with a theme, content pillars, and intentional platform/format distribution.
+
+Topic/Idea: ${topic}
+Target Platforms: ${platforms.join(', ')}
+Tone: ${tone} (${toneDesc})${audienceLine}${brandLine}
+Number of Posts: ${postCount}
+
+## PLATFORM + CONTENT TYPE BIASING (CRITICAL)
+Assign content types to platforms where they perform BEST:
+- "thread" → primarily X (Twitter) — threads are native to X
+- "video-hook" → TikTok, YouTube, Instagram Reels — video-first platforms
+- "carousel-concept" → LinkedIn, Instagram — carousel-native platforms
+- "text-post" → LinkedIn, X, Facebook — text performs well here
+- "quote-card-idea" → Instagram, Facebook — visual quote cards
+
+Do NOT randomly assign types to platforms. Each post should be on the platform where its format thrives.
+
+## ANGLE VARIETY
+Use a DIFFERENT angle for each post. Draw from:
+- "Hot Take" — challenge conventional wisdom
+- "Story Time" — personal narrative with a lesson
+- "Educational" — teach something actionable
+- "Behind the Scenes" — raw, real, relatable
+- "Social Proof" — results, numbers, transformation
+- "Question/Poll" — spark conversation
+- "Trend Jack" — ride a current cultural moment
+- "Listicle" — "X things that..." format
+
+## FRAMEWORK VARIETY
+Each post should use a different copywriting framework:
+- AIDA (Attention → Interest → Desire → Action)
+- PAS (Problem → Agitate → Solve)
+- Hook-Value-CTA
+- Storytelling Arc
+- BAB (Before → After → Bridge)
+
+## OUTPUT
+Generate a campaign theme (a catchy 3-5 word campaign name), 3-4 content pillars, platform distribution summary, and ${postCount} post outlines.
+
+Respond in JSON:
+{
+  "campaignTheme": "catchy campaign name (3-5 words)",
+  "contentPillars": ["pillar 1", "pillar 2", "pillar 3"],
+  "platformMix": { "linkedin": 5, "x": 7, "instagram": 5, "tiktok": 3 },
+  "toneSummary": "brief description of how tone was interpreted for this campaign",
+  "totalPosts": ${postCount},
+  "outlines": [
+    {
+      "postNumber": 1,
+      "title": "short descriptive title for this post",
+      "angle": "Hot Take",
+      "contentType": "text-post",
+      "targetPlatform": "linkedin",
+      "briefDescription": "2-3 sentence description of what this post covers and its strategic purpose",
+      "framework": "PAS"
+    }
+  ]
+}`,
+      },
+    ],
+  });
+
+  const text = message.content[0].type === 'text' ? message.content[0].text : '';
+
+  try {
+    const jsonMatch = text.match(/```json\s*([\s\S]*?)\s*```/) || text.match(/\{[\s\S]*\}/);
+    const parsed = JSON.parse(jsonMatch ? (jsonMatch[1] || jsonMatch[0]) : text);
+    return {
+      topic,
+      campaignTheme: parsed.campaignTheme || 'Untitled Campaign',
+      contentPillars: parsed.contentPillars || [],
+      platformMix: parsed.platformMix || {},
+      toneSummary: parsed.toneSummary || '',
+      totalPosts: parsed.totalPosts || postCount,
+      outlines: (parsed.outlines || []).map((o: CampaignPostOutline, i: number) => ({
+        ...o,
+        postNumber: o.postNumber || i + 1,
+      })),
+    };
+  } catch {
+    throw new Error('Failed to generate campaign plan');
+  }
+}
+
+export interface CampaignGeneratedPost {
+  postNumber: number;
+  platform: string;
+  content: string;
+  hashtags: string[];
+  charCount: number;
+  contentType: string;
+  angle: string;
+  tip: string;
+}
+
+export interface CampaignBatchResult {
+  posts: CampaignGeneratedPost[];
+}
+
+/**
+ * Lighter system prompt for campaign batch generation.
+ * The full SYSTEM_PROMPT is used during plan phase — for batch content generation,
+ * we only need platform specs and copywriting guidance (saves ~1000 input tokens).
+ */
+const CAMPAIGN_BATCH_SYSTEM = `You are an expert social media copywriter. Write platform-native content that feels like it was created by a top-tier creator for THAT specific platform. Every post must be complete, ready to copy-paste and publish.
+
+Platform specs:
+- X (Twitter): MAX 280 chars. Punchy hooks, short sentences, bold claims.
+- Instagram: MAX 2200 chars. Line breaks, storytelling, hashtags at end. First line = headline.
+- LinkedIn: MAX 3000 chars. Thought-leadership, short paragraphs, end with a question.
+- Facebook: Conversational, community-focused, questions that invite comments.
+- TikTok: MAX 2200 chars. Short, trend-aware, CTA-driven. Hook in first line.
+- YouTube: Community post style, SEO-friendly, CTAs for engagement.
+
+Always respond in valid JSON only. No markdown fences, no explanation — just the JSON object.`;
+
+/**
+ * Generate full post content for a batch of campaign outlines.
+ * Phase 2 of the two-phase campaign generation — called in batches of ~4.
+ */
+export async function generateCampaignBatch(
+  topic: string,
+  tone: string = 'professional',
+  audience?: string,
+  brandGuidance?: string,
+  outlines: CampaignPostOutline[] = [],
+): Promise<CampaignBatchResult> {
+  const client = getClient();
+
+  const toneDescriptions: Record<string, string> = {
+    professional: 'polished, authoritative, business-appropriate',
+    casual: 'relaxed, conversational, friendly',
+    inspirational: 'uplifting, motivational, empowering',
+    humorous: 'witty, playful, entertaining',
+    storytelling: 'narrative-driven, engaging, personal',
+    'emperor-mode': 'bold, visionary, commanding — channeling the Emperor of HwinNwin Enterprises, conscious tech leader. Reference Protocol 69, The Alliance, consciousness technology.',
+  };
+
+  const toneDesc = toneDescriptions[tone] || toneDescriptions.professional;
+  const audienceLine = audience ? `\nTarget Audience: ${audience}` : '';
+  const brandLine = brandGuidance ? `\nBrand Voice Guidance: ${brandGuidance}` : '';
+
+  // Use compact JSON to reduce input tokens
+  const outlinesJson = JSON.stringify(outlines);
+
+  const createRequest = () => client.messages.create({
+    model: 'claude-sonnet-4-20250514',
+    max_tokens: 8192,
+    system: CAMPAIGN_BATCH_SYSTEM,
+    messages: [
+      {
+        role: 'user',
+        content: `Write ${outlines.length} social media posts for this campaign. Return ONLY a JSON object.
+
+Topic: ${topic}
+Tone: ${tone} (${toneDesc})${audienceLine}${brandLine}
+
+Outlines: ${outlinesJson}
+
+Return this exact JSON structure:
+{"posts":[{"postNumber":1,"platform":"linkedin","content":"FULL POST TEXT","hashtags":["tag1"],"charCount":245,"contentType":"text-post","angle":"Hot Take","tip":"brief tip"}]}`,
+      },
+    ],
+  });
+
+  // Railway has a 60s proxy timeout. We try once, and auto-retry on timeout.
+  let message;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      // Race the API call against a 50s timeout to stay under Railway's 60s limit
+      const timeout = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('AI_TIMEOUT')), 50000),
+      );
+      message = await Promise.race([createRequest(), timeout]);
+      break; // Success, exit retry loop
+    } catch (apiErr: any) {
+      const errMsg = apiErr?.message || apiErr?.error?.message || 'Unknown API error';
+      if (errMsg === 'AI_TIMEOUT' && attempt === 0) {
+        console.warn('[AI] Campaign batch: timed out at 50s, retrying once...');
+        continue;
+      }
+      const status = apiErr?.status || apiErr?.error?.status;
+      const errType = apiErr?.error?.type || apiErr?.type;
+      console.error(`[AI] Campaign batch API call failed (attempt=${attempt + 1}): status=${status} type=${errType} message=${errMsg}`);
+      const wrapped = new Error(`AI API error: ${errMsg}`);
+      (wrapped as any).status = status;
+      throw wrapped;
+    }
+  }
+
+  if (!message) {
+    throw new Error('AI API error: request timed out after retries');
+  }
+
+  const stopReason = message.stop_reason;
+  const text = message.content[0].type === 'text' ? message.content[0].text : '';
+
+  if (stopReason === 'max_tokens') {
+    console.error('[AI] Campaign batch: response truncated (hit max_tokens). Output length:', text.length);
+    throw new Error('AI response truncated — batch too large');
+  }
+
+  if (!text) {
+    console.error('[AI] Campaign batch: empty response. stop_reason:', stopReason);
+    throw new Error('AI returned empty response');
+  }
+
+  try {
+    // Try direct JSON parse first (since we asked for no markdown fences)
+    let parsed;
+    try {
+      parsed = JSON.parse(text);
+    } catch {
+      // Fallback: extract JSON from markdown fences or find JSON object
+      const jsonMatch = text.match(/```json\s*([\s\S]*?)\s*```/) || text.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        console.error('[AI] Campaign batch: no JSON found. stop_reason:', stopReason, 'First 500 chars:', text.slice(0, 500));
+        throw new Error('Failed to parse AI response');
+      }
+      parsed = JSON.parse(jsonMatch[1] || jsonMatch[0]);
+    }
+    return { posts: parsed.posts || [] };
+  } catch (err: any) {
+    console.error('[AI] Campaign batch parse error:', err.message, 'stop_reason:', stopReason, 'First 500 chars:', text.slice(0, 500));
+    throw new Error(`Failed to parse campaign batch: ${err.message}`);
+  }
+}
+
 // ─── YouTube Tag Suggestions ────────────────────────────────────
 
 export async function suggestYouTubeTags(

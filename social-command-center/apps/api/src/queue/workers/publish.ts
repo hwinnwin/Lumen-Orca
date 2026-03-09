@@ -136,9 +136,10 @@ export const publishWorker = new Worker<PublishJobData>(
       ? connection.platformUserId || undefined
       : connection.platformPageId || connection.platformUserId || undefined;
 
-    // Facebook requires pre-uploading media to get IDs.
-    // For videos: upload publishes directly (description included in finish phase).
-    // For images: upload as unpublished, then attach via feed post.
+    // Facebook & LinkedIn require pre-uploading media to get platform IDs.
+    // For Facebook videos: upload publishes directly (description included in finish phase).
+    // For Facebook images: upload as unpublished, then attach via feed post.
+    // For LinkedIn: upload all images via Images API, then reference URNs in post.
     // Instagram uses media URLs directly in the publish call.
     let platformMediaIds: string[] | undefined;
 
@@ -190,6 +191,50 @@ export const publishWorker = new Worker<PublishJobData>(
       console.log(`[Publish] Facebook: ${platformMediaIds.length}/${mediaUrls.length} media items uploaded`);
     }
 
+    // LinkedIn requires pre-uploading images via the Images API to get URNs
+    if (platformEnum === 'LINKEDIN' && mediaUrls.length > 0) {
+      const memberId = connection.platformUserId;
+      console.log(`[Publish] LinkedIn: uploading ${mediaUrls.length} image(s)`);
+      platformMediaIds = [];
+      for (const [idx, url] of mediaUrls.entries()) {
+        try {
+          const mediaAttachment = readyMedia[idx];
+          const mimeType = mediaAttachment?.media.mimeType || 'image/png';
+
+          let fileBuffer: Buffer;
+          if (!isS3Configured && mediaAttachment?.media.originalKey) {
+            const localBuf = await readFromLocalStorage(mediaAttachment.media.originalKey);
+            if (!localBuf) {
+              console.warn(`[Publish] LinkedIn: could not read local file for key ${mediaAttachment.media.originalKey}`);
+              continue;
+            }
+            fileBuffer = localBuf;
+          } else {
+            const response = await fetch(url);
+            if (!response.ok) {
+              console.warn(`[Publish] LinkedIn: failed to fetch media from ${url.substring(0, 80)}: ${response.status}`);
+              continue;
+            }
+            fileBuffer = Buffer.from(await response.arrayBuffer());
+          }
+
+          const uploadResult = await adapter.uploadMedia({
+            accessToken,
+            fileBuffer,
+            mimeType,
+            filename: mediaAttachment?.media.originalKey?.split('/').pop() || `media-${idx}.png`,
+            pageId: memberId || undefined,
+          });
+
+          platformMediaIds.push(uploadResult.platformMediaId);
+          console.log(`[Publish] LinkedIn: uploaded image ${idx + 1}/${mediaUrls.length}, urn: ${uploadResult.platformMediaId}`);
+        } catch (err) {
+          console.error(`[Publish] LinkedIn: failed to upload image ${idx + 1}:`, err);
+        }
+      }
+      console.log(`[Publish] LinkedIn: ${platformMediaIds.length}/${mediaUrls.length} images uploaded`);
+    }
+
     // YouTube requires downloading the video into a buffer for resumable upload
     let videoBuffer: Buffer | undefined;
     if (platformEnum === 'YOUTUBE' && mediaUrls.length > 0 && hasVideo) {
@@ -238,7 +283,7 @@ export const publishWorker = new Worker<PublishJobData>(
     recordPublish(platformEnum, userId);
 
     // Update publish result
-    await prisma.publishResult.update({
+    const updatedResult = await prisma.publishResult.update({
       where: { postId_platform: { postId, platform: platformEnum } },
       data: {
         status: 'SUCCESS',
@@ -255,7 +300,7 @@ export const publishWorker = new Worker<PublishJobData>(
 
     // Schedule metrics fetches at 1h, 6h, 24h, 7d
     await scheduleMetricsFetches(
-      `${postId}_${platform}`,
+      updatedResult.id,
       result.platformPostId,
       platform,
       userId,

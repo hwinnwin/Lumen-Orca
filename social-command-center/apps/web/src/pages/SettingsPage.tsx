@@ -5,6 +5,7 @@ import { useConnections } from '../hooks/useConnections';
 import { PLATFORMS } from '@scc/shared';
 import { toast } from 'sonner';
 import Header from '../components/layout/Header';
+import { useBreakpoint } from '../hooks/useBreakpoint';
 
 const TIMEZONES = [
   'UTC',
@@ -32,6 +33,7 @@ export default function SettingsPage() {
   const { data: connections } = useConnections();
   const theme = useUIStore((s) => s.theme);
   const toggleTheme = useUIStore((s) => s.toggleTheme);
+  const { isMobile } = useBreakpoint();
 
   const [name, setName] = useState('');
   const [timezone, setTimezone] = useState('UTC');
@@ -154,7 +156,7 @@ export default function SettingsPage() {
       }}
     >
       <Header />
-      <div style={{ maxWidth: '700px', margin: '0 auto', padding: '32px' }}>
+      <div style={{ maxWidth: '700px', margin: '0 auto', padding: isMobile ? '16px' : '32px' }}>
         <h1
           style={{
             fontSize: '24px',

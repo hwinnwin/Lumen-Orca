@@ -156,7 +156,7 @@ async function executeCreatePost(
       userId,
       content: content.trim(),
       platforms: validPlatforms,
-      scheduleType: isImmediate ? 'IMMEDIATE' : 'DRAFT',
+      scheduleType: 'IMMEDIATE',
       status: isImmediate ? 'QUEUED' : 'DRAFT',
       tags,
       timezone: 'UTC',

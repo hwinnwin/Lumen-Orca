@@ -80,6 +80,102 @@ postsRouter.post('/', async (req, res) => {
   }
 });
 
+// Bulk create posts (for campaign generator)
+postsRouter.post('/bulk', async (req, res) => {
+  try {
+    const { requestId, posts: postInputs } = req.body as {
+      requestId?: string;
+      posts: Array<{
+        content: string;
+        platforms: Platform[];
+        scheduleType: ScheduleType;
+        scheduledAt?: string;
+        tags?: string[];
+      }>;
+    };
+
+    if (!postInputs?.length) {
+      return res.status(400).json({ error: 'At least one post is required' });
+    }
+    if (postInputs.length > 50) {
+      return res.status(400).json({ error: 'Maximum 50 posts per bulk request' });
+    }
+
+    // Duplicate protection: if requestId provided, check for existing posts with this tag
+    if (requestId) {
+      const existing = await prisma.post.count({
+        where: {
+          userId: req.userId,
+          tags: { has: `requestId:${requestId}` },
+        },
+      });
+      if (existing > 0) {
+        return res.status(409).json({
+          error: 'Posts for this campaign have already been created',
+          code: 'DUPLICATE_REQUEST',
+          existingCount: existing,
+        });
+      }
+    }
+
+    const created: any[] = [];
+    const failures: Array<{ index: number; error: string }> = [];
+
+    for (let i = 0; i < postInputs.length; i++) {
+      const input = postInputs[i];
+      try {
+        if (!input.content?.trim()) {
+          failures.push({ index: i, error: 'Content is required' });
+          continue;
+        }
+        if (!input.platforms?.length) {
+          failures.push({ index: i, error: 'At least one platform is required' });
+          continue;
+        }
+
+        const tags = [...(input.tags || [])];
+        if (requestId) tags.push(`requestId:${requestId}`);
+
+        // Normalize platform names to uppercase enum values (AI returns lowercase)
+        const normalizedPlatforms = input.platforms.map(
+          (p: string) => p.toUpperCase() as Platform,
+        );
+
+        const post = await prisma.post.create({
+          data: {
+            userId: req.userId,
+            content: input.content.trim(),
+            platforms: normalizedPlatforms,
+            scheduleType: input.scheduleType || 'DRAFT',
+            scheduledAt: input.scheduledAt ? new Date(input.scheduledAt) : null,
+            tags,
+            status: input.scheduleType === 'IMMEDIATE' ? 'QUEUED' : 'DRAFT',
+          },
+          include: { publishResults: true },
+        });
+
+        // Enqueue publish jobs if immediate
+        if (input.scheduleType === 'IMMEDIATE') {
+          await enqueuePublishJobs(post);
+        }
+
+        created.push(post);
+      } catch (err: any) {
+        failures.push({ index: i, error: err.message || 'Unknown error' });
+      }
+    }
+
+    res.status(201).json({
+      data: created,
+      meta: { count: postInputs.length, succeeded: created.length, failed: failures.length },
+      failures: failures.length > 0 ? failures : undefined,
+    });
+  } catch (error) {
+    console.error('Failed to bulk create posts:', error);
+    res.status(500).json({ error: 'Failed to bulk create posts' });
+  }
+});
+
 // List posts for the authenticated user
 postsRouter.get('/', async (req, res) => {
   try {

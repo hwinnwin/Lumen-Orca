@@ -9,6 +9,7 @@ import { useComposeStore } from '../store/compose-store';
 import { toast } from 'sonner';
 import { suggestYouTubeTags } from '../services/api';
 import Header from '../components/layout/Header';
+import { useBreakpoint } from '../hooks/useBreakpoint';
 
 // Animated background particles
 function ParticleField() {
@@ -1292,6 +1293,7 @@ function PostQueue({ queue }: { queue: QueueItem[] }) {
 }
 
 export default function SocialCommandCenter() {
+  const { isMobile, isTablet } = useBreakpoint();
   const [activePlatforms, setActivePlatforms] = useState<PlatformId[]>([]);
   const [content, setContent] = useState('');
   const [schedule, setSchedule] = useState<string>('Now');
@@ -1308,6 +1310,11 @@ export default function SocialCommandCenter() {
   const [youtubeDescription, setYoutubeDescription] = useState('');
   const [youtubeTags, setYoutubeTags] = useState('');
   const [suggestingTags, setSuggestingTags] = useState(false);
+  const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
+
+  const toggleSection = (key: string) => {
+    setCollapsedSections((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
 
 
   const { data: connections } = useConnections();
@@ -1536,7 +1543,7 @@ export default function SocialCommandCenter() {
         color: 'var(--text-primary)',
         fontFamily: "'Sora', sans-serif",
         position: 'relative',
-        overflow: 'hidden',
+        maxWidth: '100vw',
       }}
     >
       <style>{`
@@ -1608,16 +1615,17 @@ export default function SocialCommandCenter() {
           position: 'relative',
           zIndex: 1,
           display: 'grid',
-          gridTemplateColumns: '280px 1fr 300px',
+          gridTemplateColumns: isMobile ? '1fr' : isTablet ? '220px 1fr' : '280px 1fr 300px',
           gap: '0',
-          minHeight: 'calc(100vh - 91px)',
+          minHeight: isMobile ? 'auto' : 'calc(100vh - 91px)',
         }}
       >
         {/* LEFT: Platform Selector */}
         <div
           style={{
-            padding: '24px',
-            borderRight: '1px solid var(--border-subtle)',
+            padding: isMobile ? '16px' : '24px',
+            borderRight: isMobile ? 'none' : '1px solid var(--border-subtle)',
+            borderBottom: isMobile ? '1px solid var(--border-subtle)' : 'none',
           }}
         >
           <div
@@ -1627,7 +1635,7 @@ export default function SocialCommandCenter() {
               color: 'var(--text-muted)',
               letterSpacing: '0.15em',
               textTransform: 'uppercase',
-              marginBottom: '16px',
+              marginBottom: isMobile ? '10px' : '16px',
               fontFamily: "'IBM Plex Mono', monospace",
             }}
           >
@@ -1635,82 +1643,141 @@ export default function SocialCommandCenter() {
           </div>
 
           <div
-            style={{
+            style={isMobile ? {
+              display: 'flex',
+              flexDirection: 'row',
+              gap: '8px',
+              overflowX: 'auto',
+              WebkitOverflowScrolling: 'touch',
+              paddingBottom: '8px',
+            } : {
               display: 'flex',
               flexDirection: 'column',
               gap: '8px',
             }}
           >
-            {PLATFORMS.map((p) => (
-              <PlatformToggle
-                key={p.id}
-                platform={p}
-                active={activePlatforms.includes(p.id)}
-                connected={connectedPlatforms.has(p.id)}
-                needsVideo={p.id === 'youtube' && connectedPlatforms.has(p.id) && !hasVideoAttached}
-                onClick={() => togglePlatform(p.id)}
-              />
-            ))}
+            {PLATFORMS.map((p) => {
+              const accent = p.accent || p.color;
+              const isActive = activePlatforms.includes(p.id);
+              const isConnected = connectedPlatforms.has(p.id);
+              const needsVideo = p.id === 'youtube' && isConnected && !hasVideoAttached;
+              const disabled = !isConnected || needsVideo;
+
+              if (isMobile) {
+                return (
+                  <button
+                    key={p.id}
+                    onClick={disabled ? undefined : () => togglePlatform(p.id)}
+                    style={{
+                      padding: '8px 14px',
+                      borderRadius: '20px',
+                      flexShrink: 0,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      background: disabled
+                        ? 'var(--bg-tertiary)'
+                        : isActive
+                          ? p.bg
+                          : 'var(--bg-tertiary)',
+                      border: `1.5px solid ${disabled ? 'var(--bg-tertiary)' : isActive ? accent : 'var(--border-color)'}`,
+                      cursor: disabled ? 'not-allowed' : 'pointer',
+                      opacity: disabled ? 0.3 : isActive ? 1 : 0.5,
+                      color: disabled ? 'var(--text-disabled)' : isActive ? accent : 'var(--text-tertiary)',
+                      fontSize: '12px',
+                      fontWeight: 700,
+                      fontFamily: "'Sora', sans-serif",
+                      transition: 'all 0.2s ease',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    <span style={{ fontSize: '14px' }}>{p.icon}</span>
+                    {p.name}
+                  </button>
+                );
+              }
+
+              return (
+                <PlatformToggle
+                  key={p.id}
+                  platform={p}
+                  active={isActive}
+                  connected={isConnected}
+                  needsVideo={needsVideo}
+                  onClick={() => togglePlatform(p.id)}
+                />
+              );
+            })}
           </div>
 
-          <button
-            onClick={() => {
-              const connected = PLATFORMS
-                .filter((p) => connectedPlatforms.has(p.id))
-                .filter((p) => p.id !== 'youtube' || hasVideoAttached) // YouTube only when video attached
-                .map((p) => p.id);
-              if (connected.length === 0) {
-                toast.error('No platforms connected', {
-                  description: 'Go to the Connections page to link your accounts.',
-                });
-                return;
-              }
-              setActivePlatforms(connected);
-            }}
-            style={{
-              width: '100%',
-              marginTop: '16px',
-              padding: '10px',
-              background:
-                connectedPlatforms.size > 0
-                  ? 'linear-gradient(135deg, rgba(139,92,246,0.08), rgba(6,182,212,0.08))'
-                  : 'var(--bg-tertiary)',
-              border: `1px solid ${connectedPlatforms.size > 0 ? 'rgba(139,92,246,0.15)' : 'var(--bg-hover)'}`,
-              borderRadius: '10px',
-              cursor: connectedPlatforms.size > 0 ? 'pointer' : 'not-allowed',
-              color: connectedPlatforms.size > 0 ? '#a78bfa' : 'var(--text-disabled)',
-              fontSize: '11px',
-              fontWeight: 700,
-              transition: 'all 0.2s ease',
-            }}
+          <div
+            style={isMobile ? {
+              display: 'flex',
+              gap: '8px',
+              marginTop: '10px',
+            } : {}}
           >
-            {'\u26A1'} Select All Connected ({connectedPlatforms.size})
-          </button>
+            <button
+              onClick={() => {
+                const connected = PLATFORMS
+                  .filter((p) => connectedPlatforms.has(p.id))
+                  .filter((p) => p.id !== 'youtube' || hasVideoAttached) // YouTube only when video attached
+                  .map((p) => p.id);
+                if (connected.length === 0) {
+                  toast.error('No platforms connected', {
+                    description: 'Go to the Connections page to link your accounts.',
+                  });
+                  return;
+                }
+                setActivePlatforms(connected);
+              }}
+              style={{
+                width: isMobile ? 'auto' : '100%',
+                flex: isMobile ? 1 : undefined,
+                marginTop: isMobile ? '0' : '16px',
+                padding: '10px',
+                background:
+                  connectedPlatforms.size > 0
+                    ? 'linear-gradient(135deg, rgba(139,92,246,0.08), rgba(6,182,212,0.08))'
+                    : 'var(--bg-tertiary)',
+                border: `1px solid ${connectedPlatforms.size > 0 ? 'rgba(139,92,246,0.15)' : 'var(--bg-hover)'}`,
+                borderRadius: '10px',
+                cursor: connectedPlatforms.size > 0 ? 'pointer' : 'not-allowed',
+                color: connectedPlatforms.size > 0 ? '#a78bfa' : 'var(--text-disabled)',
+                fontSize: '11px',
+                fontWeight: 700,
+                transition: 'all 0.2s ease',
+              }}
+            >
+              {'\u26A1'} Select All ({connectedPlatforms.size})
+            </button>
 
-          <button
-            onClick={() => setActivePlatforms([])}
-            style={{
-              width: '100%',
-              marginTop: '6px',
-              padding: '10px',
-              background: 'transparent',
-              border: '1px solid var(--border-subtle)',
-              borderRadius: '10px',
-              cursor: 'pointer',
-              color: 'var(--text-disabled)',
-              fontSize: '11px',
-              fontWeight: 600,
-              transition: 'all 0.2s ease',
-            }}
-          >
-            Clear Selection
-          </button>
+            <button
+              onClick={() => setActivePlatforms([])}
+              style={{
+                width: isMobile ? 'auto' : '100%',
+                flex: isMobile ? 1 : undefined,
+                marginTop: isMobile ? '0' : '6px',
+                padding: '10px',
+                background: 'transparent',
+                border: '1px solid var(--border-subtle)',
+                borderRadius: '10px',
+                cursor: 'pointer',
+                color: 'var(--text-disabled)',
+                fontSize: '11px',
+                fontWeight: 600,
+                transition: 'all 0.2s ease',
+              }}
+            >
+              Clear
+            </button>
+          </div>
         </div>
 
         {/* CENTER: Compose Area */}
         <div
           style={{
-            padding: '24px',
+            padding: isMobile ? '16px' : '24px',
             display: 'flex',
             flexDirection: 'column',
             gap: '16px',
@@ -1766,11 +1833,11 @@ export default function SocialCommandCenter() {
           <div
             style={{
               flex: 1,
-              minHeight: '300px',
+              minHeight: isMobile ? '200px' : '300px',
               background: 'var(--bg-tertiary)',
               border: '1px solid var(--border-color)',
-              borderRadius: '20px',
-              padding: '20px',
+              borderRadius: isMobile ? '14px' : '20px',
+              padding: isMobile ? '14px' : '20px',
               display: 'flex',
               flexDirection: 'column',
             }}
@@ -1962,7 +2029,7 @@ export default function SocialCommandCenter() {
                   {youtubeDescription.length}/5000
                 </span>
               </div>
-              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              <div style={{ display: 'flex', gap: '8px', alignItems: isMobile ? 'stretch' : 'center', flexDirection: isMobile ? 'column' : 'row' }}>
                 <input
                   type="text"
                   value={youtubeTags}
@@ -1979,6 +2046,7 @@ export default function SocialCommandCenter() {
                     fontFamily: "'Sora', sans-serif",
                     outline: 'none',
                     boxSizing: 'border-box',
+                    width: isMobile ? '100%' : undefined,
                   }}
                 />
                 <button
@@ -2058,7 +2126,19 @@ export default function SocialCommandCenter() {
 
           {/* Schedule + Post */}
           <div
-            style={{
+            style={isMobile ? {
+              position: 'sticky',
+              bottom: 0,
+              left: 0,
+              right: 0,
+              background: 'var(--bg-primary)',
+              borderTop: '1px solid var(--border-subtle)',
+              padding: '12px 0 16px 0',
+              zIndex: 10,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '10px',
+            } : {
               display: 'flex',
               alignItems: 'center',
               gap: '12px',
@@ -2072,6 +2152,8 @@ export default function SocialCommandCenter() {
                 border: '1px solid var(--border-color)',
                 borderRadius: '12px',
                 padding: '4px',
+                overflowX: isMobile ? 'auto' : undefined,
+                WebkitOverflowScrolling: isMobile ? 'touch' : undefined,
               }}
             >
               {SCHEDULE_OPTIONS.map((opt) => (
@@ -2079,7 +2161,7 @@ export default function SocialCommandCenter() {
                   key={opt}
                   onClick={() => setSchedule(opt)}
                   style={{
-                    padding: '8px 12px',
+                    padding: isMobile ? '8px 10px' : '8px 12px',
                     borderRadius: '8px',
                     background:
                       schedule === opt
@@ -2091,6 +2173,8 @@ export default function SocialCommandCenter() {
                     fontSize: '11px',
                     fontWeight: 600,
                     transition: 'all 0.2s ease',
+                    whiteSpace: 'nowrap',
+                    flexShrink: 0,
                   }}
                 >
                   {opt}
@@ -2113,6 +2197,8 @@ export default function SocialCommandCenter() {
                   fontSize: '12px',
                   fontFamily: "'Sora', sans-serif",
                   outline: 'none',
+                  width: isMobile ? '100%' : undefined,
+                  boxSizing: 'border-box',
                 }}
               />
             )}
@@ -2121,7 +2207,8 @@ export default function SocialCommandCenter() {
               onClick={handlePost}
               disabled={posting || !canPost}
               style={{
-                marginLeft: 'auto',
+                marginLeft: isMobile ? undefined : 'auto',
+                width: isMobile ? '100%' : undefined,
                 padding: '14px 32px',
                 background: posting
                   ? 'rgba(139,92,246,0.15)'
@@ -2142,6 +2229,7 @@ export default function SocialCommandCenter() {
                 opacity: !canPost ? 0.3 : 1,
                 display: 'flex',
                 alignItems: 'center',
+                justifyContent: 'center',
                 gap: '8px',
               }}
             >
@@ -2156,194 +2244,487 @@ export default function SocialCommandCenter() {
               )}
             </button>
           </div>
-        </div>
 
-        {/* RIGHT: AI + Queue */}
-        <div
-          style={{
-            padding: '24px',
-            borderLeft: '1px solid var(--border-subtle)',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '16px',
-            overflowY: 'auto',
-          }}
-        >
-          <BrainstormPanel
-            activePlatforms={activePlatforms}
-            connectedPlatforms={connectedPlatforms}
-            onUsePost={(text, platform) => {
-              setContent(text);
-              if (platform && connectedPlatforms.has(platform) && !activePlatforms.includes(platform)) {
-                setActivePlatforms((prev) => [...prev, platform]);
-              }
-            }}
-            onLoadAllPosts={(mainContent, overrides, platforms) => {
-              setContent(mainContent);
-              setPlatformOverrides(overrides);
-              setActivePlatforms(platforms);
-            }}
-          />
-
-          <AIEnhancePanel
-            content={content}
-            onApply={(text) => setContent(text)}
-          />
-
-          {/* Platform-specific overrides */}
-          <div
-            style={{
-              background: 'var(--bg-tertiary)',
-              border: '1px solid var(--border-color)',
-              borderRadius: '16px',
-              padding: '16px',
-            }}
-          >
+          {/* RIGHT PANEL CONTENT — rendered inline on mobile/tablet */}
+          {(isMobile || isTablet) && (
             <div
               style={{
-                fontSize: '10px',
-                fontWeight: 700,
-                color: 'var(--text-muted)',
-                letterSpacing: '0.15em',
-                textTransform: 'uppercase',
-                marginBottom: '12px',
-                fontFamily: "'IBM Plex Mono', monospace",
                 display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
+                flexDirection: 'column',
+                gap: '16px',
+                marginTop: '8px',
               }}
             >
-              <span>{'\u{1F3AF}'}</span> Platform Overrides
-            </div>
-            <div
-              style={{
-                fontSize: '11px',
-                color: 'var(--text-disabled)',
-                lineHeight: 1.6,
-              }}
-            >
-              Customize content per platform. Each platform will use the
-              main content unless overridden.
-            </div>
-            {activePlatforms.map((id) => {
-              const p = PLATFORMS.find((pl) => pl.id === id)!;
-              return (
-                <div key={id} style={{ marginTop: '10px' }}>
-                  <div
-                    style={{
-                      fontSize: '11px',
-                      fontWeight: 600,
-                      color: p.accent || p.color,
-                      marginBottom: '4px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                    }}
-                  >
-                    {p.icon} {p.name}
-                  </div>
-                  <textarea
-                    placeholder={`Override for ${p.name}...`}
-                    value={platformOverrides[id] || ''}
-                    onChange={(e) =>
-                      setPlatformOverrides((prev) => ({
-                        ...prev,
-                        [id]: e.target.value,
-                      }))
-                    }
+              {/* Brainstorm — collapsible on mobile */}
+              <div
+                style={{
+                  background: 'var(--bg-tertiary)',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: '16px',
+                  overflow: 'hidden',
+                }}
+              >
+                {isMobile && (
+                  <button
+                    onClick={() => toggleSection('brainstorm')}
                     style={{
                       width: '100%',
-                      height: '50px',
-                      resize: 'none',
-                      background: 'var(--bg-tertiary)',
-                      border: '1px solid var(--border-color)',
-                      borderRadius: '8px',
-                      padding: '8px',
+                      padding: '14px 16px',
+                      background: 'transparent',
+                      border: 'none',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
                       color: 'var(--text-secondary)',
-                      fontSize: '11px',
-                      fontFamily: "'IBM Plex Mono', monospace",
+                      fontSize: '13px',
+                      fontWeight: 700,
+                      fontFamily: "'Sora', sans-serif",
                     }}
-                  />
-                </div>
-              );
-            })}
-          </div>
+                  >
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      {'\u{1F4A1}'} AI Brainstorm
+                    </span>
+                    <span style={{ fontSize: '12px', color: 'var(--text-muted)', transition: 'transform 0.2s ease', transform: collapsedSections['brainstorm'] ? 'rotate(0deg)' : 'rotate(180deg)' }}>{'\u25B2'}</span>
+                  </button>
+                )}
+                {(!isMobile || !collapsedSections['brainstorm']) && (
+                  <div style={{ padding: isMobile ? '0 16px 16px 16px' : '0' }}>
+                    <BrainstormPanel
+                      activePlatforms={activePlatforms}
+                      connectedPlatforms={connectedPlatforms}
+                      onUsePost={(text, platform) => {
+                        setContent(text);
+                        if (platform && connectedPlatforms.has(platform) && !activePlatforms.includes(platform)) {
+                          setActivePlatforms((prev) => [...prev, platform]);
+                        }
+                      }}
+                      onLoadAllPosts={(mainContent, overrides, platforms) => {
+                        setContent(mainContent);
+                        setPlatformOverrides(overrides);
+                        setActivePlatforms(platforms);
+                      }}
+                    />
+                  </div>
+                )}
+              </div>
 
-          <PostQueue queue={queue} />
+              {/* AI Enhance — collapsible on mobile */}
+              <div
+                style={{
+                  background: 'var(--bg-tertiary)',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: '16px',
+                  overflow: 'hidden',
+                }}
+              >
+                {isMobile && (
+                  <button
+                    onClick={() => toggleSection('enhance')}
+                    style={{
+                      width: '100%',
+                      padding: '14px 16px',
+                      background: 'transparent',
+                      border: 'none',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      color: 'var(--text-secondary)',
+                      fontSize: '13px',
+                      fontWeight: 700,
+                      fontFamily: "'Sora', sans-serif",
+                    }}
+                  >
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      {'\u{1F9E0}'} AI Enhance
+                    </span>
+                    <span style={{ fontSize: '12px', color: 'var(--text-muted)', transition: 'transform 0.2s ease', transform: collapsedSections['enhance'] ? 'rotate(0deg)' : 'rotate(180deg)' }}>{'\u25B2'}</span>
+                  </button>
+                )}
+                {(!isMobile || !collapsedSections['enhance']) && (
+                  <div style={{ padding: isMobile ? '0 16px 16px 16px' : '0' }}>
+                    <AIEnhancePanel
+                      content={content}
+                      onApply={(text) => setContent(text)}
+                    />
+                  </div>
+                )}
+              </div>
 
-          {/* Quick hashtag suggestions */}
+              {/* Platform Overrides — collapsible on mobile */}
+              <div
+                style={{
+                  background: 'var(--bg-tertiary)',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: '16px',
+                  overflow: 'hidden',
+                }}
+              >
+                {isMobile && (
+                  <button
+                    onClick={() => toggleSection('overrides')}
+                    style={{
+                      width: '100%',
+                      padding: '14px 16px',
+                      background: 'transparent',
+                      border: 'none',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      color: 'var(--text-secondary)',
+                      fontSize: '13px',
+                      fontWeight: 700,
+                      fontFamily: "'Sora', sans-serif",
+                    }}
+                  >
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      {'\u{1F3AF}'} Platform Overrides
+                    </span>
+                    <span style={{ fontSize: '12px', color: 'var(--text-muted)', transition: 'transform 0.2s ease', transform: collapsedSections['overrides'] ? 'rotate(0deg)' : 'rotate(180deg)' }}>{'\u25B2'}</span>
+                  </button>
+                )}
+                {(!isMobile || !collapsedSections['overrides']) && (
+                  <div style={{ padding: '16px' }}>
+                    <div
+                      style={{
+                        fontSize: '11px',
+                        color: 'var(--text-disabled)',
+                        lineHeight: 1.6,
+                      }}
+                    >
+                      Customize content per platform. Each platform will use the
+                      main content unless overridden.
+                    </div>
+                    {activePlatforms.map((id) => {
+                      const p = PLATFORMS.find((pl) => pl.id === id)!;
+                      return (
+                        <div key={id} style={{ marginTop: '10px' }}>
+                          <div
+                            style={{
+                              fontSize: '11px',
+                              fontWeight: 600,
+                              color: p.accent || p.color,
+                              marginBottom: '4px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                            }}
+                          >
+                            {p.icon} {p.name}
+                          </div>
+                          <textarea
+                            placeholder={`Override for ${p.name}...`}
+                            value={platformOverrides[id] || ''}
+                            onChange={(e) =>
+                              setPlatformOverrides((prev) => ({
+                                ...prev,
+                                [id]: e.target.value,
+                              }))
+                            }
+                            style={{
+                              width: '100%',
+                              height: '50px',
+                              resize: 'none',
+                              background: 'var(--bg-tertiary)',
+                              border: '1px solid var(--border-color)',
+                              borderRadius: '8px',
+                              padding: '8px',
+                              color: 'var(--text-secondary)',
+                              fontSize: '11px',
+                              fontFamily: "'IBM Plex Mono', monospace",
+                              boxSizing: 'border-box',
+                            }}
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              <PostQueue queue={queue} />
+
+              {/* Quick Tags — collapsible on mobile */}
+              <div
+                style={{
+                  background: 'var(--bg-tertiary)',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: '16px',
+                  overflow: 'hidden',
+                }}
+              >
+                {isMobile && (
+                  <button
+                    onClick={() => toggleSection('quicktags')}
+                    style={{
+                      width: '100%',
+                      padding: '14px 16px',
+                      background: 'transparent',
+                      border: 'none',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      color: 'var(--text-secondary)',
+                      fontSize: '13px',
+                      fontWeight: 700,
+                      fontFamily: "'Sora', sans-serif",
+                    }}
+                  >
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      # Quick Tags
+                    </span>
+                    <span style={{ fontSize: '12px', color: 'var(--text-muted)', transition: 'transform 0.2s ease', transform: collapsedSections['quicktags'] ? 'rotate(0deg)' : 'rotate(180deg)' }}>{'\u25B2'}</span>
+                  </button>
+                )}
+                {(!isMobile || !collapsedSections['quicktags']) && (
+                  <div style={{ padding: '16px' }}>
+                    <div
+                      style={{
+                        display: 'flex',
+                        gap: '6px',
+                        flexWrap: 'wrap',
+                      }}
+                    >
+                      {[
+                        '#HwinNwin',
+                        '#Protocol69',
+                        '#TheAlliance',
+                        '#ConsciousTech',
+                        '#LumenSystems',
+                        '#VybeSystems',
+                        '#EmperorMode',
+                        '#Frequency',
+                        '#NeverTake',
+                      ].map((tag) => (
+                        <button
+                          key={tag}
+                          onClick={() =>
+                            setContent((prev) => prev + ' ' + tag)
+                          }
+                          style={{
+                            padding: '4px 10px',
+                            borderRadius: '20px',
+                            background: 'var(--bg-tertiary)',
+                            border: '1px solid var(--border-color)',
+                            color: 'var(--text-tertiary)',
+                            fontSize: '10px',
+                            cursor: 'pointer',
+                            fontFamily: "'IBM Plex Mono', monospace",
+                            transition: 'all 0.15s ease',
+                          }}
+                          onMouseEnter={(e) => {
+                            const target = e.target as HTMLElement;
+                            target.style.color = '#a78bfa';
+                            target.style.borderColor = 'rgba(139,92,246,0.3)';
+                          }}
+                          onMouseLeave={(e) => {
+                            const target = e.target as HTMLElement;
+                            target.style.color = 'var(--text-tertiary)';
+                            target.style.borderColor = 'var(--border-color)';
+                          }}
+                        >
+                          {tag}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* RIGHT: AI + Queue — desktop only as separate column */}
+        {!isMobile && !isTablet && (
           <div
             style={{
-              background: 'var(--bg-tertiary)',
-              border: '1px solid var(--border-color)',
-              borderRadius: '16px',
-              padding: '16px',
+              padding: '24px',
+              borderLeft: '1px solid var(--border-subtle)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '16px',
+              overflowY: 'auto',
             }}
           >
+            <BrainstormPanel
+              activePlatforms={activePlatforms}
+              connectedPlatforms={connectedPlatforms}
+              onUsePost={(text, platform) => {
+                setContent(text);
+                if (platform && connectedPlatforms.has(platform) && !activePlatforms.includes(platform)) {
+                  setActivePlatforms((prev) => [...prev, platform]);
+                }
+              }}
+              onLoadAllPosts={(mainContent, overrides, platforms) => {
+                setContent(mainContent);
+                setPlatformOverrides(overrides);
+                setActivePlatforms(platforms);
+              }}
+            />
+
+            <AIEnhancePanel
+              content={content}
+              onApply={(text) => setContent(text)}
+            />
+
+            {/* Platform-specific overrides */}
             <div
               style={{
-                fontSize: '10px',
-                fontWeight: 700,
-                color: 'var(--text-muted)',
-                letterSpacing: '0.15em',
-                textTransform: 'uppercase',
-                marginBottom: '10px',
-                fontFamily: "'IBM Plex Mono', monospace",
+                background: 'var(--bg-tertiary)',
+                border: '1px solid var(--border-color)',
+                borderRadius: '16px',
+                padding: '16px',
               }}
             >
-              # Quick Tags
+              <div
+                style={{
+                  fontSize: '10px',
+                  fontWeight: 700,
+                  color: 'var(--text-muted)',
+                  letterSpacing: '0.15em',
+                  textTransform: 'uppercase',
+                  marginBottom: '12px',
+                  fontFamily: "'IBM Plex Mono', monospace",
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                }}
+              >
+                <span>{'\u{1F3AF}'}</span> Platform Overrides
+              </div>
+              <div
+                style={{
+                  fontSize: '11px',
+                  color: 'var(--text-disabled)',
+                  lineHeight: 1.6,
+                }}
+              >
+                Customize content per platform. Each platform will use the
+                main content unless overridden.
+              </div>
+              {activePlatforms.map((id) => {
+                const p = PLATFORMS.find((pl) => pl.id === id)!;
+                return (
+                  <div key={id} style={{ marginTop: '10px' }}>
+                    <div
+                      style={{
+                        fontSize: '11px',
+                        fontWeight: 600,
+                        color: p.accent || p.color,
+                        marginBottom: '4px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                      }}
+                    >
+                      {p.icon} {p.name}
+                    </div>
+                    <textarea
+                      placeholder={`Override for ${p.name}...`}
+                      value={platformOverrides[id] || ''}
+                      onChange={(e) =>
+                        setPlatformOverrides((prev) => ({
+                          ...prev,
+                          [id]: e.target.value,
+                        }))
+                      }
+                      style={{
+                        width: '100%',
+                        height: '50px',
+                        resize: 'none',
+                        background: 'var(--bg-tertiary)',
+                        border: '1px solid var(--border-color)',
+                        borderRadius: '8px',
+                        padding: '8px',
+                        color: 'var(--text-secondary)',
+                        fontSize: '11px',
+                        fontFamily: "'IBM Plex Mono', monospace",
+                      }}
+                    />
+                  </div>
+                );
+              })}
             </div>
+
+            <PostQueue queue={queue} />
+
+            {/* Quick hashtag suggestions */}
             <div
               style={{
-                display: 'flex',
-                gap: '6px',
-                flexWrap: 'wrap',
+                background: 'var(--bg-tertiary)',
+                border: '1px solid var(--border-color)',
+                borderRadius: '16px',
+                padding: '16px',
               }}
             >
-              {[
-                '#HwinNwin',
-                '#Protocol69',
-                '#TheAlliance',
-                '#ConsciousTech',
-                '#LumenSystems',
-                '#VybeSystems',
-                '#EmperorMode',
-                '#Frequency',
-                '#NeverTake',
-              ].map((tag) => (
-                <button
-                  key={tag}
-                  onClick={() =>
-                    setContent((prev) => prev + ' ' + tag)
-                  }
-                  style={{
-                    padding: '4px 10px',
-                    borderRadius: '20px',
-                    background: 'var(--bg-tertiary)',
-                    border: '1px solid var(--border-color)',
-                    color: 'var(--text-tertiary)',
-                    fontSize: '10px',
-                    cursor: 'pointer',
-                    fontFamily: "'IBM Plex Mono', monospace",
-                    transition: 'all 0.15s ease',
-                  }}
-                  onMouseEnter={(e) => {
-                    const target = e.target as HTMLElement;
-                    target.style.color = '#a78bfa';
-                    target.style.borderColor = 'rgba(139,92,246,0.3)';
-                  }}
-                  onMouseLeave={(e) => {
-                    const target = e.target as HTMLElement;
-                    target.style.color = 'var(--text-tertiary)';
-                    target.style.borderColor = 'var(--border-color)';
-                  }}
-                >
-                  {tag}
-                </button>
-              ))}
+              <div
+                style={{
+                  fontSize: '10px',
+                  fontWeight: 700,
+                  color: 'var(--text-muted)',
+                  letterSpacing: '0.15em',
+                  textTransform: 'uppercase',
+                  marginBottom: '10px',
+                  fontFamily: "'IBM Plex Mono', monospace",
+                }}
+              >
+                # Quick Tags
+              </div>
+              <div
+                style={{
+                  display: 'flex',
+                  gap: '6px',
+                  flexWrap: 'wrap',
+                }}
+              >
+                {[
+                  '#HwinNwin',
+                  '#Protocol69',
+                  '#TheAlliance',
+                  '#ConsciousTech',
+                  '#LumenSystems',
+                  '#VybeSystems',
+                  '#EmperorMode',
+                  '#Frequency',
+                  '#NeverTake',
+                ].map((tag) => (
+                  <button
+                    key={tag}
+                    onClick={() =>
+                      setContent((prev) => prev + ' ' + tag)
+                    }
+                    style={{
+                      padding: '4px 10px',
+                      borderRadius: '20px',
+                      background: 'var(--bg-tertiary)',
+                      border: '1px solid var(--border-color)',
+                      color: 'var(--text-tertiary)',
+                      fontSize: '10px',
+                      cursor: 'pointer',
+                      fontFamily: "'IBM Plex Mono', monospace",
+                      transition: 'all 0.15s ease',
+                    }}
+                    onMouseEnter={(e) => {
+                      const target = e.target as HTMLElement;
+                      target.style.color = '#a78bfa';
+                      target.style.borderColor = 'rgba(139,92,246,0.3)';
+                    }}
+                    onMouseLeave={(e) => {
+                      const target = e.target as HTMLElement;
+                      target.style.color = 'var(--text-tertiary)';
+                      target.style.borderColor = 'var(--border-color)';
+                    }}
+                  >
+                    {tag}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );

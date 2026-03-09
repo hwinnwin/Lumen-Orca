@@ -164,6 +164,84 @@ export async function suggestYouTubeTags(data: { title: string; description?: st
   return res.data.data as { tags: string[] };
 }
 
+// ─── Campaign Generator ─────────────────────────────────
+
+export interface CampaignPostOutline {
+  postNumber: number;
+  title: string;
+  angle: string;
+  contentType: 'text-post' | 'carousel-concept' | 'quote-card-idea' | 'video-hook' | 'thread';
+  targetPlatform: string;
+  briefDescription: string;
+  framework: string;
+}
+
+export interface CampaignPlanResult {
+  topic: string;
+  campaignTheme: string;
+  contentPillars: string[];
+  platformMix: Record<string, number>;
+  toneSummary: string;
+  totalPosts: number;
+  outlines: CampaignPostOutline[];
+}
+
+export interface CampaignGeneratedPost {
+  postNumber: number;
+  platform: string;
+  content: string;
+  hashtags: string[];
+  charCount: number;
+  contentType: string;
+  angle: string;
+  tip: string;
+}
+
+export interface CampaignBatchResult {
+  posts: CampaignGeneratedPost[];
+}
+
+export async function generateCampaignPlan(data: {
+  topic: string;
+  platforms: string[];
+  tone?: string;
+  audience?: string;
+  brandGuidance?: string;
+  postCount?: number;
+}) {
+  const res = await api.post('/ai/campaign-plan', data, { timeout: 90000 });
+  return res.data.data as CampaignPlanResult;
+}
+
+export async function generateCampaignBatch(data: {
+  topic: string;
+  tone?: string;
+  audience?: string;
+  brandGuidance?: string;
+  outlines: CampaignPostOutline[];
+}) {
+  const res = await api.post('/ai/campaign-generate', data, { timeout: 90000 });
+  return res.data.data as CampaignBatchResult;
+}
+
+export async function bulkCreatePosts(data: {
+  requestId?: string;
+  posts: Array<{
+    content: string;
+    platforms: string[];
+    scheduleType: string;
+    scheduledAt?: string;
+    tags?: string[];
+  }>;
+}) {
+  const res = await api.post('/posts/bulk', data, { timeout: 60000 });
+  return res.data as {
+    data: any[];
+    meta: { count: number; succeeded: number; failed: number };
+    failures?: Array<{ index: number; error: string }>;
+  };
+}
+
 // ─── Post Editing ────────────────────────────────────────
 
 export async function updatePost(postId: string, data: {
@@ -414,6 +492,8 @@ export interface CreditCosts {
   AI_GENERATE_POSTS: number;
   AI_SUGGEST_TAGS: number;
   AI_CHAT: number;
+  AI_CAMPAIGN_PLAN: number;
+  AI_CAMPAIGN_BATCH: number;
   VIDEO_EXPORT: number;
   VIDEO_PLAN: number;
   CAROUSEL_PLAN: number;
@@ -465,6 +545,13 @@ export async function fetchConversationMessages(conversationId: string) {
 
 export async function deleteConversation(conversationId: string) {
   const res = await api.delete(`/chat/conversations/${conversationId}`);
+  return res.data.data;
+}
+
+// ─── Analytics ──────────────────────────────────────────
+
+export async function fetchAnalytics(range: number = 30) {
+  const res = await api.get('/analytics', { params: { range } });
   return res.data.data;
 }
 

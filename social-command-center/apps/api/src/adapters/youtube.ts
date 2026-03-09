@@ -170,6 +170,7 @@ export class YouTubeAdapter implements PlatformAdapter {
     if (!stats) return {};
 
     return {
+      impressions: parseInt(stats.viewCount) || 0,
       views: parseInt(stats.viewCount) || 0,
       likes: parseInt(stats.likeCount) || 0,
       comments: parseInt(stats.commentCount) || 0,
