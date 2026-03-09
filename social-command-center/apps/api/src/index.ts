@@ -171,7 +171,9 @@ videoGenerateWorker.on('ready', () => console.log('[Workers] Video generate work
 videoExportWorker.on('ready', () => console.log('[Workers] Video export worker ready'));
 
 // Start scheduled post checker (every 60s)
-startScheduler();
+startScheduler().catch((err) => {
+  console.error('[Scheduler] FAILED TO START:', err);
+});
 
 // Start token refresh sweep
 startTokenRefreshSweep();

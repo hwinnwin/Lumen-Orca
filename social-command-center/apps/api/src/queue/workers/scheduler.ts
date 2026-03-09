@@ -66,23 +66,23 @@ export const schedulerWorker = new Worker(
   bullMQConnection,
 );
 
-// Set up the scheduler as a repeatable job
+// Set up the scheduler as a repeatable job using BullMQ v5 API
 export async function startScheduler(): Promise<void> {
   const { schedulerQueue: queue } = await import('../queues.js');
 
-  // Remove any stale repeatable jobs before adding fresh one
+  // Remove any stale repeatable jobs from the old API
   const existing = await queue.getRepeatableJobs();
   for (const job of existing) {
     await queue.removeRepeatableByKey(job.key);
   }
 
-  await queue.add(
+  // Use upsertJobScheduler (BullMQ v5 API) for reliable repeatable jobs
+  await queue.upsertJobScheduler(
     'check-scheduled-posts',
-    {},
+    { every: 60000 }, // Every 60 seconds
     {
-      repeat: {
-        every: 60000, // Every 60 seconds
-      },
+      name: 'check-scheduled-posts',
+      data: {},
     },
   );
 
@@ -92,6 +92,14 @@ export async function startScheduler(): Promise<void> {
   console.log('[Scheduler] Started — checking every 60 seconds (+ immediate startup check)');
 }
 
+schedulerWorker.on('completed', () => {
+  console.log('[Scheduler] Job completed');
+});
+
 schedulerWorker.on('failed', (_job, error) => {
   console.error('[Scheduler] Failed:', error.message);
+});
+
+schedulerWorker.on('error', (error) => {
+  console.error('[Scheduler] Worker error:', error.message);
 });
