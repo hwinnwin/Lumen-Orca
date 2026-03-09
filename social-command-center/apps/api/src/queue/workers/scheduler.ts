@@ -11,6 +11,7 @@ export const schedulerWorker = new Worker(
   'post-scheduler',
   async () => {
     const now = new Date();
+    console.log(`[Scheduler] Checking for scheduled posts at ${now.toISOString()}`);
 
     // Find scheduled posts that are ready to publish
     const readyPosts = await prisma.post.findMany({
@@ -24,7 +25,10 @@ export const schedulerWorker = new Worker(
       },
     });
 
-    if (readyPosts.length === 0) return;
+    if (readyPosts.length === 0) {
+      console.log('[Scheduler] No posts ready to publish');
+      return;
+    }
 
     console.log(`[Scheduler] Found ${readyPosts.length} posts ready to publish`);
 
@@ -66,6 +70,12 @@ export const schedulerWorker = new Worker(
 export async function startScheduler(): Promise<void> {
   const { schedulerQueue: queue } = await import('../queues.js');
 
+  // Remove any stale repeatable jobs before adding fresh one
+  const existing = await queue.getRepeatableJobs();
+  for (const job of existing) {
+    await queue.removeRepeatableByKey(job.key);
+  }
+
   await queue.add(
     'check-scheduled-posts',
     {},
@@ -76,7 +86,10 @@ export async function startScheduler(): Promise<void> {
     },
   );
 
-  console.log('[Scheduler] Started — checking every 60 seconds');
+  // Also run immediately on startup to catch any overdue posts
+  await queue.add('check-scheduled-posts-startup', {});
+
+  console.log('[Scheduler] Started — checking every 60 seconds (+ immediate startup check)');
 }
 
 schedulerWorker.on('failed', (_job, error) => {
