@@ -358,33 +358,56 @@ export class InstagramAdapter implements PlatformAdapter {
   }
 
   async getMetrics(platformPostId: string, accessToken: string): Promise<PostMetrics> {
-    const res = await fetch(
-      `${GRAPH_API}/${platformPostId}?fields=like_count,comments_count,insights.metric(impressions,reach,saved)&access_token=${accessToken}`,
-    );
+    // Fetch basic counts and insights separately — insights may fail if permissions
+    // are missing or the post type doesn't support them (stories, reels < 100 views, etc.)
+    const [basicRes, insightsRes] = await Promise.all([
+      fetch(
+        `${GRAPH_API}/${platformPostId}?fields=like_count,comments_count&access_token=${accessToken}`,
+      ),
+      fetch(
+        `${GRAPH_API}/${platformPostId}/insights?metric=views,reach,saved,shares,likes,comments,total_interactions&access_token=${accessToken}`,
+      ),
+    ]);
 
-    if (!res.ok) {
-      console.warn(`Failed to fetch Instagram metrics: ${await res.text()}`);
-      return {};
+    const metrics: PostMetrics = {};
+
+    // Basic counts — should always work
+    if (basicRes.ok) {
+      const basic = (await basicRes.json()) as {
+        like_count?: number;
+        comments_count?: number;
+      };
+      metrics.likes = basic.like_count ?? 0;
+      metrics.comments = basic.comments_count ?? 0;
+      console.log(`[Instagram] Basic metrics for ${platformPostId}: likes=${metrics.likes} comments=${metrics.comments}`);
+    } else {
+      const errText = await basicRes.text();
+      console.warn(`[Instagram] Failed to fetch basic metrics for ${platformPostId}: ${errText}`);
     }
 
-    const data = (await res.json()) as {
-      like_count?: number;
-      comments_count?: number;
-      insights?: { data: Array<{ name: string; values: Array<{ value: number }> }> };
-    };
-
-    const metrics: PostMetrics = {
-      likes: data.like_count,
-      comments: data.comments_count,
-    };
-
-    if (data.insights?.data) {
-      for (const insight of data.insights.data) {
-        const value = insight.values?.[0]?.value ?? 0;
-        if (insight.name === 'impressions') metrics.impressions = value;
-        if (insight.name === 'reach') metrics.reach = value;
-        if (insight.name === 'saved') metrics.saves = value;
+    // Insights — requires instagram_manage_insights permission.
+    // Best-effort: if permissions are missing, we silently skip and only return basic metrics.
+    if (insightsRes.ok) {
+      try {
+        const insightsData = await insightsRes.json() as {
+          data?: Array<{ name: string; values: Array<{ value: number }> }>;
+        };
+        if (insightsData.data) {
+          for (const insight of insightsData.data) {
+            const value = insight.values?.[0]?.value ?? 0;
+            if (insight.name === 'views') metrics.impressions = value;
+            if (insight.name === 'reach') metrics.reach = value;
+            if (insight.name === 'saved') metrics.saves = value;
+            if (insight.name === 'shares') metrics.shares = value;
+          }
+          console.log(`[Instagram] Insights for ${platformPostId}: impressions=${metrics.impressions} reach=${metrics.reach} saves=${metrics.saves}`);
+        }
+      } catch {
+        // Non-fatal
       }
+    } else {
+      const errText = await insightsRes.text();
+      console.log(`[Instagram] Insights failed ${insightsRes.status} for ${platformPostId}: ${errText.slice(0, 300)}`);
     }
 
     return metrics;

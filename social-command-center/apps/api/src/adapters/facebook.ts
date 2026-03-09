@@ -132,26 +132,63 @@ export class FacebookAdapter implements PlatformAdapter {
   }
 
   async getMetrics(platformPostId: string, accessToken: string): Promise<PostMetrics> {
-    const res = await fetch(
-      `${GRAPH_API}/${platformPostId}?fields=insights.metric(post_impressions,post_engaged_users,post_reactions_by_type_total)&access_token=${accessToken}`,
-    );
+    const metrics: PostMetrics = {};
 
-    if (!res.ok) {
-      console.warn(`Failed to fetch Facebook metrics: ${await res.text()}`);
-      return {};
+    // Fetch likes + comments (always available), shares separately (not on Reels/Stories),
+    // and insights in parallel
+    const [basicRes, sharesRes, insightsRes] = await Promise.all([
+      fetch(
+        `${GRAPH_API}/${platformPostId}?fields=likes.summary(true),comments.summary(true)&access_token=${accessToken}`,
+      ),
+      fetch(
+        `${GRAPH_API}/${platformPostId}?fields=shares&access_token=${accessToken}`,
+      ),
+      fetch(
+        `${GRAPH_API}/${platformPostId}/insights?metric=post_media_view,post_clicks,post_reactions_by_type_total&access_token=${accessToken}`,
+      ),
+    ]);
+
+    // Basic counts (likes, comments) — always works
+    if (basicRes.ok) {
+      const basic = await basicRes.json() as {
+        likes?: { summary?: { total_count?: number } };
+        comments?: { summary?: { total_count?: number } };
+      };
+      metrics.likes = basic.likes?.summary?.total_count ?? 0;
+      metrics.comments = basic.comments?.summary?.total_count ?? 0;
+    } else {
+      console.log(`[Facebook] Basic metrics failed for ${platformPostId}: ${(await basicRes.text()).slice(0, 200)}`);
     }
 
-    const data = await res.json() as {
-      insights?: { data: Array<{ name: string; values: Array<{ value: number }> }> };
-    };
+    // Shares — may fail for Reels/Stories (field doesn't exist), that's OK
+    if (sharesRes.ok) {
+      const sharesData = await sharesRes.json() as { shares?: { count?: number } };
+      metrics.shares = sharesData.shares?.count ?? 0;
+    }
+    // Silently ignore shares failure — not all post types support it
 
-    const metrics: PostMetrics = {};
-    if (data.insights?.data) {
-      for (const insight of data.insights.data) {
-        const value = insight.values?.[0]?.value ?? 0;
-        if (insight.name === 'post_impressions') metrics.impressions = value;
-        if (insight.name === 'post_engaged_users') metrics.clicks = value;
+    console.log(`[Facebook] Basic for ${platformPostId}: likes=${metrics.likes} comments=${metrics.comments} shares=${metrics.shares ?? 'n/a'}`);
+
+    // Insights (media views, clicks) — requires read_insights + pages_read_engagement
+    if (insightsRes.ok) {
+      try {
+        const insightsData = await insightsRes.json() as {
+          data?: Array<{ name: string; values: Array<{ value: number }> }>;
+        };
+        if (insightsData.data) {
+          for (const insight of insightsData.data) {
+            const value = insight.values?.[0]?.value ?? 0;
+            if (insight.name === 'post_media_view') metrics.impressions = value;
+            if (insight.name === 'post_clicks') metrics.clicks = value;
+          }
+          console.log(`[Facebook] Insights for ${platformPostId}: impressions=${metrics.impressions} clicks=${metrics.clicks}`);
+        }
+      } catch {
+        console.log(`[Facebook] Failed to parse insights for ${platformPostId}`);
       }
+    } else {
+      const errText = await insightsRes.text();
+      console.log(`[Facebook] Insights failed ${insightsRes.status} for ${platformPostId}: ${errText.slice(0, 300)}`);
     }
 
     return metrics;

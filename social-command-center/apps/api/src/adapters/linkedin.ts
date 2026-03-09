@@ -110,11 +110,19 @@ export class LinkedInAdapter implements PlatformAdapter {
     };
 
     // Attach media if present
-    if (platformMediaIds?.length) {
+    if (platformMediaIds?.length === 1) {
+      // Single image — use the simple media content type
       postBody.content = {
         media: {
           title: '',
-          id: platformMediaIds[0], // LinkedIn supports one media per post via this method
+          id: platformMediaIds[0],
+        },
+      };
+    } else if (platformMediaIds && platformMediaIds.length >= 2) {
+      // Multiple images — use LinkedIn's multiImage content type (2-20 images)
+      postBody.content = {
+        multiImage: {
+          images: platformMediaIds.map((id) => ({ id })),
         },
       };
     }
@@ -147,12 +155,12 @@ export class LinkedInAdapter implements PlatformAdapter {
   }
 
   async getMetrics(platformPostId: string, accessToken: string): Promise<PostMetrics> {
-    // LinkedIn analytics requires additional permissions
-    // Basic metrics can be fetched from the post itself
+    // Use socialMetadata API (replaces deprecated socialActions).
+    // Requires w_member_social scope (already granted).
+    // Returns reactionSummaries (by type) and commentSummary (count + topLevelCount).
+    const encodedUrn = encodeURIComponent(platformPostId);
     const res = await fetch(
-      `${API_BASE}/rest/socialActions/${platformPostId}?${new URLSearchParams({
-        action: 'getSummary',
-      })}`,
+      `${API_BASE}/rest/socialMetadata/${encodedUrn}`,
       {
         headers: {
           Authorization: `Bearer ${accessToken}`,
@@ -163,20 +171,39 @@ export class LinkedInAdapter implements PlatformAdapter {
     );
 
     if (!res.ok) {
-      console.warn(`Failed to fetch LinkedIn metrics: ${await res.text()}`);
+      const errText = await res.text();
+      console.log(`[LinkedIn] socialMetadata error ${res.status} for ${platformPostId}: ${errText.slice(0, 300)}`);
       return {};
     }
 
-    const data = await res.json() as {
-      likesSummary?: { totalLikes: number };
-      commentsSummary?: { totalFirstLevelComments: number };
-      shareSummary?: { totalShares: number };
+    const rawBody = await res.text();
+    console.log(`[LinkedIn] socialMetadata response for ${platformPostId}: ${rawBody.slice(0, 500)}`);
+
+    let data: Record<string, unknown>;
+    try {
+      data = JSON.parse(rawBody);
+    } catch {
+      console.log(`[LinkedIn] Failed to parse socialMetadata response for ${platformPostId}`);
+      return {};
+    }
+
+    // Sum all reaction types (LIKE, PRAISE, EMPATHY, INTEREST, MAYBE, APPRECIATION)
+    let totalReactions = 0;
+    const reactionSummaries = data.reactionSummaries as Record<string, { count?: number }> | undefined;
+    if (reactionSummaries) {
+      for (const reaction of Object.values(reactionSummaries)) {
+        totalReactions += reaction.count ?? 0;
+      }
+    }
+
+    const commentSummary = data.commentSummary as { count?: number; topLevelCount?: number } | undefined;
+
+    const metrics: PostMetrics = {
+      likes: totalReactions,
+      comments: commentSummary?.topLevelCount ?? commentSummary?.count ?? 0,
     };
 
-    return {
-      likes: data.likesSummary?.totalLikes,
-      comments: data.commentsSummary?.totalFirstLevelComments,
-      shares: data.shareSummary?.totalShares,
-    };
+    console.log(`[LinkedIn] Metrics for ${platformPostId}: reactions=${metrics.likes} comments=${metrics.comments}`);
+    return metrics;
   }
 }

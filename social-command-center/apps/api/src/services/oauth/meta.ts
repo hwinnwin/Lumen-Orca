@@ -15,8 +15,10 @@ export function getMetaAuthUrl(state: string): string {
     'pages_manage_posts',
     'pages_read_engagement',
     'pages_read_user_content',
+    'read_insights',
     'instagram_basic',
     'instagram_content_publish',
+    'instagram_manage_insights',
     'publish_video',
     'business_management', // Required to discover pages in business portfolios (NPE pages)
   ].join(',');
@@ -153,7 +155,7 @@ export async function handleMetaCallback(code: string, userId: string) {
       platformUserId: meData.id,
       platformName: `${meData.name} - ${primaryPage.name}`,
       platformPageId: primaryPage.id,
-      scopes: ['pages_manage_posts', 'pages_read_engagement', 'publish_video'],
+      scopes: ['pages_manage_posts', 'pages_read_engagement', 'read_insights', 'publish_video'],
     });
     results.push(fbConnection);
     console.log('[Meta OAuth] Facebook connection stored with PAGE token for:', primaryPage.name, `(${primaryPage.id})`);
@@ -173,7 +175,7 @@ export async function handleMetaCallback(code: string, userId: string) {
       platformUserId: pageWithIg.instagram_business_account.id,
       platformPageId: pageWithIg.id,
       platformName: `${meData.name} (IG)`,
-      scopes: ['instagram_basic', 'instagram_content_publish'],
+      scopes: ['instagram_basic', 'instagram_content_publish', 'instagram_manage_insights'],
     });
     results.push(igConnection);
     console.log('[Meta OAuth] Instagram connection stored, IG account:', pageWithIg.instagram_business_account.id);
