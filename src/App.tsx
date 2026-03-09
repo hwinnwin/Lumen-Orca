@@ -33,6 +33,8 @@ import ROICalculator from "./pages/ROICalculator";
 import Checkout from "./pages/Checkout";
 import PaymentSuccess from "./pages/PaymentSuccess";
 import PaymentCancelled from "./pages/PaymentCancelled";
+import Privacy from "./pages/Privacy";
+import Terms from "./pages/Terms";
 
 const queryClient = new QueryClient();
 
@@ -53,6 +55,8 @@ const App = () => (
             <Route path="/checkout" element={<Checkout />} />
             <Route path="/payment-success" element={<PaymentSuccess />} />
             <Route path="/payment-cancelled" element={<PaymentCancelled />} />
+            <Route path="/legal/privacy" element={<Privacy />} />
+            <Route path="/legal/terms" element={<Terms />} />
 
             {/* Auth */}
             <Route path="/auth" element={<Auth />} />

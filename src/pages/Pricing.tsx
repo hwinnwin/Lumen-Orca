@@ -451,8 +451,8 @@ const Pricing = () => {
             <div className="flex items-center gap-6 text-sm text-muted-foreground">
               <Link to="/home" className="hover:text-foreground transition-colors">Home</Link>
               <Link to="/auth" className="hover:text-foreground transition-colors">Login</Link>
-              <a href="#" className="hover:text-foreground transition-colors">Privacy</a>
-              <a href="#" className="hover:text-foreground transition-colors">Terms</a>
+              <Link to="/legal/privacy" className="hover:text-foreground transition-colors">Privacy</Link>
+              <Link to="/legal/terms" className="hover:text-foreground transition-colors">Terms</Link>
             </div>
             <div className="text-sm text-muted-foreground">
               © 2025 Lumyn Global. All rights reserved.
