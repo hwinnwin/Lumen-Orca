@@ -20,9 +20,10 @@ import { generatorRouter } from './routes/generator.js';
 import { creditsRouter } from './routes/credits.js';
 import { captionsRouter } from './routes/captions.js';
 import { chatRouter } from './routes/chat.js';
+import { analyticsRouter } from './routes/analytics.js';
 import { authMiddleware } from './middleware/auth.js';
 import { publishWorker } from './queue/workers/publish.js';
-import { schedulerWorker } from './queue/workers/scheduler.js';
+import { schedulerWorker, startScheduler } from './queue/workers/scheduler.js';
 import { metricsWorker } from './queue/workers/metrics.js';
 import { mediaProcessWorker } from './queue/workers/media-process.js';
 import { videoGenerateWorker } from './queue/workers/video-generate.js';
@@ -100,6 +101,7 @@ app.use('/api/generator', authMiddleware, generatorRouter);
 app.use('/api/credits', authMiddleware, creditsRouter);
 app.use('/api/captions', authMiddleware, captionsRouter);
 app.use('/api/chat', authMiddleware, chatRouter);
+app.use('/api/analytics', authMiddleware, analyticsRouter);
 
 // Production: serve the built frontend as static files
 if (env.NODE_ENV === 'production') {
@@ -168,6 +170,9 @@ mediaProcessWorker.on('ready', () => console.log('[Workers] Media process worker
 videoGenerateWorker.on('ready', () => console.log('[Workers] Video generate worker ready'));
 videoExportWorker.on('ready', () => console.log('[Workers] Video export worker ready'));
 
+// Start scheduled post checker (every 60s)
+startScheduler();
+
 // Start token refresh sweep
 startTokenRefreshSweep();
 
@@ -187,6 +192,16 @@ async function shutdown() {
 }
 process.on('SIGINT', shutdown);
 process.on('SIGTERM', shutdown);
+
+// Global safety net — prevent unhandled errors from crashing the process
+process.on('unhandledRejection', (reason) => {
+  console.error('[Process] Unhandled rejection (caught, not crashing):', reason instanceof Error ? reason.message : reason);
+});
+process.on('uncaughtException', (error) => {
+  console.error('[Process] Uncaught exception (caught, not crashing):', error.message);
+  // Give logs time to flush, then exit (systemd/Railway will restart)
+  setTimeout(() => process.exit(1), 1000);
+});
 
 // Start server — Railway sets PORT env var, fallback to API_PORT
 const port = env.PORT ?? env.API_PORT;
