@@ -899,14 +899,17 @@ Respond in JSON:
       toneSummary: parsed.toneSummary || '',
       totalPosts: parsed.totalPosts || postCount,
       outlines: (parsed.outlines || [])
-        .filter((o: CampaignPostOutline) => {
+        .map((o: CampaignPostOutline, i: number) => {
+          // Force targetPlatform to one of the selected platforms.
+          // If the AI picked a valid platform, keep it; otherwise reassign round-robin.
           const tp = (o.targetPlatform || '').toLowerCase();
-          return platforms.some(p => p.toLowerCase() === tp);
-        })
-        .map((o: CampaignPostOutline, i: number) => ({
-          ...o,
-          postNumber: i + 1,
-        })),
+          const validPlatform = platforms.find(p => p.toLowerCase() === tp);
+          return {
+            ...o,
+            postNumber: i + 1,
+            targetPlatform: validPlatform || platforms[i % platforms.length],
+          };
+        }),
     };
   } catch {
     throw new Error('Failed to generate campaign plan');
@@ -1057,7 +1060,15 @@ Return this exact JSON structure:
       }
       parsed = JSON.parse(jsonMatch[1] || jsonMatch[0]);
     }
-    return { posts: parsed.posts || [] };
+    // Force each generated post's platform to match the outline's targetPlatform
+    const posts = (parsed.posts || []).map((post: CampaignGeneratedPost, i: number) => {
+      const matchingOutline = outlines.find(o => o.postNumber === post.postNumber) || outlines[i];
+      if (matchingOutline) {
+        post.platform = matchingOutline.targetPlatform;
+      }
+      return post;
+    });
+    return { posts };
   } catch (err: any) {
     console.error('[AI] Campaign batch parse error:', err.message, 'stop_reason:', stopReason, 'First 500 chars:', text.slice(0, 500));
     throw new Error(`Failed to parse campaign batch: ${err.message}`);
