@@ -891,25 +891,33 @@ Respond in JSON:
   try {
     const jsonMatch = text.match(/```json\s*([\s\S]*?)\s*```/) || text.match(/\{[\s\S]*\}/);
     const parsed = JSON.parse(jsonMatch ? (jsonMatch[1] || jsonMatch[0]) : text);
+    // Force all outlines to only use selected platforms
+    const forcedOutlines = (parsed.outlines || [])
+      .map((o: CampaignPostOutline, i: number) => {
+        const tp = (o.targetPlatform || '').toLowerCase();
+        const validPlatform = platforms.find(p => p.toLowerCase() === tp);
+        return {
+          ...o,
+          postNumber: i + 1,
+          targetPlatform: validPlatform || platforms[i % platforms.length],
+        };
+      });
+
+    // Rebuild platformMix from actual forced assignments (ignore AI's count)
+    const actualPlatformMix: Record<string, number> = {};
+    for (const o of forcedOutlines) {
+      const p = o.targetPlatform.toLowerCase();
+      actualPlatformMix[p] = (actualPlatformMix[p] || 0) + 1;
+    }
+
     return {
       topic,
       campaignTheme: parsed.campaignTheme || 'Untitled Campaign',
       contentPillars: parsed.contentPillars || [],
-      platformMix: parsed.platformMix || {},
+      platformMix: actualPlatformMix,
       toneSummary: parsed.toneSummary || '',
-      totalPosts: parsed.totalPosts || postCount,
-      outlines: (parsed.outlines || [])
-        .map((o: CampaignPostOutline, i: number) => {
-          // Force targetPlatform to one of the selected platforms.
-          // If the AI picked a valid platform, keep it; otherwise reassign round-robin.
-          const tp = (o.targetPlatform || '').toLowerCase();
-          const validPlatform = platforms.find(p => p.toLowerCase() === tp);
-          return {
-            ...o,
-            postNumber: i + 1,
-            targetPlatform: validPlatform || platforms[i % platforms.length],
-          };
-        }),
+      totalPosts: forcedOutlines.length,
+      outlines: forcedOutlines,
     };
   } catch {
     throw new Error('Failed to generate campaign plan');
