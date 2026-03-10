@@ -72,6 +72,13 @@ const envSchema = z.object({
 
   // OpenAI (Whisper transcription for captions)
   OPENAI_API_KEY: z.string().default(''),
+
+  // Stripe
+  STRIPE_SECRET_KEY: z.string().default(''),
+  STRIPE_WEBHOOK_SECRET: z.string().default(''),
+  STRIPE_PRICE_PRO: z.string().default(''),
+  STRIPE_PRICE_PREMIUM: z.string().default(''),
+  STRIPE_PRICE_POWER: z.string().default(''),
 });
 
 function loadEnv() {
@@ -109,6 +116,7 @@ function loadEnv() {
   if (data.X_CLIENT_ID) configured.push('X');
   if (data.TIKTOK_CLIENT_KEY) configured.push('TikTok');
   if (data.GOOGLE_CLIENT_ID) configured.push('Google/YouTube');
+  if (data.STRIPE_SECRET_KEY) configured.push('Stripe');
   console.log(`OAuth configured: ${configured.length > 0 ? configured.join(', ') : 'none'}`);
 
   return data;

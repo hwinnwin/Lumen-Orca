@@ -8,19 +8,22 @@ datasource db {
 }
 
 model User {
-  id            String               @id @default(cuid())
-  email         String               @unique
-  passwordHash  String
-  name          String?
-  timezone      String               @default("UTC")
-  settings      Json?                // { defaultTone, defaultPlatforms, notificationsEnabled, etc. }
-  connections   PlatformConnection[]
-  posts         Post[]
-  mediaAssets   MediaAsset[]
+  id               String               @id @default(cuid())
+  email            String               @unique
+  passwordHash     String
+  name             String?
+  timezone         String               @default("UTC")
+  settings         Json?                // { defaultTone, defaultPlatforms, notificationsEnabled, etc. }
+  tier             SubscriptionTier     @default(FREE)
+  stripeCustomerId String?              @unique
+  connections      PlatformConnection[]
+  posts            Post[]
+  mediaAssets      MediaAsset[]
   creditBalance      CreditBalance?
+  subscription       Subscription?
   chatConversations  ChatConversation[]
-  createdAt     DateTime             @default(now())
-  updatedAt     DateTime             @updatedAt
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
 }
 
 model PlatformConnection {
@@ -133,14 +136,17 @@ model AiEnhancement {
 }
 
 model CreditBalance {
-  id           String              @id @default(cuid())
-  userId       String              @unique
-  user         User                @relation(fields: [userId], references: [id], onDelete: Cascade)
-  balance      Int                 @default(0) // Credits in cents (100 = $1.00)
-  lifetimeUsed Int                 @default(0) // Total credits ever consumed
-  updatedAt    DateTime            @updatedAt
-  createdAt    DateTime            @default(now())
-  transactions CreditTransaction[]
+  id                 String              @id @default(cuid())
+  userId             String              @unique
+  user               User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  balance            Int                 @default(0) // Credits in cents (100 = $1.00)
+  lifetimeUsed       Int                 @default(0) // Total credits ever consumed
+  autoTopUpEnabled   Boolean             @default(false) // User consented to auto top-up
+  autoTopUpThreshold Int                 @default(100)   // Trigger top-up when balance drops below this
+  autoTopUpAmount    Int                 @default(1000)  // Credits to add per auto top-up (1000 = $10)
+  updatedAt          DateTime            @updatedAt
+  createdAt          DateTime            @default(now())
+  transactions       CreditTransaction[]
 }
 
 model CreditTransaction {
@@ -162,6 +168,8 @@ enum CreditTxType {
   GENERATION   // Credits consumed by content generation
   REFUND       // Refund for failed generation
   BONUS        // Free credits (signup bonus, promo, etc.)
+  AUTO_TOPUP   // Automatic top-up charged via Stripe
+  SUBSCRIPTION // Monthly credits included with subscription tier
 }
 
 enum Platform {
@@ -237,4 +245,39 @@ model ChatMessage {
 enum ChatRole {
   USER
   ASSISTANT
+}
+
+// ─── Subscriptions ────────────────────────────────────────
+
+enum SubscriptionTier {
+  FREE
+  PRO
+  PREMIUM
+  POWER
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  UNPAID
+  TRIALING
+}
+
+model Subscription {
+  id                   String             @id @default(cuid())
+  userId               String             @unique
+  user                 User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  stripeSubscriptionId String             @unique
+  stripePriceId        String
+  status               SubscriptionStatus @default(ACTIVE)
+  currentPeriodStart   DateTime
+  currentPeriodEnd     DateTime
+  cancelAtPeriodEnd    Boolean            @default(false)
+  canceledAt           DateTime?
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+
+  @@index([stripeSubscriptionId])
+  @@index([userId])
 }

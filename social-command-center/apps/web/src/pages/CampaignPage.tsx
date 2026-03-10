@@ -18,6 +18,7 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 import Header from '../components/layout/Header';
+import TierGate from '../components/ui/TierGate';
 import { useBreakpoint } from '../hooks/useBreakpoint';
 import { useCampaignStore } from '../store/campaign-store';
 import type { CampaignStep } from '../store/campaign-store';
@@ -990,6 +991,7 @@ export default function CampaignPage() {
     }}>
       <Header />
 
+      <TierGate requiredTier="PRO">
       <div style={{ maxWidth: '1100px', margin: '0 auto', padding: isMobile ? '16px' : '32px' }}>
         {/* Title */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
@@ -1034,6 +1036,7 @@ export default function CampaignPage() {
         {store.step === 'schedule' && renderSchedule()}
         {store.step === 'success' && renderSuccess()}
       </div>
+      </TierGate>
     </div>
   );
 }

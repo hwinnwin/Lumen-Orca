@@ -11,6 +11,7 @@ import LoginPage from './pages/LoginPage';
 import SettingsPage from './pages/SettingsPage';
 import GeneratorPage from './pages/GeneratorPage';
 import CampaignPage from './pages/CampaignPage';
+import PricingPage from './pages/PricingPage';
 import PrivacyPage from './pages/PrivacyPage';
 import TermsPage from './pages/TermsPage';
 import { useSocket } from './hooks/useSocket';
@@ -81,6 +82,7 @@ export function App() {
             <Route path="/connections" element={<ProtectedLayout><ConnectionManager /></ProtectedLayout>} />
             <Route path="/generator" element={<ProtectedLayout><GeneratorPage /></ProtectedLayout>} />
             <Route path="/campaigns" element={<ProtectedLayout><CampaignPage /></ProtectedLayout>} />
+            <Route path="/pricing" element={<ProtectedLayout><PricingPage /></ProtectedLayout>} />
             <Route path="/settings" element={<ProtectedLayout><SettingsPage /></ProtectedLayout>} />
           </Routes>
         </ThemeInitializer>

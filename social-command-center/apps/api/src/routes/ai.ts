@@ -15,6 +15,7 @@ import {
   type CampaignPostOutline,
 } from '../services/ai.js';
 import { checkCredits, deductCredits, CREDIT_COSTS } from '../services/credits.js';
+import { requireTier } from '../middleware/tier-gate.js';
 
 export const aiRouter = Router();
 
@@ -119,6 +120,7 @@ aiRouter.post('/variants', async (req, res) => {
 
 // Brainstorm posts from keywords
 aiRouter.post('/brainstorm', async (req, res) => {
+  console.log('[AI] Brainstorm request received from user:', req.userId);
   if (!requireAI(res)) return;
 
   try {
@@ -178,8 +180,8 @@ aiRouter.post('/generate-posts', async (req, res) => {
   }
 });
 
-// Generate content strategy
-aiRouter.post('/strategy', async (req, res) => {
+// Generate content strategy (Premium+)
+aiRouter.post('/strategy', requireTier('PREMIUM'), async (req, res) => {
   if (!requireAI(res)) return;
 
   try {
@@ -242,8 +244,8 @@ aiRouter.post('/hooks', async (req, res) => {
   }
 });
 
-// Repurpose content across platforms
-aiRouter.post('/repurpose', async (req, res) => {
+// Repurpose content across platforms (Premium+)
+aiRouter.post('/repurpose', requireTier('PREMIUM'), async (req, res) => {
   if (!requireAI(res)) return;
 
   try {
@@ -304,8 +306,8 @@ aiRouter.post('/suggest-tags', async (req, res) => {
 
 // ─── Campaign Generator ────────────────────────────────────
 
-// Generate campaign plan (outlines) from a topic
-aiRouter.post('/campaign-plan', async (req, res) => {
+// Generate campaign plan (outlines) from a topic (Pro+)
+aiRouter.post('/campaign-plan', requireTier('PRO'), async (req, res) => {
   if (!requireAI(res)) return;
 
   try {
@@ -347,8 +349,8 @@ aiRouter.post('/campaign-plan', async (req, res) => {
   }
 });
 
-// Generate full content for a batch of campaign outlines
-aiRouter.post('/campaign-generate', async (req, res) => {
+// Generate full content for a batch of campaign outlines (Pro+)
+aiRouter.post('/campaign-generate', requireTier('PRO'), async (req, res) => {
   if (!requireAI(res)) return;
 
   try {

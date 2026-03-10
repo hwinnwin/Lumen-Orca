@@ -8,6 +8,8 @@ import {
   calculateCarouselCost,
   CREDIT_COSTS,
 } from '../services/credits.js';
+import { prisma } from '../db/client.js';
+import { getCreditBonusRate } from '../services/stripe.js';
 
 export const creditsRouter = Router();
 
@@ -92,6 +94,15 @@ creditsRouter.post('/topup', async (req, res) => {
       return res.status(400).json({ error: 'Amount must be between 1 and 100000 credits' });
     }
 
+    // Get user's tier for bonus calculation
+    const user = await prisma.user.findUnique({
+      where: { id: req.userId },
+      select: { tier: true },
+    });
+    const bonusRate = user ? getCreditBonusRate(user.tier) : 0;
+    const bonusCredits = Math.floor(amount * bonusRate);
+
+    // Add base credits
     const updated = await addCredits(
       req.userId,
       amount,
@@ -99,10 +110,25 @@ creditsRouter.post('/topup', async (req, res) => {
       description || `Manual top-up: ${amount} credits`,
     );
 
+    // Add bonus credits as separate transaction (if any)
+    let finalBalance = updated.balance;
+    if (bonusCredits > 0) {
+      const bonusResult = await addCredits(
+        req.userId,
+        bonusCredits,
+        'BONUS',
+        `${bonusRate * 100}% tier bonus on ${amount} credit purchase`,
+        { reason: 'tier_bonus', tier: user!.tier, baseAmount: amount },
+      );
+      finalBalance = bonusResult.balance;
+    }
+
     res.json({
       data: {
-        balance: updated.balance,
+        balance: finalBalance,
         added: amount,
+        bonus: bonusCredits,
+        bonusRate,
       },
     });
   } catch (error) {

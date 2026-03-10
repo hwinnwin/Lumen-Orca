@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Sun, Moon, LogOut, Menu, X as XIcon } from 'lucide-react';
+import { Sun, Moon, LogOut, Menu, X as XIcon, Sparkles } from 'lucide-react';
 import { useUIStore } from '../../store/ui-store';
 import { useAuthStore } from '../../store/auth-store';
 import { useBreakpoint } from '../../hooks/useBreakpoint';
@@ -176,6 +176,29 @@ export default function Header() {
               {theme === 'light' ? <Moon size={16} /> : <Sun size={16} />}
             </button>
 
+            {user && (!user.tier || user.tier === 'FREE') && (
+              <button
+                onClick={() => navigate('/pricing')}
+                style={{
+                  padding: '5px 12px',
+                  borderRadius: '8px',
+                  background: 'linear-gradient(135deg, #8b5cf6, #06b6d4)',
+                  border: 'none',
+                  color: '#fff',
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  transition: 'all 0.2s ease',
+                }}
+              >
+                <Sparkles size={12} />
+                Upgrade
+              </button>
+            )}
+
             {user && (
               <>
                 <div style={{ width: '1px', height: '20px', background: 'var(--border-color)', margin: '0 4px' }} />
@@ -294,6 +317,34 @@ export default function Header() {
               {key}
             </button>
           ))}
+
+          {user && (!user.tier || user.tier === 'FREE') && (
+            <button
+              onClick={() => {
+                navigate('/pricing');
+                setMenuOpen(false);
+              }}
+              style={{
+                padding: '12px 16px',
+                borderRadius: '10px',
+                background: 'linear-gradient(135deg, rgba(139,92,246,0.12), rgba(6,182,212,0.12))',
+                border: '1px solid rgba(139,92,246,0.25)',
+                color: '#8b5cf6',
+                fontSize: '14px',
+                fontWeight: 700,
+                cursor: 'pointer',
+                textAlign: 'left' as const,
+                fontFamily: "'Sora', sans-serif",
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                marginTop: '4px',
+              }}
+            >
+              <Sparkles size={14} />
+              Upgrade Plan
+            </button>
+          )}
 
           {user && (
             <>

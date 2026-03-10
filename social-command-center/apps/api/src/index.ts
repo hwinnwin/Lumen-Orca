@@ -21,6 +21,7 @@ import { creditsRouter } from './routes/credits.js';
 import { captionsRouter } from './routes/captions.js';
 import { chatRouter } from './routes/chat.js';
 import { analyticsRouter } from './routes/analytics.js';
+import { billingRouter } from './routes/billing.js';
 import { authMiddleware } from './middleware/auth.js';
 import { publishWorker } from './queue/workers/publish.js';
 import { schedulerWorker, startScheduler } from './queue/workers/scheduler.js';
@@ -76,7 +77,14 @@ const corsOrigin = env.NODE_ENV === 'production'
   : env.APP_URL;
 app.use(cors({ origin: corsOrigin, credentials: true }));
 app.use(morgan(env.NODE_ENV === 'production' ? 'combined' : 'dev'));
-app.use(express.json({ limit: '50mb' }));
+// Skip JSON body parsing for Stripe webhook (needs raw body for signature verification)
+app.use((req, res, next) => {
+  if (req.originalUrl === '/api/billing/webhook') {
+    next();
+  } else {
+    express.json({ limit: '50mb' })(req, res, next);
+  }
+});
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use(cookieParser());
 
@@ -102,6 +110,7 @@ app.use('/api/credits', authMiddleware, creditsRouter);
 app.use('/api/captions', authMiddleware, captionsRouter);
 app.use('/api/chat', authMiddleware, chatRouter);
 app.use('/api/analytics', authMiddleware, analyticsRouter);
+app.use('/api/billing', billingRouter);
 
 // Production: serve the built frontend as static files
 if (env.NODE_ENV === 'production') {

@@ -2,10 +2,13 @@ import { useState, useEffect } from 'react';
 import { useSettings, useUpdateSettings, useChangePassword } from '../hooks/useSettings';
 import { useUIStore } from '../store/ui-store';
 import { useConnections } from '../hooks/useConnections';
+import { useSubscription, usePortal, useCancelSubscription, useResumeSubscription, useAutoTopUp, useUpdateAutoTopUp } from '../hooks/useBilling';
+import { useAuthStore } from '../store/auth-store';
 import { PLATFORMS } from '@scc/shared';
 import { toast } from 'sonner';
 import Header from '../components/layout/Header';
 import { useBreakpoint } from '../hooks/useBreakpoint';
+import { useNavigate } from 'react-router-dom';
 
 const TIMEZONES = [
   'UTC',
@@ -31,6 +34,14 @@ export default function SettingsPage() {
   const updateSettings = useUpdateSettings();
   const changePasswordMutation = useChangePassword();
   const { data: connections } = useConnections();
+  const { data: subscription } = useSubscription();
+  const portal = usePortal();
+  const cancelSub = useCancelSubscription();
+  const resumeSub = useResumeSubscription();
+  const { data: autoTopUp } = useAutoTopUp();
+  const updateAutoTopUp = useUpdateAutoTopUp();
+  const user = useAuthStore((s) => s.user);
+  const navigate = useNavigate();
   const theme = useUIStore((s) => s.theme);
   const toggleTheme = useUIStore((s) => s.toggleTheme);
   const { isMobile } = useBreakpoint();
@@ -327,6 +338,281 @@ export default function SettingsPage() {
           >
             {updateSettings.isPending ? 'Saving...' : 'Save Changes'}
           </button>
+        </div>
+
+        {/* Subscription & Billing */}
+        <div style={sectionStyle}>
+          <h2 style={{ fontSize: '16px', fontWeight: 700, marginBottom: '20px', color: 'var(--text-secondary)' }}>
+            Subscription & Billing
+          </h2>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+            <span
+              style={{
+                padding: '4px 12px',
+                borderRadius: '8px',
+                background: (user?.tier || 'FREE') === 'FREE'
+                  ? 'var(--bg-hover)'
+                  : 'linear-gradient(135deg, rgba(139,92,246,0.15), rgba(6,182,212,0.15))',
+                border: (user?.tier || 'FREE') === 'FREE'
+                  ? '1px solid var(--border-color)'
+                  : '1px solid rgba(139,92,246,0.3)',
+                color: (user?.tier || 'FREE') === 'FREE' ? 'var(--text-muted)' : '#8b5cf6',
+                fontSize: '12px',
+                fontWeight: 700,
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
+              }}
+            >
+              {user?.tier || 'FREE'}
+            </span>
+            {subscription?.subscription && (
+              <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontFamily: "'IBM Plex Mono', monospace" }}>
+                {subscription.subscription.cancelAtPeriodEnd ? 'Cancels' : 'Renews'}{' '}
+                {new Date(subscription.subscription.currentPeriodEnd).toLocaleDateString('en-US', {
+                  month: 'short',
+                  day: 'numeric',
+                  year: 'numeric',
+                })}
+              </span>
+            )}
+          </div>
+
+          {(subscription?.bonusRate ?? 0) > 0 && (
+            <div
+              style={{
+                padding: '8px 14px',
+                borderRadius: '8px',
+                background: 'rgba(34,197,94,0.08)',
+                border: '1px solid rgba(34,197,94,0.15)',
+                fontSize: '12px',
+                color: '#22c55e',
+                fontWeight: 600,
+                marginBottom: '16px',
+              }}
+            >
+              {Math.round((subscription?.bonusRate ?? 0) * 100)}% bonus on all credit purchases
+            </div>
+          )}
+
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            {(user?.tier || 'FREE') === 'FREE' ? (
+              <button
+                onClick={() => navigate('/pricing')}
+                style={{
+                  ...buttonStyle,
+                  fontSize: '12px',
+                  padding: '8px 20px',
+                }}
+              >
+                Upgrade Plan
+              </button>
+            ) : (
+              <>
+                <button
+                  onClick={() => navigate('/pricing')}
+                  style={{
+                    padding: '8px 20px',
+                    borderRadius: '10px',
+                    background: 'var(--bg-hover)',
+                    border: '1px solid var(--border-color)',
+                    color: 'var(--text-primary)',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Change Plan
+                </button>
+                <button
+                  onClick={() => portal.mutate()}
+                  disabled={portal.isPending}
+                  style={{
+                    padding: '8px 20px',
+                    borderRadius: '10px',
+                    background: 'transparent',
+                    border: '1px solid var(--border-color)',
+                    color: 'var(--text-muted)',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    opacity: portal.isPending ? 0.5 : 1,
+                  }}
+                >
+                  {portal.isPending ? 'Opening...' : 'Manage Billing'}
+                </button>
+                {subscription?.subscription?.cancelAtPeriodEnd ? (
+                  <button
+                    onClick={() => {
+                      resumeSub.mutate(undefined, {
+                        onSuccess: () => toast.success('Subscription resumed'),
+                        onError: () => toast.error('Failed to resume subscription'),
+                      });
+                    }}
+                    disabled={resumeSub.isPending}
+                    style={{
+                      padding: '8px 20px',
+                      borderRadius: '10px',
+                      background: 'rgba(34,197,94,0.1)',
+                      border: '1px solid rgba(34,197,94,0.3)',
+                      color: '#22c55e',
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      opacity: resumeSub.isPending ? 0.5 : 1,
+                    }}
+                  >
+                    {resumeSub.isPending ? 'Resuming...' : 'Resume Subscription'}
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => {
+                      if (!confirm('Cancel your subscription? You\'ll keep access until the end of your billing period.')) return;
+                      cancelSub.mutate(undefined, {
+                        onSuccess: () => toast.success('Subscription will cancel at end of billing period'),
+                        onError: () => toast.error('Failed to cancel subscription'),
+                      });
+                    }}
+                    disabled={cancelSub.isPending}
+                    style={{
+                      padding: '8px 20px',
+                      borderRadius: '10px',
+                      background: 'transparent',
+                      border: '1px solid rgba(239,68,68,0.3)',
+                      color: '#ef4444',
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      opacity: cancelSub.isPending ? 0.5 : 1,
+                    }}
+                  >
+                    {cancelSub.isPending ? 'Canceling...' : 'Cancel Subscription'}
+                  </button>
+                )}
+              </>
+            )}
+          </div>
+
+          {/* Auto Top-Up — only show for paid users */}
+          {user?.tier && user.tier !== 'FREE' && (
+            <>
+              <div style={{ height: '1px', background: 'var(--border-color)', margin: '20px 0' }} />
+              <h3 style={{ fontSize: '14px', fontWeight: 700, marginBottom: '12px', color: 'var(--text-secondary)' }}>
+                Auto Top-Up
+              </h3>
+              <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '16px', lineHeight: '1.5' }}>
+                When enabled, your card on file will be automatically charged when your credit balance
+                drops below the threshold. This ensures uninterrupted access to AI features.
+              </p>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
+                <label style={{ ...labelStyle, marginBottom: 0, flex: 1 }}>Enable Auto Top-Up</label>
+                <button
+                  onClick={() => {
+                    const newEnabled = !autoTopUp?.enabled;
+                    updateAutoTopUp.mutate(
+                      {
+                        enabled: newEnabled,
+                        threshold: autoTopUp?.threshold,
+                        amount: autoTopUp?.amount,
+                      },
+                      {
+                        onSuccess: () =>
+                          toast.success(newEnabled ? 'Auto top-up enabled' : 'Auto top-up disabled'),
+                        onError: (err: any) =>
+                          toast.error(err?.response?.data?.error || 'Failed to update auto top-up'),
+                      },
+                    );
+                  }}
+                  disabled={updateAutoTopUp.isPending}
+                  style={{
+                    width: '44px',
+                    height: '24px',
+                    borderRadius: '12px',
+                    background: autoTopUp?.enabled ? '#22c55e' : 'var(--bg-hover)',
+                    border: 'none',
+                    cursor: updateAutoTopUp.isPending ? 'wait' : 'pointer',
+                    position: 'relative',
+                    transition: 'background 0.2s ease',
+                    opacity: updateAutoTopUp.isPending ? 0.5 : 1,
+                  }}
+                >
+                  <div
+                    style={{
+                      width: '18px',
+                      height: '18px',
+                      borderRadius: '50%',
+                      background: '#fff',
+                      position: 'absolute',
+                      top: '3px',
+                      left: autoTopUp?.enabled ? '23px' : '3px',
+                      transition: 'left 0.2s ease',
+                    }}
+                  />
+                </button>
+              </div>
+
+              {autoTopUp?.enabled && (
+                <div style={{ display: 'grid', gap: '12px', maxWidth: '300px' }}>
+                  <div>
+                    <label style={labelStyle}>Top-up when balance drops below</label>
+                    <select
+                      value={autoTopUp?.threshold ?? 100}
+                      onChange={(e) =>
+                        updateAutoTopUp.mutate(
+                          { enabled: true, threshold: Number(e.target.value), amount: autoTopUp?.amount },
+                          { onSuccess: () => toast.success('Threshold updated') },
+                        )
+                      }
+                      style={{ ...inputStyle, cursor: 'pointer' }}
+                    >
+                      <option value={50}>50 credits ($0.50)</option>
+                      <option value={100}>100 credits ($1.00)</option>
+                      <option value={250}>250 credits ($2.50)</option>
+                      <option value={500}>500 credits ($5.00)</option>
+                      <option value={1000}>1,000 credits ($10.00)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label style={labelStyle}>Amount to top up</label>
+                    <select
+                      value={autoTopUp?.amount ?? 1000}
+                      onChange={(e) =>
+                        updateAutoTopUp.mutate(
+                          { enabled: true, threshold: autoTopUp?.threshold, amount: Number(e.target.value) },
+                          { onSuccess: () => toast.success('Top-up amount updated') },
+                        )
+                      }
+                      style={{ ...inputStyle, cursor: 'pointer' }}
+                    >
+                      <option value={500}>500 credits ($5.00)</option>
+                      <option value={1000}>1,000 credits ($10.00)</option>
+                      <option value={2500}>2,500 credits ($25.00)</option>
+                      <option value={5000}>5,000 credits ($50.00)</option>
+                      <option value={10000}>10,000 credits ($100.00)</option>
+                    </select>
+                  </div>
+                </div>
+              )}
+
+              {!autoTopUp?.hasPaymentMethod && !autoTopUp?.enabled && (
+                <div
+                  style={{
+                    padding: '8px 14px',
+                    borderRadius: '8px',
+                    background: 'rgba(251,191,36,0.08)',
+                    border: '1px solid rgba(251,191,36,0.15)',
+                    fontSize: '12px',
+                    color: '#f59e0b',
+                    fontWeight: 500,
+                    marginTop: '8px',
+                  }}
+                >
+                  Add a payment method via "Manage Billing" to enable auto top-up.
+                </div>
+              )}
+            </>
+          )}
         </div>
 
         {/* Connected Platforms */}

@@ -60,7 +60,7 @@ authRouter.post('/register', authLimiter, async (req, res) => {
     res.status(201).json({
       data: {
         token,
-        user: { id: user.id, email: user.email, name: user.name },
+        user: { id: user.id, email: user.email, name: user.name, tier: 'FREE' as const },
       },
     });
   } catch (error) {
@@ -92,7 +92,7 @@ authRouter.post('/login', authLimiter, async (req, res) => {
     res.json({
       data: {
         token,
-        user: { id: user.id, email: user.email, name: user.name },
+        user: { id: user.id, email: user.email, name: user.name, tier: user.tier },
       },
     });
   } catch (error) {
@@ -107,7 +107,7 @@ authRouter.get('/me', authMiddleware, async (req, res) => {
   try {
     const user = await prisma.user.findUnique({
       where: { id: req.userId },
-      select: { id: true, email: true, name: true, createdAt: true },
+      select: { id: true, email: true, name: true, tier: true, createdAt: true },
     });
     if (!user) {
       return res.status(404).json({ error: 'User not found' });

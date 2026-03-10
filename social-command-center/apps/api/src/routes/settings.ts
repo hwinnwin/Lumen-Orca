@@ -15,6 +15,7 @@ settingsRouter.get('/', async (req, res) => {
         name: true,
         timezone: true,
         settings: true,
+        tier: true,
         createdAt: true,
       },
     });
@@ -61,6 +62,7 @@ settingsRouter.patch('/', async (req, res) => {
         name: true,
         timezone: true,
         settings: true,
+        tier: true,
         createdAt: true,
       },
     });

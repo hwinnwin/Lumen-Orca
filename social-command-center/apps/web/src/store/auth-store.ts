@@ -1,9 +1,12 @@
 import { create } from 'zustand';
 
+export type SubscriptionTier = 'FREE' | 'PRO' | 'PREMIUM' | 'POWER';
+
 interface User {
   id: string;
   email: string;
   name: string | null;
+  tier: SubscriptionTier;
 }
 
 interface AuthState {

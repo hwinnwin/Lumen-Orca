@@ -1,5 +1,6 @@
 import { prisma } from '../db/client.js';
 import type { CreditTxType } from '@prisma/client';
+import { hasTierAccess, chargeAutoTopUp, getCreditBonusRate } from './stripe.js';
 
 // ─── Credit Cost Definitions (in credit cents, 100 = $1.00) ─────
 
@@ -88,22 +89,36 @@ export async function getOrCreateBalance(userId: string) {
 
 /**
  * Check if a user has enough credits for a generation.
- * Returns { allowed, balance, cost, shortfall }.
+ * Paid users with auto top-up enabled can go negative — Stripe charges them.
+ * Everyone else is blocked at zero.
  */
 export async function checkCredits(userId: string, cost: number) {
   const creditBalance = await getOrCreateBalance(userId);
-  const allowed = creditBalance.balance >= cost;
+  const hasEnough = creditBalance.balance >= cost;
+
+  // Auto top-up users can go negative — their card gets charged
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { tier: true },
+  });
+  const isPaid = user ? hasTierAccess(user.tier, 'PRO') : false;
+  const canOverage = isPaid && creditBalance.autoTopUpEnabled;
+  const allowed = hasEnough || canOverage;
+
   return {
     allowed,
     balance: creditBalance.balance,
     cost,
-    shortfall: allowed ? 0 : cost - creditBalance.balance,
+    shortfall: hasEnough ? 0 : cost - creditBalance.balance,
+    autoTopUpEnabled: creditBalance.autoTopUpEnabled,
   };
 }
 
 /**
  * Deduct credits for a generation. Creates a transaction record.
- * Throws if insufficient balance.
+ * If user has auto top-up enabled and balance drops below threshold,
+ * charges their Stripe payment method and adds credits.
+ * Throws if insufficient balance and no auto top-up.
  */
 export async function deductCredits(
   userId: string,
@@ -115,7 +130,15 @@ export async function deductCredits(
   const creditBalance = await getOrCreateBalance(userId);
 
   if (creditBalance.balance < cost) {
-    throw new Error(`Insufficient credits: need ${cost}, have ${creditBalance.balance}`);
+    // Only allow overage if paid user with auto top-up enabled
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { tier: true },
+    });
+    const isPaid = user ? hasTierAccess(user.tier, 'PRO') : false;
+    if (!isPaid || !creditBalance.autoTopUpEnabled) {
+      throw new Error(`Insufficient credits: need ${cost}, have ${creditBalance.balance}`);
+    }
   }
 
   const updated = await prisma.creditBalance.update({
@@ -135,7 +158,76 @@ export async function deductCredits(
     },
   });
 
+  // Trigger auto top-up if balance dropped below threshold
+  if (creditBalance.autoTopUpEnabled && updated.balance < creditBalance.autoTopUpThreshold) {
+    triggerAutoTopUp(userId, creditBalance.autoTopUpAmount).catch((err) => {
+      console.error(`[Credits] Auto top-up background task failed for user ${userId}:`, err);
+    });
+  }
+
   return updated;
+}
+
+/**
+ * Charge the user's Stripe payment method and add credits.
+ * Runs async — failures are logged but don't block the generation.
+ */
+async function triggerAutoTopUp(userId: string, topUpAmount: number): Promise<void> {
+  const paymentIntentId = await chargeAutoTopUp(userId, topUpAmount);
+
+  if (!paymentIntentId) {
+    console.warn(`[Credits] Auto top-up charge failed for user ${userId} — disabling auto top-up`);
+    // Disable auto top-up on payment failure so we don't keep retrying
+    await prisma.creditBalance.update({
+      where: { userId },
+      data: { autoTopUpEnabled: false },
+    });
+    return;
+  }
+
+  // Calculate tier bonus
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { tier: true },
+  });
+  const bonusRate = user ? getCreditBonusRate(user.tier) : 0;
+  const bonusCredits = Math.floor(topUpAmount * bonusRate);
+
+  // Add the top-up credits
+  await prisma.creditBalance.update({
+    where: { userId },
+    data: {
+      balance: { increment: topUpAmount },
+      transactions: {
+        create: {
+          amount: topUpAmount,
+          type: 'AUTO_TOPUP' as CreditTxType,
+          description: `Auto top-up: ${topUpAmount} credits ($${(topUpAmount / 100).toFixed(2)})`,
+          metadata: { paymentIntentId, reason: 'auto_topup' },
+        },
+      },
+    },
+  });
+
+  // Add bonus credits if applicable
+  if (bonusCredits > 0) {
+    await prisma.creditBalance.update({
+      where: { userId },
+      data: {
+        balance: { increment: bonusCredits },
+        transactions: {
+          create: {
+            amount: bonusCredits,
+            type: 'BONUS' as CreditTxType,
+            description: `${bonusRate * 100}% tier bonus on ${topUpAmount} auto top-up`,
+            metadata: { reason: 'tier_bonus_auto_topup', baseAmount: topUpAmount },
+          },
+        },
+      },
+    });
+  }
+
+  console.log(`[Credits] Auto top-up: +${topUpAmount} credits (+ ${bonusCredits} bonus) for user ${userId}`);
 }
 
 /**

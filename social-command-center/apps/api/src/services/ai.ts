@@ -8,7 +8,7 @@ function getClient(): Anthropic {
     if (!env.ANTHROPIC_API_KEY) {
       throw new Error('ANTHROPIC_API_KEY is not configured');
     }
-    anthropicClient = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
+    anthropicClient = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY, timeout: 55_000 });
   }
   return anthropicClient;
 }
@@ -810,15 +810,14 @@ Target Platforms: ${platforms.join(', ')}
 Tone: ${tone} (${toneDesc})${audienceLine}${brandLine}
 Number of Posts: ${postCount}
 
-## PLATFORM + CONTENT TYPE BIASING (CRITICAL)
-Assign content types to platforms where they perform BEST:
-- "thread" → primarily X (Twitter) — threads are native to X
-- "video-hook" → TikTok, YouTube, Instagram Reels — video-first platforms
-- "carousel-concept" → LinkedIn, Instagram — carousel-native platforms
-- "text-post" → LinkedIn, X, Facebook — text performs well here
-- "quote-card-idea" → Instagram, Facebook — visual quote cards
+## PLATFORM CONSTRAINT (CRITICAL — DO NOT VIOLATE)
+You MUST ONLY generate posts for these platforms: ${platforms.join(', ')}
+Do NOT generate posts for any platform not in the list above. Every single post must target one of: ${platforms.join(', ')}
 
-Do NOT randomly assign types to platforms. Each post should be on the platform where its format thrives.
+## CONTENT TYPE BIASING
+Assign content types to the selected platforms where they perform BEST:
+${platforms.some(p => p.toLowerCase() === 'x') ? '- "thread" → X (Twitter) — threads are native to X\n' : ''}${platforms.some(p => ['tiktok', 'youtube', 'instagram'].includes(p.toLowerCase())) ? '- "video-hook" → video-first platforms\n' : ''}${platforms.some(p => ['linkedin', 'instagram'].includes(p.toLowerCase())) ? '- "carousel-concept" → carousel-native platforms\n' : ''}${'- "text-post" → works on any text-friendly platform\n'}${platforms.some(p => ['instagram', 'facebook'].includes(p.toLowerCase())) ? '- "quote-card-idea" → visual quote cards\n' : ''}
+Each post should use the format that thrives on its target platform.
 
 ## ANGLE VARIETY
 Use a DIFFERENT angle for each post. Draw from:
@@ -846,7 +845,7 @@ Respond in JSON:
 {
   "campaignTheme": "catchy campaign name (3-5 words)",
   "contentPillars": ["pillar 1", "pillar 2", "pillar 3"],
-  "platformMix": { "linkedin": 5, "x": 7, "instagram": 5, "tiktok": 3 },
+  "platformMix": { ${platforms.map(p => `"${p.toLowerCase()}": <number>`).join(', ')} },
   "toneSummary": "brief description of how tone was interpreted for this campaign",
   "totalPosts": ${postCount},
   "outlines": [
@@ -877,10 +876,15 @@ Respond in JSON:
       platformMix: parsed.platformMix || {},
       toneSummary: parsed.toneSummary || '',
       totalPosts: parsed.totalPosts || postCount,
-      outlines: (parsed.outlines || []).map((o: CampaignPostOutline, i: number) => ({
-        ...o,
-        postNumber: o.postNumber || i + 1,
-      })),
+      outlines: (parsed.outlines || [])
+        .filter((o: CampaignPostOutline) => {
+          const tp = (o.targetPlatform || '').toLowerCase();
+          return platforms.some(p => p.toLowerCase() === tp);
+        })
+        .map((o: CampaignPostOutline, i: number) => ({
+          ...o,
+          postNumber: i + 1,
+        })),
     };
   } catch {
     throw new Error('Failed to generate campaign plan');

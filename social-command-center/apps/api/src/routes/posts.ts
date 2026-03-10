@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { prisma } from '../db/client.js';
 import type { Platform, Prisma, ScheduleType } from '@prisma/client';
 import { enqueuePublishJobs, publishNow, cancelScheduled, getPostStatus } from '../services/publish-service.js';
+import { requireTier } from '../middleware/tier-gate.js';
 
 export const postsRouter = Router();
 
@@ -80,8 +81,8 @@ postsRouter.post('/', async (req, res) => {
   }
 });
 
-// Bulk create posts (for campaign generator)
-postsRouter.post('/bulk', async (req, res) => {
+// Bulk create posts (for campaign generator) (Pro+)
+postsRouter.post('/bulk', requireTier('PRO'), async (req, res) => {
   try {
     const { requestId, posts: postInputs } = req.body as {
       requestId?: string;

@@ -1,5 +1,6 @@
 import axios from 'axios';
 import type { ApiResponse } from '@scc/shared';
+import type { SubscriptionTier } from '../store/auth-store';
 
 const api = axios.create({
   baseURL: '/api',
@@ -40,12 +41,12 @@ export { api };
 
 export async function registerUser(data: { email: string; password: string; name?: string }) {
   const res = await api.post('/auth/register', data);
-  return res.data.data as { token: string; user: { id: string; email: string; name: string | null } };
+  return res.data.data as { token: string; user: { id: string; email: string; name: string | null; tier: SubscriptionTier } };
 }
 
 export async function loginUser(data: { email: string; password: string }) {
   const res = await api.post('/auth/login', data);
-  return res.data.data as { token: string; user: { id: string; email: string; name: string | null } };
+  return res.data.data as { token: string; user: { id: string; email: string; name: string | null; tier: SubscriptionTier } };
 }
 
 export async function fetchCurrentUser() {
@@ -521,7 +522,66 @@ export async function fetchCreditCosts() {
 
 export async function topUpCredits(amount: number, description?: string) {
   const res = await api.post('/credits/topup', { amount, description });
-  return res.data.data as { balance: number; added: number };
+  return res.data.data as { balance: number; added: number; bonus: number; bonusRate: number };
+}
+
+// ─── Billing / Subscriptions ────────────────────────────
+
+export interface AutoTopUpSettings {
+  enabled: boolean;
+  threshold: number;
+  amount: number;
+  hasPaymentMethod?: boolean;
+}
+
+export interface SubscriptionInfo {
+  tier: string;
+  subscription: {
+    status: string;
+    currentPeriodEnd: string;
+    cancelAtPeriodEnd: boolean;
+  } | null;
+  bonusRate: number;
+  autoTopUp?: {
+    enabled: boolean;
+    threshold: number;
+    amount: number;
+  };
+}
+
+export async function fetchSubscription() {
+  const res = await api.get('/billing/subscription');
+  return res.data.data as SubscriptionInfo;
+}
+
+export async function createCheckoutSession(tier: string) {
+  const res = await api.post('/billing/checkout', { tier });
+  return res.data.data as { url: string };
+}
+
+export async function createPortalSession() {
+  const res = await api.post('/billing/portal');
+  return res.data.data as { url: string };
+}
+
+export async function cancelSubscription() {
+  const res = await api.post('/billing/cancel');
+  return res.data.data as { message: string };
+}
+
+export async function resumeSubscription() {
+  const res = await api.post('/billing/resume');
+  return res.data.data as { message: string };
+}
+
+export async function fetchAutoTopUpSettings() {
+  const res = await api.get('/billing/auto-topup');
+  return res.data.data as AutoTopUpSettings;
+}
+
+export async function updateAutoTopUpSettings(data: { enabled: boolean; threshold?: number; amount?: number }) {
+  const res = await api.post('/billing/auto-topup', data);
+  return res.data.data as { enabled: boolean; threshold: number; amount: number };
 }
 
 // ─── Chat ────────────────────────────────────────────────
