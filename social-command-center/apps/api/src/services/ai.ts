@@ -13,8 +13,12 @@ function getClient(): Anthropic {
   return anthropicClient;
 }
 
-const SYSTEM_PROMPT = `You are Maya, Chief Marketing Officer of Social Command Center (SCC).
+function getSystemPrompt(): string {
+  const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+  return `You are Maya, Chief Marketing Officer of Social Command Center (SCC).
 You are a world-class CMO with 15+ years of experience scaling SaaS, creator tools, and solopreneur platforms from zero to growth.
+
+Today's date is ${today}. You are operating in ${new Date().getFullYear()}. All cultural references, trends, and platform advice should reflect the current time.
 
 ## YOUR IDENTITY
 - You think like a CMO, write like a copywriter, and strategise like a growth hacker
@@ -120,6 +124,7 @@ You are a world-class CMO with 15+ years of experience scaling SaaS, creator too
 - When emperor-mode is activated, channel this energy with authority and purpose
 
 You are not a generic content generator. You are Maya — SCC's CMO — and every post you write should be something a world-class marketer would be proud to publish.`;
+}
 
 export interface EnhanceRequest {
   content: string;
@@ -156,7 +161,7 @@ export async function enhanceContent(request: EnhanceRequest): Promise<EnhanceRe
   const message = await client.messages.create({
     model: 'claude-sonnet-4-20250514',
     max_tokens: 2048,
-    system: SYSTEM_PROMPT,
+    system: getSystemPrompt(),
     messages: [
       {
         role: 'user',
@@ -225,7 +230,7 @@ export async function generateThread(content: string, maxTweets: number = 10): P
   const message = await client.messages.create({
     model: 'claude-sonnet-4-20250514',
     max_tokens: 3000,
-    system: SYSTEM_PROMPT,
+    system: getSystemPrompt(),
     messages: [
       {
         role: 'user',
@@ -304,7 +309,7 @@ export async function brainstormFromKeywords(
   const message = await client.messages.create({
     model: 'claude-sonnet-4-20250514',
     max_tokens: 4096,
-    system: SYSTEM_PROMPT,
+    system: getSystemPrompt(),
     messages: [
       {
         role: 'user',
@@ -412,7 +417,7 @@ export async function generateMultiPlatformPosts(
   const message = await client.messages.create({
     model: 'claude-sonnet-4-20250514',
     max_tokens: 4096,
-    system: SYSTEM_PROMPT,
+    system: getSystemPrompt(),
     messages: [
       {
         role: 'user',
@@ -488,7 +493,7 @@ export async function generateVariants(
   const message = await client.messages.create({
     model: 'claude-sonnet-4-20250514',
     max_tokens: 3000,
-    system: SYSTEM_PROMPT,
+    system: getSystemPrompt(),
     messages: [
       {
         role: 'user',
@@ -577,7 +582,7 @@ export async function generateContentStrategy(
   const message = await client.messages.create({
     model: 'claude-sonnet-4-20250514',
     max_tokens: 4096,
-    system: SYSTEM_PROMPT,
+    system: getSystemPrompt(),
     messages: [
       {
         role: 'user',
@@ -658,7 +663,7 @@ export async function generateHooks(
   const message = await client.messages.create({
     model: 'claude-sonnet-4-20250514',
     max_tokens: 2048,
-    system: SYSTEM_PROMPT,
+    system: getSystemPrompt(),
     messages: [
       {
         role: 'user',
@@ -727,7 +732,7 @@ export async function repurposeContent(
   const message = await client.messages.create({
     model: 'claude-sonnet-4-20250514',
     max_tokens: 3000,
-    system: SYSTEM_PROMPT,
+    system: getSystemPrompt(),
     messages: [
       {
         role: 'user',
@@ -821,7 +826,7 @@ export async function generateCampaignPlan(
   const message = await client.messages.create({
     model: 'claude-sonnet-4-20250514',
     max_tokens: 8192,
-    system: SYSTEM_PROMPT,
+    system: getSystemPrompt(),
     messages: [
       {
         role: 'user',
